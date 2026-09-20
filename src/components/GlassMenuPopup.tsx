@@ -152,6 +152,13 @@ export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
       description: 'Tabel lengkap mutasi spreadsheet, filter, edit & ekspor',
       icon: <FileSpreadsheet className="w-5 h-5 text-indigo-500" />,
       badge: txCount > 0 ? `${txCount} Baris` : undefined
+    },
+    {
+      id: 'calculator' as ActivePage,
+      title: 'Kalkulator Investasi',
+      description: 'Simulasi dana pensiun, aturan 4%, inflasi & bunga majemuk',
+      icon: <Calculator className="w-5 h-5 text-amber-500" />,
+      badge: '4% Rule'
     }
   ];
 

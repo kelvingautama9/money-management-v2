@@ -42,7 +42,8 @@ const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
   budgeting: { title: 'Budgeting Amplop', subtitle: 'Sinking Fund & Alokasi Pos' },
   portfolio: { title: 'Portofolio & Investasi', subtitle: 'Valuasi Aset, PnL & Dana Darurat' },
   accounts: { title: 'Saldo by Rekening', subtitle: 'Multi-Rekening & Transfer Saldo' },
-  journal: { title: 'Jurnal & Rekap Data', subtitle: 'Tabel Mutasi Google Sheets' }
+  journal: { title: 'Jurnal & Rekap Data', subtitle: 'Tabel Mutasi Google Sheets' },
+  calculator: { title: 'Kalkulator Investasi', subtitle: 'Simulasi Dana Pensiun & Aturan 4%' }
 };
 
 export const LiquidHeader: React.FC<LiquidHeaderProps> = ({

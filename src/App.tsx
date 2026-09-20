@@ -106,7 +106,6 @@ export default function App() {
   const [isGlassModalOpen, setIsGlassModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSmartAnalysisOpen, setIsSmartAnalysisOpen] = useState(false);
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isMenuPopupOpen, setIsMenuPopupOpen] = useState(false);
   const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false);
 
@@ -1395,7 +1394,7 @@ export default function App() {
               txCount={transactions.length}
               onOpenReport={() => setIsReportModalOpen(true)}
               onOpenSmartAnalysis={() => setIsSmartAnalysisOpen(true)}
-              onOpenCalculator={() => setIsCalculatorOpen(true)}
+              onOpenCalculator={() => setActivePage('calculator')}
               onOpenProjectManager={() => setIsProjectManagerOpen(true)}
               onOpenSettings={() => setIsGlassModalOpen(true)}
               onOpenMenuPopup={() => setIsMenuPopupOpen(true)}
@@ -1445,7 +1444,7 @@ export default function App() {
                 onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                 onOpenMenuPopup={() => setIsMenuPopupOpen(true)}
                 onOpenProjectManager={() => setIsProjectManagerOpen(true)}
-                onOpenCalculator={() => setIsCalculatorOpen(true)}
+                onOpenCalculator={() => setActivePage('calculator')}
                 onNavigateToCashflow={() => setActivePage('cashflow')}
                 settings={glassSettings}
                 onToggleTheme={handleToggleTheme}
@@ -1556,7 +1555,7 @@ export default function App() {
                         onNavigate={setActivePage}
                         onSyncGoogleSheets={handleSyncFromSheets}
                         onOpenProjectManager={() => setIsProjectManagerOpen(true)}
-                        onOpenCalculator={() => setIsCalculatorOpen(true)}
+                        onOpenCalculator={() => setActivePage('calculator')}
                         isSyncing={isSyncing}
                         currentMonthSheet={sheetName}
                         availableSheets={availableSheets}
@@ -1620,7 +1619,7 @@ export default function App() {
                         onEditAsset={handleEditAsset}
                         onDeleteAsset={handleDeleteAsset}
                         onOpenSmartAnalysis={() => setIsSmartAnalysisOpen(true)}
-                        onOpenCalculator={() => setIsCalculatorOpen(true)}
+                        onOpenCalculator={() => setActivePage('calculator')}
                       />
                       <EmergencyFundCard fund={emergencyFund} settings={glassSettings} />
                     </div>
@@ -1657,6 +1656,18 @@ export default function App() {
                         currentSheetName={sheetName}
                         onSelectMonth={handleSelectMonth}
                         availableSheets={availableSheets}
+                      />
+                    </div>
+                  )}
+
+                  {/* PAGE 7: KALKULATOR INVESTASI & TARGET DANA PENSIUN */}
+                  {activePage === 'calculator' && (
+                    <div>
+                      <RetirementInvestmentCalculator
+                        settings={glassSettings}
+                        currentInvestment={totalInvestment}
+                        currentNetWorth={totalAset}
+                        onBack={() => setActivePage('portfolio')}
                       />
                     </div>
                   )}
@@ -1716,7 +1727,7 @@ export default function App() {
         onOpenReport={() => setIsReportModalOpen(true)}
         onOpenInspector={() => setIsGlassModalOpen(true)}
         onOpenProjectManager={() => setIsProjectManagerOpen(true)}
-        onOpenCalculator={() => setIsCalculatorOpen(true)}
+        onOpenCalculator={() => setActivePage('calculator')}
         onSelectTheme={handleSelectTheme}
         isGoogleConnected={Boolean(user)}
         user={user}
@@ -1743,15 +1754,6 @@ export default function App() {
         onLogin={handleGoogleLogin}
         onSyncNow={handleSyncFromSheets}
         isSyncing={isSyncing}
-        settings={glassSettings}
-      />
-
-      {/* Kalkulator Investasi & Target Dana Pensiun Pro Modal */}
-      <RetirementInvestmentCalculator
-        isOpen={isCalculatorOpen}
-        onClose={() => setIsCalculatorOpen(false)}
-        currentInvestment={totalInvestment}
-        currentNetWorth={totalAset}
         settings={glassSettings}
       />
     </motion.div>

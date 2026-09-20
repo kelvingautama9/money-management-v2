@@ -10,7 +10,7 @@ import {
   Plus
 } from 'lucide-react';
 
-export type ActivePage = 'summary' | 'cashflow' | 'budgeting' | 'portfolio' | 'accounts' | 'journal';
+export type ActivePage = 'summary' | 'cashflow' | 'budgeting' | 'portfolio' | 'accounts' | 'journal' | 'calculator';
 
 interface NavigationTabBarProps {
   activePage: ActivePage;

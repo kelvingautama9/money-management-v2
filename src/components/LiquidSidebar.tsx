@@ -157,6 +157,16 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
       color: 'from-indigo-500/20 to-blue-500/20',
       activeText: isDark ? 'text-indigo-300' : 'text-indigo-600',
       iconColor: isDark ? 'text-indigo-400' : 'text-indigo-500'
+    },
+    {
+      id: 'calculator' as ActivePage,
+      label: 'Kalkulator Investasi',
+      sublabel: 'Dana Pensiun & 4% Rule',
+      icon: Calculator,
+      badge: '4% Rule',
+      color: 'from-amber-500/20 to-orange-500/20',
+      activeText: isDark ? 'text-amber-300' : 'text-amber-600',
+      iconColor: isDark ? 'text-amber-400' : 'text-amber-500'
     }
   ];
 
