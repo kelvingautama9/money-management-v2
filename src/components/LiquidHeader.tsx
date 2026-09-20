@@ -37,7 +37,7 @@ interface LiquidHeaderProps {
 }
 
 const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
-  summary: { title: 'Executive Summary', subtitle: 'Overview Portofolio & Arus Kas' },
+  summary: { title: 'Summary', subtitle: 'Overview Portofolio & Arus Kas' },
   cashflow: { title: 'Input Cashflow', subtitle: 'Catat Pengeluaran & Pemasukan' },
   budgeting: { title: 'Budgeting Amplop', subtitle: 'Sinking Fund & Alokasi Pos' },
   portfolio: { title: 'Portofolio & Investasi', subtitle: 'Valuasi Aset, PnL & Dana Darurat' },
@@ -107,7 +107,12 @@ export const LiquidHeader: React.FC<LiquidHeaderProps> = ({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <h1 className="text-sm sm:text-lg font-black tracking-tight text-slate-900 dark:text-white truncate">
+            <h1
+              className={`text-sm sm:text-lg font-black tracking-tight truncate header-title-white ${
+                isDark ? '!text-white text-white' : 'text-slate-900'
+              }`}
+              style={{ color: isDark ? '#ffffff' : '#0f172a' }}
+            >
               {pageInfo.title}
             </h1>
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-400/20">
@@ -166,18 +171,23 @@ export const LiquidHeader: React.FC<LiquidHeaderProps> = ({
           </button>
         )}
 
-        {/* + Transaksi Liquid Glass Button */}
+        {/* + Transaksi Button - matched with sidebar menu & settings buttons (light grey in dark theme, white in light theme) */}
         <button
           onClick={() => {
             triggerHaptic('medium');
             onNavigateToCashflow();
           }}
-          className="relative inline-flex items-center gap-1 sm:gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold !text-white text-white-force bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-indigo-500/25 transition-all duration-200 active:scale-95 group overflow-hidden shrink-0 border border-white/30 cursor-pointer"
+          className={`relative inline-flex items-center gap-1 sm:gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 active:scale-95 group overflow-hidden shrink-0 cursor-pointer shadow-sm ${
+            isDark
+              ? 'bg-slate-200 hover:bg-white !text-slate-950 text-slate-950 border border-slate-300 shadow-black/20'
+              : 'bg-white hover:bg-slate-50 !text-slate-950 text-slate-950 border border-slate-300/90 shadow-slate-900/5'
+          }`}
+          title="Tambah Transaksi Baru"
         >
           {/* Subtle specular rim highlight */}
-          <div className="absolute top-0 inset-x-0 h-[1px] bg-white/60 pointer-events-none" />
-          <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 !text-white transition-transform duration-200 group-hover:rotate-90" />
-          <span className="!text-white font-semibold tracking-tight">Tambah</span>
+          <div className="absolute top-0 inset-x-0 h-[1px] bg-white/70 pointer-events-none" />
+          <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 !text-slate-950 text-slate-950 transition-transform duration-200 group-hover:rotate-90" />
+          <span className="!text-slate-950 text-slate-950 font-bold tracking-tight">Tambah</span>
         </button>
 
         {/* Quick Menu Button */}

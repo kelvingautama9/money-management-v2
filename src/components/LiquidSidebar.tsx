@@ -212,7 +212,7 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <h2 className="text-sm font-bold tracking-tight truncate text-slate-900 dark:text-white">
-                      Kelvin Finance
+                      Budgeting
                     </h2>
                     <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-400/25 shrink-0">
                       PRO
@@ -445,8 +445,8 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
                       collapsed && !inMobileDrawer ? 'justify-center px-2' : ''
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Icon className={`w-3.5 h-3.5 ${tool.color}`} />
+                    <div className="w-6 h-6 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <Icon className={`w-4 h-4 ${tool.color}`} />
                     </div>
 
                     {(!collapsed || inMobileDrawer) && (
@@ -466,7 +466,36 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
         {/* Bottom Bar / Quick Profile & Theme Switcher */}
         <div className="shrink-0 p-3 border-t border-slate-200/60 dark:border-white/10 space-y-2">
           {(!collapsed || inMobileDrawer) ? (
-            <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-white/40 dark:bg-white/[0.06] border border-slate-200/50 dark:border-white/10">
+            <div
+              className="flex items-center justify-between gap-2 p-2.5 rounded-2xl relative overflow-hidden transition-all"
+              style={
+                isDark
+                  ? {
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                      backdropFilter: 'blur(24px) saturate(190%)',
+                      WebkitBackdropFilter: 'blur(24px) saturate(190%)',
+                      border: '1px solid rgba(255, 255, 255, 0.18)',
+                      boxShadow: '0 8px 32px -4px rgba(0, 0, 0, 0.4), inset 0 1px 1.5px rgba(255, 255, 255, 0.25), inset 0 -1px 1px rgba(0, 0, 0, 0.3)'
+                    }
+                  : {
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.65) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(226, 232, 240, 0.9)',
+                      boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.9)'
+                    }
+              }
+            >
+              {/* Subtle top specular highlight */}
+              <div
+                className="absolute top-0 inset-x-2 h-[1px] pointer-events-none"
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%)'
+                    : 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%)'
+                }}
+              />
+
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
                   {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'K'}
@@ -492,7 +521,7 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
                     onToggleTheme();
                   }}
                   title="Ganti Tema (Light / Dark)"
-                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 flex items-center justify-center text-slate-600 dark:text-slate-300 transition"
+                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 border border-transparent dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 transition"
                 >
                   {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}
                 </button>
@@ -503,7 +532,7 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
                     onOpenMenuPopup();
                   }}
                   title="Buka Menu Lengkap"
-                  className="w-7 h-7 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 transition"
+                  className="w-7 h-7 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 dark:bg-white/10 dark:hover:bg-white/20 border border-transparent dark:border-white/10 flex items-center justify-center text-blue-600 dark:text-sky-300 transition"
                 >
                   <Menu className="w-3.5 h-3.5" />
                 </button>

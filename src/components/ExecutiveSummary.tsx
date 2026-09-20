@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GlassContainer } from './GlassContainer';
+import { InteractiveGlossyCard } from './InteractiveGlossyCard';
 import { GlassSettings, BudgetCategory, AccountBalance, Transaction, InvestmentAsset, InvestmentHistory } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
@@ -73,6 +74,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   onSelectMonthSheet
 }) => {
   const [hideBalance, setHideBalance] = useState(false);
+  const isDark = settings.themeMode !== 'light' && settings.themeMode !== 'beige';
   const [centerWalletIndex, setCenterWalletIndex] = useState(0);
   const walletScrollRef = useRef<HTMLDivElement>(null);
 
@@ -198,31 +200,53 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             {/* Top Row: 2-Column Split (Income vs Pengeluaran) */}
             <div className="grid grid-cols-2 gap-2.5 sm:gap-4 w-full">
               {/* 1. Income Card (Left) */}
-              <div className="relative p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white/[0.04] border border-white/10 overflow-hidden group hover:border-emerald-500/30 transition-all flex flex-col justify-between">
+              <InteractiveGlossyCard
+                accentColor="emerald"
+                isDark={isDark}
+                contentClassName="p-3.5 sm:p-5"
+              >
                 <div>
                   <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                    <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 ${
+                      isDark ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30' : 'bg-emerald-500/20 text-emerald-500'
+                    }`}>
                       <ArrowDownLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </div>
-                    <span className="text-[11px] sm:text-xs font-semibold text-slate-300 truncate">Income Bulanan</span>
+                    <span
+                      className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? '!text-white text-white' : 'text-slate-700'}`}
+                      style={{ color: isDark ? '#ffffff' : undefined }}
+                    >
+                      Income Bulanan
+                    </span>
                   </div>
-                  <h3 className="text-base sm:text-2xl font-black text-white tracking-tight truncate">
+                  <h3
+                    className={`text-base sm:text-2xl font-bold tracking-tight truncate ${isDark ? '!text-white text-white' : 'text-slate-900'}`}
+                    style={{ color: isDark ? '#ffffff' : undefined }}
+                  >
                     {displayMoney(totalPemasukan)}
                   </h3>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                    <span
+                      className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        isDark
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30'
+                          : 'bg-emerald-500/20 text-emerald-700 border border-emerald-500/30'
+                      }`}
+                    >
                       ▲ 100% Gaji
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-slate-400 capitalize font-medium hidden sm:inline">{currentMonthSheet.toLowerCase()} 2026</span>
+                    <span className={`text-[10px] sm:text-[11px] capitalize font-medium hidden sm:inline ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                      {currentMonthSheet.toLowerCase()} 2026
+                    </span>
                   </div>
                 </div>
 
-                {/* Glowing Mint Sparkline Wave */}
+                {/* Mint Sparkline Wave */}
                 <div className="mt-2 sm:mt-4 pt-1 sm:pt-2">
                   <svg className="w-full h-8 sm:h-12 overflow-visible" viewBox="0 0 200 40">
                     <defs>
                       <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
+                        <stop offset="0%" stopColor="#10B981" stopOpacity={isDark ? "0.35" : "0.22"} />
                         <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
                       </linearGradient>
                     </defs>
@@ -233,42 +257,62 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                     <path
                       d="M 0 35 Q 30 30, 60 25 T 120 18 T 170 10 T 200 5"
                       fill="none"
-                      stroke="#34D399"
+                      stroke={isDark ? "#34D399" : "#059669"}
                       strokeWidth="2.5"
                       strokeLinecap="round"
                     />
                   </svg>
                 </div>
-              </div>
+              </InteractiveGlossyCard>
 
               {/* 2. Spendings Card (Right) */}
-              <div className="relative p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white/[0.04] border border-white/10 overflow-hidden group hover:border-rose-500/30 transition-all flex flex-col justify-between">
+              <InteractiveGlossyCard
+                accentColor="rose"
+                isDark={isDark}
+                contentClassName="p-3.5 sm:p-5"
+              >
                 <div>
                   <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+                    <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 ${
+                      isDark ? 'bg-rose-500/15 text-rose-300 border border-rose-400/30' : 'bg-rose-500/20 text-rose-500'
+                    }`}>
                       <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </div>
-                    <span className="text-[11px] sm:text-xs font-semibold text-slate-300 truncate">Total Pengeluaran</span>
+                    <span
+                      className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? '!text-white text-white' : 'text-slate-700'}`}
+                      style={{ color: isDark ? '#ffffff' : undefined }}
+                    >
+                      Total Pengeluaran
+                    </span>
                   </div>
-                  <h3 className="text-base sm:text-2xl font-black text-rose-300 tracking-tight truncate">
+                  <h3
+                    className={`text-base sm:text-2xl font-bold tracking-tight truncate ${isDark ? '!text-white text-white' : 'text-rose-600'}`}
+                    style={{ color: isDark ? '#ffffff' : undefined }}
+                  >
                     {displayMoney(totalPengeluaran)}
                   </h3>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 whitespace-nowrap">
+                    <span
+                      className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        isDark
+                          ? 'bg-rose-500/15 text-rose-300 border border-rose-400/30'
+                          : 'bg-rose-500/20 text-rose-700 border border-rose-500/30'
+                      }`}
+                    >
                       {spendRatio}% Anggaran
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-slate-400 truncate">
-                      Sisa: <strong className="text-emerald-300">{displayMoney(sisaSaldoIncome)}</strong>
+                    <span className={`text-[10px] sm:text-[11px] truncate ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                      Sisa: <strong className={isDark ? "text-emerald-300 font-bold" : "text-emerald-600"}>{displayMoney(sisaSaldoIncome)}</strong>
                     </span>
                   </div>
                 </div>
 
-                {/* Glowing Coral/Orange Sparkline Wave */}
+                {/* Coral/Orange Sparkline Wave */}
                 <div className="mt-2 sm:mt-4 pt-1 sm:pt-2">
                   <svg className="w-full h-8 sm:h-12 overflow-visible" viewBox="0 0 200 40">
                     <defs>
                       <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#F43F5E" stopOpacity="0.4" />
+                        <stop offset="0%" stopColor="#F43F5E" stopOpacity={isDark ? "0.35" : "0.22"} />
                         <stop offset="100%" stopColor="#F43F5E" stopOpacity="0.0" />
                       </linearGradient>
                     </defs>
@@ -279,41 +323,66 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                     <path
                       d="M 0 35 Q 40 28, 70 32 T 130 20 T 170 14 T 200 8"
                       fill="none"
-                      stroke="#FB7185"
+                      stroke={isDark ? "#FB7185" : "#E11D48"}
                       strokeWidth="2.5"
                       strokeLinecap="round"
                     />
                   </svg>
                 </div>
-              </div>
+              </InteractiveGlossyCard>
             </div>
 
             {/* Bottom Row: Full-Width Portofolio Investasi Card */}
-            <div
+            <InteractiveGlossyCard
+              accentColor="sky"
+              isDark={isDark}
               onClick={() => onNavigate?.('portfolio')}
-              className="relative p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white/[0.04] border border-white/10 overflow-hidden group hover:border-sky-500/40 transition-all cursor-pointer"
+              contentClassName="p-4 sm:p-5"
             >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-6 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                      isDark ? 'bg-sky-500/15 text-sky-300 border border-sky-400/30' : 'bg-sky-500/20 text-sky-500'
+                    }`}>
                       <TrendingUp className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-xs sm:text-sm font-semibold text-slate-300">Portofolio Investasi</span>
+                    <span
+                      className={`text-xs sm:text-sm font-semibold ${isDark ? '!text-white text-white' : 'text-slate-700'}`}
+                      style={{ color: isDark ? '#ffffff' : undefined }}
+                    >
+                      Portofolio Investasi
+                    </span>
                   </div>
-                  <h3 className="text-xl sm:text-3xl font-black text-sky-300 tracking-tight">
+                  <h3
+                    className={`text-xl sm:text-3xl font-bold tracking-tight ${isDark ? '!text-white text-white' : 'text-sky-600'}`}
+                    style={{ color: isDark ? '#ffffff' : undefined }}
+                  >
                     {displayMoney(totalInvestment)}
                   </h3>
                   <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                        isDark
+                          ? 'bg-sky-500/15 text-sky-300 border border-sky-400/30'
+                          : 'bg-sky-500/20 text-sky-700 border border-sky-500/30'
+                      }`}
+                    >
                       <LineChart className="w-3 h-3" />
                       +3.90% MoM
                     </span>
-                    <span className="text-[11px] text-slate-400">Pluang • Valas • USDT • Emas</span>
+                    <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                      Pluang • Valas • USDT • Emas
+                    </span>
                   </div>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-1 text-xs font-semibold text-sky-400 group-hover:text-sky-300 transition-colors">
+                <div
+                  className={`hidden sm:flex items-center gap-1 text-xs font-semibold transition-colors ${
+                    isDark ? 'text-sky-300 hover:text-sky-200' : 'text-sky-600 hover:text-sky-500'
+                  }`}
+                  style={{ color: isDark ? '#7dd3fc' : undefined }}
+                >
                   <span>Lihat Detail</span>
                   <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </div>
@@ -324,7 +393,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 <svg className="w-full h-10 sm:h-14 overflow-visible" viewBox="0 0 200 40">
                   <defs>
                     <linearGradient id="investGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0284C7" stopOpacity="0.45" />
+                      <stop offset="0%" stopColor="#0284C7" stopOpacity={isDark ? "0.35" : "0.20"} />
                       <stop offset="100%" stopColor="#0284C7" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
@@ -336,13 +405,13 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   <path
                     d="M 0 32 Q 35 29, 70 24 T 120 28 T 165 14 T 200 4"
                     fill="none"
-                    stroke="#38BDF8"
+                    stroke={isDark ? "#38BDF8" : "#0284C7"}
                     strokeWidth="2.5"
                     strokeLinecap="round"
                   />
                 </svg>
               </div>
-            </div>
+            </InteractiveGlossyCard>
           </div>
         </div>
       </GlassContainer>
@@ -423,9 +492,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             <h3 className="text-sm font-bold text-white tracking-tight">
               Dompet & Rekening Aktif
             </h3>
-            <span className="text-[10px] font-semibold text-slate-400 px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-              Geser untuk melihat semua
-            </span>
           </div>
 
           <button

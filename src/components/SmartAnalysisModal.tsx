@@ -249,7 +249,7 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
                 </span>
               </div>
               <p className={`text-[11px] sm:text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
-                Evaluasi performa real-time, perimbangan instrumen, dan rekomendasi rebalancing • Kelvin Finance
+                Evaluasi performa real-time, perimbangan instrumen, dan rekomendasi rebalancing • Budgeting
               </p>
             </div>
           </div>
@@ -461,7 +461,7 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
 
         {/* Footer Note */}
         <div className={`mt-3 pt-2.5 border-t flex items-center justify-between text-[11px] shrink-0 ${isLight ? 'border-slate-200 text-slate-500' : 'border-white/10 text-slate-400'}`}>
-          <span>Kelvin Finance • Data tersinkronisasi otomatis dengan Google Sheet</span>
+          <span>Budgeting • Data tersinkronisasi otomatis dengan Google Sheet</span>
           <button
             onClick={() => {
               triggerHaptic('light');

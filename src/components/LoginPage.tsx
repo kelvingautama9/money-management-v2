@@ -101,35 +101,35 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     <div
       className={`min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 overflow-hidden transition-colors duration-500 ${
         isLight
-          ? 'bg-gradient-to-br from-slate-50 via-sky-50/40 to-slate-100 text-slate-800'
+          ? 'bg-slate-100 text-slate-900'
           : 'bg-[#060713] text-slate-100'
       }`}
     >
       {/* Dynamic Ambient Fluid Light Orbs */}
       <div
         className={`ambient-glow-1 -top-32 -left-32 ${
-          isLight ? 'opacity-40' : 'opacity-70'
+          isLight ? 'opacity-30' : 'opacity-70'
         }`}
       />
       <div
         className={`ambient-glow-2 top-1/2 -right-32 ${
-          isLight ? 'opacity-30' : 'opacity-60'
+          isLight ? 'opacity-25' : 'opacity-60'
         }`}
       />
       <div
         className={`ambient-glow-3 -bottom-32 left-1/3 ${
-          isLight ? 'opacity-35' : 'opacity-60'
+          isLight ? 'opacity-25' : 'opacity-60'
         }`}
       />
 
       {/* Top Header Controls: Theme Mode Picker with Crisp Liquid Glass Contrast */}
-      <div className="absolute top-4 sm:top-6 right-4 sm:right-8 z-30 flex items-center gap-1.5 p-1 rounded-full bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/90 dark:border-white/20 shadow-lg shadow-black/10 dark:shadow-black/40">
+      <div className="absolute top-4 sm:top-6 right-4 sm:right-8 z-30 flex items-center gap-1.5 p-1 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-white/20 shadow-lg shadow-black/10 dark:shadow-black/40">
         <button
           onClick={() => setThemePreference('system')}
           className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
             themePreference === 'system'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
-              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/10'
+              : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
           title="Ikuti Tema Sistem / Browser"
         >
@@ -142,7 +142,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
             themePreference === 'light'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
-              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/10'
+              : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
           title="Tema Light iOS"
         >
@@ -155,7 +155,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
             themePreference === 'dark'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/30 border border-blue-400/40'
-              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/10'
+              : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
           title="Tema Dark Liquid Glass"
         >
@@ -175,9 +175,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         <div
           className={`relative rounded-3xl p-6 sm:p-8 backdrop-blur-2xl transition-all duration-300 shadow-2xl ${
             isLight
-              ? 'bg-white/70 border border-white/90 shadow-slate-200/60'
-              : 'bg-slate-900/60 border border-white/15 shadow-black/80'
+              ? 'bg-white/85 border border-white/90 shadow-slate-300/60 text-slate-900'
+              : 'bg-slate-900/60 border border-white/15 shadow-black/80 text-white'
           }`}
+          style={
+            isLight
+              ? {
+                  background: 'rgba(255, 255, 255, 0.88)',
+                  backdropFilter: 'blur(32px) saturate(190%)',
+                  WebkitBackdropFilter: 'blur(32px) saturate(190%)',
+                  boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.12), inset 0 1.5px 1px rgba(255, 255, 255, 0.95)'
+                }
+              : undefined
+          }
         >
           {/* Specular Glare Effect on Top Border */}
           <div className="absolute top-0 inset-x-8 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-sky-400/50 to-transparent" />
@@ -195,7 +205,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
             <h1
               className={`text-2xl sm:text-3xl font-black tracking-tight ${
-                isLight ? 'text-slate-900' : 'text-white'
+                isLight ? '!text-slate-950 text-slate-950 font-black' : 'text-white'
               }`}
             >
               Financial Tracker
@@ -203,7 +213,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
             <p
               className={`text-xs sm:text-sm font-medium ${
-                isLight ? 'text-slate-500' : 'text-slate-400'
+                isLight ? '!text-slate-700 text-slate-700' : 'text-slate-400'
               }`}
             >
               Autentikasi & Sinkronisasi Aman Google Sheets
@@ -214,7 +224,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div
             className={`flex items-center p-1 rounded-2xl mb-6 border ${
               isLight
-                ? 'bg-slate-100/90 border-slate-200/80'
+                ? 'bg-slate-200/80 border-slate-300/80'
                 : 'bg-white/5 border-white/10'
             }`}
           >
@@ -223,20 +233,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 ${
                 authMode === 'google'
                   ? isLight
-                    ? 'bg-white text-blue-600 shadow-sm'
+                    ? 'bg-white !text-slate-950 text-slate-950 shadow-sm border border-slate-200/90'
                     : 'bg-blue-600/30 text-white border border-blue-400/40 shadow-sm'
                   : isLight
-                  ? 'text-slate-500 hover:text-slate-800'
+                  ? '!text-slate-700 text-slate-700 hover:text-slate-950'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <svg className="w-4 h-4" viewBox="0 0 48 48">
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
                 <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
                 <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
               </svg>
-              <span>Login Google</span>
+              <span className={isLight ? '!text-slate-950 text-slate-950 font-bold' : ''}>Login Google</span>
             </button>
 
             <button
@@ -247,15 +257,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 ${
                 authMode === 'pin'
                   ? isLight
-                    ? 'bg-white text-amber-700 shadow-sm'
+                    ? 'bg-white !text-slate-950 text-slate-950 shadow-sm border border-slate-200/90'
                     : 'bg-amber-500/25 text-amber-300 border border-amber-400/40 shadow-sm'
                   : isLight
-                  ? 'text-slate-500 hover:text-slate-800'
+                  ? '!text-slate-700 text-slate-700 hover:text-slate-950'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Code className="w-3.5 h-3.5" />
-              <span>Dev Mode (0000)</span>
+              <Code className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
+              <span className={isLight ? '!text-slate-950 text-slate-950 font-bold' : ''}>Dev Mode (0000)</span>
             </button>
           </div>
 
@@ -272,17 +282,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <div
                   className={`p-4 rounded-2xl border text-xs leading-relaxed ${
                     isLight
-                      ? 'bg-blue-50/70 border-blue-200/70 text-blue-950'
+                      ? 'bg-blue-50/90 border-blue-200/90 text-slate-900'
                       : 'bg-blue-500/10 border-blue-400/20 text-blue-200'
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-bold mb-1">
-                    <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>Perlindungan Privasi Keuangan</span>
+                  <div className={`flex items-center gap-2 font-bold mb-1 ${isLight ? '!text-blue-900 text-blue-900' : ''}`}>
+                    <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className={isLight ? '!text-blue-900 text-blue-900 font-bold' : ''}>Perlindungan Privasi Keuangan</span>
                   </div>
-                  <p className="opacity-90">
+                  <p className={isLight ? '!text-slate-700 text-slate-700 leading-relaxed' : 'opacity-90'}>
                     Ketika Anda logout, seluruh angka, saldo rekening, dan rekapan pengeluaran otomatis dinolkan (
-                    <span className="font-semibold">Rp 0 / -</span>) untuk menjamin kerahasiaan data pribadi Anda.
+                    <span className={`font-semibold ${isLight ? '!text-slate-950 text-slate-950 font-bold' : ''}`}>Rp 0 / -</span>) untuk menjamin kerahasiaan data pribadi Anda.
                   </p>
                 </div>
 
@@ -290,9 +300,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <button
                   onClick={onLoginWithGoogle}
                   disabled={isLoggingIn}
-                  className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 transition-all duration-300 shadow-xl active:scale-[0.98] disabled:opacity-60 relative overflow-hidden group ${
+                  className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 transition-all duration-300 shadow-xl active:scale-[0.98] disabled:opacity-60 relative overflow-hidden group cursor-pointer ${
                     isLight
-                      ? 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/90 shadow-slate-200/70'
+                      ? 'bg-white hover:bg-slate-50 !text-slate-950 text-slate-950 border border-slate-300 shadow-slate-300/50'
                       : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 hover:from-blue-500 hover:to-indigo-500 text-white border border-white/20 shadow-blue-500/25'
                   }`}
                 >
@@ -301,8 +311,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   
                   {isLoggingIn ? (
                     <>
-                      <RefreshCw className="w-5 h-5 animate-spin text-white" />
-                      <span>Menghubungkan Akun Google...</span>
+                      <RefreshCw className={`w-5 h-5 animate-spin ${isLight ? 'text-slate-900' : 'text-white'}`} />
+                      <span className={isLight ? '!text-slate-950 text-slate-950 font-bold' : ''}>Menghubungkan Akun Google...</span>
                     </>
                   ) : (
                     <>
@@ -312,8 +322,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                         <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
                         <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                       </svg>
-                      <span>Masuk Cepat dengan Google</span>
-                      <ArrowRight className="w-4 h-4 ml-auto opacity-70" />
+                      <span className={isLight ? '!text-slate-950 text-slate-950 font-bold' : ''}>Masuk Cepat dengan Google</span>
+                      <ArrowRight className={`w-4 h-4 ml-auto ${isLight ? 'text-slate-700' : 'opacity-70'}`} />
                     </>
                   )}
                 </button>
@@ -375,14 +385,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   </div>
                   <h3
                     className={`text-sm font-bold ${
-                      isLight ? 'text-slate-800' : 'text-slate-200'
+                      isLight ? '!text-slate-950 text-slate-950' : 'text-slate-200'
                     }`}
                   >
                     Masukkan Kode Dev: 0000
                   </h3>
                   <p
                     className={`text-xs ${
-                      isLight ? 'text-slate-500' : 'text-slate-400'
+                      isLight ? '!text-slate-700 text-slate-700' : 'text-slate-400'
                     }`}
                   >
                     Digunakan untuk memantau tampilan antarmuka. Seluruh angka diset <strong>Rp 0</strong> tanpa memuat data pribadi.
@@ -407,7 +417,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       setPinCode('0000');
                       handlePinComplete('0000');
                     }}
-                    className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline underline-offset-4"
+                    className={`text-[11px] font-semibold underline underline-offset-4 ${
+                      isLight ? '!text-amber-700 text-amber-700 hover:text-amber-800' : 'text-amber-400 hover:text-amber-300'
+                    }`}
                   >
                     Klik di sini untuk otomatis isi 0000
                   </button>
@@ -417,18 +429,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <button
                     onClick={() => handlePinComplete(pinCode || '0000')}
                     disabled={isVerifyingPin}
-                    className="w-full py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all duration-300 shadow-xl active:scale-[0.98] relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 border border-amber-300/40 shadow-amber-500/20"
+                    className="w-full py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all duration-300 shadow-xl active:scale-[0.98] relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 !text-slate-950 text-slate-950 border border-amber-300/40 shadow-amber-500/20 cursor-pointer"
                   >
                     <span className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-transparent pointer-events-none" />
                     {isVerifyingPin ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                        <span>Memverifikasi Dev Mode...</span>
+                        <span className="!text-slate-950 text-slate-950 font-bold">Memverifikasi Dev Mode...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Masuk Dev Mode (Kode: 0000)</span>
+                        <CheckCircle2 className="w-4 h-4 text-slate-950" />
+                        <span className="!text-slate-950 text-slate-950 font-bold">Masuk Dev Mode (Kode: 0000)</span>
                       </>
                     )}
                   </button>
@@ -438,20 +450,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </AnimatePresence>
 
           {/* Spreadsheet Project Settings Toggle */}
-          <div className="mt-6 pt-4 border-t border-slate-200/70 dark:border-white/10">
+          <div className="mt-6 pt-4 border-t border-slate-200/80 dark:border-white/10">
             <button
               onClick={() => setShowConfig(!showConfig)}
               className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-between transition ${
                 isLight
-                  ? 'hover:bg-slate-100 text-slate-600'
+                  ? 'hover:bg-slate-100 !text-slate-900 text-slate-900 font-bold'
                   : 'hover:bg-white/5 text-slate-400'
               }`}
             >
               <span className="flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5 text-blue-500" />
-                <span>Pengaturan Spreadsheet Target</span>
+                <span className={isLight ? '!text-slate-900 text-slate-900 font-bold' : ''}>Pengaturan Spreadsheet Target</span>
               </span>
-              <span className="text-[11px] font-mono text-blue-500 font-bold">
+              <span className="text-[11px] font-mono text-blue-600 font-bold">
                 {sheetName || 'SEPTEMBER'} ▾
               </span>
             </button>
@@ -461,10 +473,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-3 space-y-3 p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-xs"
+                className={`mt-3 space-y-3 p-3.5 rounded-2xl border text-xs ${
+                  isLight
+                    ? 'bg-slate-50/90 border-slate-200 text-slate-900'
+                    : 'bg-black/5 dark:bg-white/5 border-black/5 dark:border-white/10 text-white'
+                }`}
               >
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  <label className={`block text-[11px] font-bold mb-1 ${isLight ? '!text-slate-800 text-slate-800' : 'text-slate-400'}`}>
                     Google Spreadsheet Link atau ID:
                   </label>
                   <input
@@ -472,12 +488,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     value={tempSpreadsheetId}
                     onChange={(e) => setTempSpreadsheetId(e.target.value)}
                     placeholder="1x_SheetsID_KelvinGautama..."
-                    className="w-full px-3 py-2 rounded-xl text-xs font-mono liquid-glass-input"
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono border ${
+                      isLight
+                        ? 'bg-white !text-slate-900 text-slate-900 border-slate-300 focus:border-blue-500'
+                        : 'liquid-glass-input'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  <label className={`block text-[11px] font-bold mb-1 ${isLight ? '!text-slate-800 text-slate-800' : 'text-slate-400'}`}>
                     Nama Tab Sheet:
                   </label>
                   <input
@@ -485,14 +505,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     value={tempSheetName}
                     onChange={(e) => setTempSheetName(e.target.value)}
                     placeholder="SEPTEMBER"
-                    className="w-full px-3 py-2 rounded-xl text-xs liquid-glass-input"
+                    className={`w-full px-3 py-2 rounded-xl text-xs border ${
+                      isLight
+                        ? 'bg-white !text-slate-900 text-slate-900 border-slate-300 focus:border-blue-500'
+                        : 'liquid-glass-input'
+                    }`}
                   />
                 </div>
 
                 <div className="flex justify-end gap-2 pt-1">
                   <button
                     onClick={handleSaveSpreadsheetConfig}
-                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition active:scale-95"
+                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition active:scale-95 cursor-pointer"
                   >
                     Terapkan Target
                   </button>
@@ -503,9 +527,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
           {/* Footer note */}
           <div className="mt-4 text-center">
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
-              <Sparkles className="w-3 h-3 text-sky-400" />
-              <span>Sesi login akan tersimpan otomatis sampai Anda memilih Logout</span>
+            <p className={`text-[11px] flex items-center justify-center gap-1 ${isLight ? '!text-slate-700 text-slate-700 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>
+              <Sparkles className="w-3 h-3 text-sky-500" />
+              <span className={isLight ? '!text-slate-700 text-slate-700 font-medium' : ''}>Sesi login akan tersimpan otomatis sampai Anda memilih Logout</span>
             </p>
           </div>
         </div>

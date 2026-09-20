@@ -102,6 +102,7 @@ export default function App() {
     } catch (e) {}
     return DEFAULT_GLASS_SETTINGS;
   });
+  const isDark = glassSettings.themeMode === 'dark' || glassSettings.themeMode === 'midnight';
   const [isGlassModalOpen, setIsGlassModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSmartAnalysisOpen, setIsSmartAnalysisOpen] = useState(false);
@@ -1457,16 +1458,52 @@ export default function App() {
                 txCountsByMonth={txCountsByMonth}
               />
 
-              {/* Sync Status Banner */}
+              {/* Sync Status Banner (3D Liquid Glass with crisp white text in dark mode) */}
               {syncNotice && (
-                <div className="p-3 sm:px-4 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-400/40 dark:border-blue-400/30 flex items-center justify-between gap-2 text-xs text-blue-900 dark:text-blue-100 shadow-sm animate-in fade-in duration-200">
-                  <div className="flex items-center gap-2 font-medium min-w-0">
-                    <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                    <span className="truncate">{syncNotice}</span>
+                <div
+                  className="p-3 sm:px-4.5 rounded-2xl flex items-center justify-between gap-3 text-xs shadow-lg animate-in fade-in duration-200 relative overflow-hidden"
+                  style={{
+                    background: isDark
+                      ? 'rgba(15, 23, 42, 0.75)'
+                      : 'rgba(255, 255, 255, 0.85)',
+                    backdropFilter: 'blur(24px) saturate(190%)',
+                    WebkitBackdropFilter: 'blur(24px) saturate(190%)',
+                    border: isDark
+                      ? '1px solid rgba(255, 255, 255, 0.16)'
+                      : '1px solid rgba(226, 232, 240, 0.9)',
+                    boxShadow: isDark
+                      ? '0 12px 32px -8px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
+                      : '0 8px 24px -6px rgba(99, 102, 241, 0.08), inset 0 1.5px 1px rgba(255, 255, 255, 0.95)'
+                  }}
+                >
+                  {/* Specular top rim highlight */}
+                  <div
+                    className="absolute top-0 inset-x-4 h-[1px] pointer-events-none"
+                    style={{
+                      background: isDark
+                        ? 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%)'
+                        : 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%)'
+                    }}
+                  />
+                  <div className="flex items-center gap-2.5 font-medium min-w-0">
+                    <ShieldCheck className={`w-4 h-4 shrink-0 ${isDark ? 'text-sky-400' : 'text-emerald-700'}`} />
+                    <span
+                      className={`truncate font-bold ${
+                        isDark ? '!text-white text-white' : 'text-emerald-900'
+                      }`}
+                      style={{ color: isDark ? '#ffffff' : '#064e3b' }}
+                    >
+                      {syncNotice}
+                    </span>
                   </div>
                   <button
                     onClick={() => setSyncNotice(null)}
-                    className="text-xs font-bold text-blue-700 dark:text-blue-300 hover:text-blue-950 dark:hover:text-white px-2.5 py-1 rounded-lg hover:bg-blue-500/10 dark:hover:bg-white/10 transition shrink-0"
+                    className={`text-xs font-bold px-3 py-1 rounded-xl transition shrink-0 cursor-pointer active:scale-95 border ${
+                      isDark
+                        ? 'bg-white/10 hover:bg-white/20 text-white !text-white border-white/15'
+                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-200'
+                    }`}
+                    style={{ color: isDark ? '#ffffff' : '#064e3b' }}
                   >
                     Tutup
                   </button>

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --glass-blur: 24px;
@@ -197,20 +199,14 @@
 .theme-light button[class*="bg-purple"] *,
 .theme-light button[class*="bg-gradient-"],
 .theme-light button[class*="bg-gradient-"] *,
-.theme-light [class*="bg-gradient-to"] span,
-.theme-light [class*="bg-gradient-to"] svg,
 .theme-light button.bg-blue-600,
 .theme-light button.bg-blue-500,
 .theme-light button.bg-emerald-600,
 .theme-light button.bg-indigo-600,
 .theme-light button.bg-rose-600,
-.theme-light .bg-blue-600,
-.theme-light .bg-emerald-600,
-.theme-light .bg-indigo-600,
-.theme-light [class*="bg-blue-600"] span,
-.theme-light [class*="bg-blue-600"] svg,
-.theme-light [class*="bg-emerald-600"] span,
-.theme-light [class*="bg-emerald-600"] svg {
+.theme-light .bg-blue-600:not(span),
+.theme-light .bg-emerald-600:not(span),
+.theme-light .bg-indigo-600:not(span) {
   color: #ffffff !important;
 }
 
@@ -468,6 +464,30 @@ body.dark,
   color: #94a3b8 !important;
 }
 
+/* Only force dark text on buttons/controls that have light backgrounds in dark mode */
+.dark button.text-slate-900,
+.dark button.text-slate-900 *,
+.dark button.text-slate-950,
+.dark button.text-slate-950 *,
+.dark button.text-black,
+.dark button.text-black *,
+.dark .badge-dark-text,
+.dark .text-force-dark {
+  color: #0f172a !important;
+}
+
+/* Explicit high-contrast white text in dark mode */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark .dark\:text-white,
+.dark .header-title-white {
+  color: #ffffff !important;
+}
+
 /* Also apply to default dark mode when not in light/beige mode */
 :root:not(.theme-light):not(.theme-beige) .text-slate-400 {
   color: #cbd5e1;
@@ -475,5 +495,34 @@ body.dark,
 
 :root:not(.theme-light):not(.theme-beige) .text-slate-500 {
   color: #94a3b8;
+}
+
+/* --- CLOCKWISE ROTATING LIQUID BEAM ANIMATION --- */
+@keyframes borderBeamClockwise {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.animate-border-beam-clockwise {
+  animation: borderBeamClockwise 7.5s linear infinite;
+  will-change: transform;
+}
+
+@keyframes liquidClockwiseLoop {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-liquid-beam {
+  animation: liquidClockwiseLoop 4.5s linear infinite;
+  will-change: transform;
 }
 

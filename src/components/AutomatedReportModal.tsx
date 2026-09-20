@@ -175,7 +175,7 @@ export const AutomatedReportModal: React.FC<AutomatedReportModalProps> = ({
                 </span>
               </div>
               <p className={`text-[11px] sm:text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Ringkasan eksekutif neraca keuangan, efisiensi arus kas, dan serapan anggaran • Kelvin Finance
+                Ringkasan eksekutif neraca keuangan, efisiensi arus kas, dan serapan anggaran • Budgeting
               </p>
             </div>
           </div>
@@ -345,7 +345,7 @@ export const AutomatedReportModal: React.FC<AutomatedReportModalProps> = ({
 
           {/* Institutional Print Watermark / Footer */}
           <div className="pt-2 border-t border-slate-200 dark:border-white/10 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 shrink-0">
-            <span>Kelvin Finance • Google Sheets Cloud Synced</span>
+            <span>Budgeting • Google Sheets Cloud Synced</span>
             <span>Dokumen Resmi • Cetak / Ekspor PDF 1 Halaman</span>
           </div>
         </div>
