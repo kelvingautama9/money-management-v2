@@ -1,0 +1,6 @@
+{
+  "name": "Financial Tracker",
+  "description": "Financial dashboard with real-time Google Sheets synchronization, budgeting, emergency fund, and investment tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
