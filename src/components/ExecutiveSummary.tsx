@@ -150,7 +150,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         <div className="relative z-10 w-full min-w-0">
           {/* Top Label & Actions (Rekapan September badge removed to save space and clean UI) */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Total Kekayaan Bersih (Net Worth)
             </span>
             <div className="flex items-center gap-2">
@@ -160,11 +160,15 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                     triggerHaptic('medium');
                     onOpenCalculator();
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-400/30 text-emerald-300 text-xs font-semibold transition active:scale-95 shadow-sm"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 shadow-xs ${
+                    isDark
+                      ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border-emerald-400/30 text-emerald-300'
+                      : 'bg-emerald-100 hover:bg-emerald-200/90 border-emerald-300 text-emerald-950 font-bold'
+                  }`}
                   title="Buka Kalkulator Pensiun & Target Finansial"
                 >
-                  <Calculator className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline">Kalkulator Pensiun</span>
+                  <Calculator className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`} />
+                  <span className={`hidden sm:inline ${isDark ? 'text-emerald-300' : 'text-emerald-950 font-bold'}`}>Kalkulator Pensiun</span>
                 </button>
               )}
               <button
@@ -172,7 +176,11 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   triggerHaptic('light');
                   setHideBalance(!hideBalance);
                 }}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white transition"
+                className={`p-2 rounded-xl border transition ${
+                  isDark
+                    ? 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-400 hover:text-white'
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
+                }`}
                 title={hideBalance ? 'Tampilkan Saldo' : 'Sembunyikan Saldo'}
               >
                 {hideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -182,7 +190,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
           {/* Big Hero Number */}
           <div className="mt-2 flex flex-wrap items-baseline gap-3">
-            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+            <h1 className={`text-3xl sm:text-5xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {displayMoney(totalAset)}
             </h1>
             <span className="text-xs font-bold text-emerald-400 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 inline-flex items-center gap-1">
@@ -191,8 +199,8 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             </span>
           </div>
 
-          <p className="text-xs text-slate-400 mt-1">
-            Kas Cair & Dana Darurat: <strong className="text-slate-200">{displayMoney(cashStandbyDanaDarurat)}</strong> • Portofolio Investasi: <strong className="text-sky-300">{displayMoney(totalInvestment)}</strong>
+          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Kas Cair & Dana Darurat: <strong className={isDark ? "text-slate-200" : "text-slate-900"}>{displayMoney(cashStandbyDanaDarurat)}</strong> • Portofolio Investasi: <strong className={isDark ? "text-sky-300" : "text-sky-700 font-bold"}>{displayMoney(totalInvestment)}</strong>
           </p>
 
           {/* SPLIT ROW: INCOME (LEFT) & PENGELUARAN (RIGHT), THEN FULL-WIDTH PORTOFOLIO INVESTASI BELOW */}

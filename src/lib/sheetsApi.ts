@@ -88,6 +88,16 @@ export function parseCurrencyToNumber(val: string | number | undefined): number 
   return isNegative ? -Math.abs(num) : num;
 }
 
+export function colIndexToA1(colIndex: number): string {
+  let temp = colIndex;
+  let letter = '';
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return letter;
+}
+
 /**
  * Parses both transaction records (columns A..F) and the spreadsheet's precalculated
  * monthly summary tables (columns H..N) from Google Sheets grid data.
@@ -107,6 +117,8 @@ export function parseSheetGridData(
 
   let accountColIndex = -1;
   let readingAccountSection = false;
+  let budgetColIndex = -1;
+  let readingBudgetSection = false;
 
   rows.forEach((row, rowIndex) => {
     if (!row || row.length === 0) return;
@@ -148,7 +160,49 @@ export function parseSheetGridData(
     }
 
     // --- 2. Extract Precalculated Summary from columns G..N ---
-    // First, scan for Account Section Header or Read active Account Section row
+    // Section A: Budgeting Categories Section row reading
+    if (readingBudgetSection && budgetColIndex >= 0) {
+      const budNameCell = (row[budgetColIndex] || '').toString().trim();
+      const budLower = budNameCell.toLowerCase();
+
+      // Section terminator
+      if (
+        !budNameCell ||
+        budLower.startsWith('total') ||
+        budLower.startsWith('nama akun') ||
+        budLower.startsWith('dana darurat') ||
+        budLower.startsWith('grand total')
+      ) {
+        readingBudgetSection = false;
+      } else if (!budLower.includes('jenis budgeting') && !budLower.includes('kategori')) {
+        // Find Target / Budgeting and Saldo Awal in adjacent columns
+        const val1 = row[budgetColIndex + 1];
+        const val2 = row[budgetColIndex + 2];
+        const val3 = row[budgetColIndex + 3];
+
+        const targetNum = parseCurrencyToNumber(val1);
+        const saldoAwalNum = parseCurrencyToNumber(val2);
+        const actualNum = parseCurrencyToNumber(val3);
+
+        const rowNumber = rowIndex + 1;
+        const colLetter = colIndexToA1(budgetColIndex);
+        const cellA1 = `${colLetter}${rowNumber}`;
+
+        if (!summary.budgets) summary.budgets = [];
+        summary.budgets.push({
+          nama: budNameCell,
+          targetBulanan: targetNum || 0,
+          budgeting: targetNum || 0,
+          saldoAwal: saldoAwalNum || 0,
+          actualSpend: actualNum || 0,
+          sheetCell: cellA1,
+          sheetRow: rowNumber,
+          sheetCol: budgetColIndex
+        });
+      }
+    }
+
+    // Section B: Account Section Header or Read active Account Section row
     if (readingAccountSection && accountColIndex >= 0) {
       const accCell = (row[accountColIndex] || '').toString().trim();
       const accCellLower = accCell.toLowerCase();
@@ -189,6 +243,17 @@ export function parseSheetGridData(
       const cellText = (row[c] || '').toString().trim();
       const cellTextLower = cellText.toLowerCase();
       if (!cellText) continue;
+
+      // Check Jenis Budgeting / Pos Budgeting Header
+      if (
+        cellTextLower === 'jenis budgeting' ||
+        cellTextLower === 'pos budgeting' ||
+        cellTextLower.includes('jenis budgeting') ||
+        cellTextLower.includes('alokasi budgeting')
+      ) {
+        readingBudgetSection = true;
+        budgetColIndex = c;
+      }
 
       // Check Total Aset (Net Worth)
       if (
@@ -551,6 +616,7 @@ export async function batchUpdateSheetValues(
   return await res.json();
 }
 
+
 /**
  * Creates a brand new Google Spreadsheet with the exact template headers & formatting.
  */
@@ -822,5 +888,72 @@ export async function syncAssetToSheet(
 
   const appendRes = await appendRowToSheet(spreadsheetId, sheetName, newTx, accessToken);
   return { updated: true, rowIndex: appendRes?.rowIndex };
+}
+
+/**
+ * Synchronizes budget category title/target/saldo edits to Google Sheets bi-directionally.
+ * Finds the corresponding cell in the "Jenis Budgeting" table (or A1:N100 grid) and updates it.
+ */
+export async function syncBudgetToSheet(
+  spreadsheetId: string,
+  sheetName: string,
+  oldBudgetName: string,
+  newBudgetName: string,
+  newTarget?: number,
+  knownCell?: string,
+  accessToken?: string
+): Promise<{ success: boolean; cell?: string }> {
+  if (!accessToken) return { success: false };
+
+  const targetOld = oldBudgetName.trim().toLowerCase();
+  const safeNewName = newBudgetName.trim();
+
+  // If knownCell is provided, try updating it first
+  if (knownCell) {
+    try {
+      await updateCellInSheet(spreadsheetId, sheetName, knownCell, safeNewName, accessToken);
+      return { success: true, cell: knownCell };
+    } catch (e) {
+      console.warn(`Known cell update at ${knownCell} failed, falling back to grid search:`, e);
+    }
+  }
+
+  // Scan A1:N100 grid to locate the budget category title cell
+  try {
+    const grid = await fetchSheetValues(spreadsheetId, formatSheetRange(sheetName, 'A1:N100'), accessToken);
+    if (grid && grid.length > 0) {
+      for (let r = 0; r < grid.length; r++) {
+        const row = grid[r];
+        if (!row) continue;
+        for (let c = 0; c < row.length; c++) {
+          const val = (row[c] || '').toString().trim().toLowerCase();
+          if (
+            val === targetOld ||
+            (targetOld.includes('dating') && val.includes('dating')) ||
+            (targetOld.includes('listrik') && val.includes('listrik')) ||
+            (targetOld.includes('entertainment') && val.includes('entertainment')) ||
+            (targetOld.includes('transport') && val.includes('transport'))
+          ) {
+            const colLetter = colIndexToA1(c);
+            const cellA1 = `${colLetter}${r + 1}`;
+            await updateCellInSheet(spreadsheetId, sheetName, cellA1, safeNewName, accessToken);
+
+            // If newTarget provided, update target in the next column
+            if (newTarget !== undefined && newTarget > 0) {
+              const targetColLetter = colIndexToA1(c + 1);
+              const targetCellA1 = `${targetColLetter}${r + 1}`;
+              await updateCellInSheet(spreadsheetId, sheetName, targetCellA1, Math.round(newTarget), accessToken).catch(() => {});
+            }
+
+            return { success: true, cell: cellA1 };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Error syncing budget title to Google Sheet:', err);
+  }
+
+  return { success: false };
 }
 

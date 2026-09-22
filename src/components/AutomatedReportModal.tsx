@@ -144,6 +144,48 @@ export const AutomatedReportModal: React.FC<AutomatedReportModalProps> = ({
             color: #1e293b !important;
             border: 1px solid #94a3b8 !important;
           }
+          #report-printable-area h1,
+          #report-printable-area h2,
+          #report-printable-area h3,
+          #report-printable-area h4,
+          #report-printable-area p,
+          #report-printable-area span,
+          #report-printable-area div,
+          #report-printable-area li,
+          #report-printable-area strong {
+            color: #0f172a !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+          #report-printable-area .text-emerald-300,
+          #report-printable-area .text-emerald-400,
+          #report-printable-area .text-emerald-500,
+          #report-printable-area .text-emerald-600,
+          #report-printable-area .text-emerald-700 {
+            color: #047857 !important;
+            -webkit-text-fill-color: #047857 !important;
+          }
+          #report-printable-area .text-rose-300,
+          #report-printable-area .text-rose-400,
+          #report-printable-area .text-rose-500,
+          #report-printable-area .text-rose-600 {
+            color: #b91c1c !important;
+            -webkit-text-fill-color: #b91c1c !important;
+          }
+          #report-printable-area .text-sky-300,
+          #report-printable-area .text-blue-600 {
+            color: #1d4ed8 !important;
+            -webkit-text-fill-color: #1d4ed8 !important;
+          }
+          #report-printable-area .text-amber-300,
+          #report-printable-area .text-amber-600 {
+            color: #b45309 !important;
+            -webkit-text-fill-color: #b45309 !important;
+          }
+          #report-printable-area .text-purple-300,
+          #report-printable-area .text-purple-700 {
+            color: #6b21a8 !important;
+            -webkit-text-fill-color: #6b21a8 !important;
+          }
         }
       `}</style>
 

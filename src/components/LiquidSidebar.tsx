@@ -157,54 +157,49 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
       color: 'from-indigo-500/20 to-blue-500/20',
       activeText: isDark ? 'text-indigo-300' : 'text-indigo-600',
       iconColor: isDark ? 'text-indigo-400' : 'text-indigo-500'
-    },
-    {
-      id: 'calculator' as ActivePage,
-      label: 'Kalkulator Investasi',
-      sublabel: 'Dana Pensiun & 4% Rule',
-      icon: Calculator,
-      badge: '4% Rule',
-      color: 'from-amber-500/20 to-orange-500/20',
-      activeText: isDark ? 'text-amber-300' : 'text-amber-600',
-      iconColor: isDark ? 'text-amber-400' : 'text-amber-500'
     }
   ];
 
   const quickTools = [
     {
-      id: 'report',
-      label: 'Laporan Otomatis',
+      id: 'audit' as ActivePage,
+      label: 'Audit Financial',
+      sublabel: 'Ekspor PDF & Neraca',
       icon: FileText,
-      action: onOpenReport,
-      color: 'text-blue-500'
+      badge: 'Audit',
+      color: 'from-blue-500/20 to-cyan-500/20',
+      activeText: isDark ? 'text-blue-300' : 'text-blue-600',
+      iconColor: isDark ? 'text-blue-400' : 'text-blue-500'
     },
     {
-      id: 'smart-analysis',
+      id: 'analysis' as ActivePage,
       label: 'Smart Analisis Pro',
+      sublabel: 'Rebalancing & Portofolio',
       icon: Sparkles,
-      action: onOpenSmartAnalysis,
-      color: 'text-purple-500'
+      badge: 'Pro',
+      color: 'from-purple-500/20 to-pink-500/20',
+      activeText: isDark ? 'text-purple-300' : 'text-purple-600',
+      iconColor: isDark ? 'text-purple-400' : 'text-purple-500'
     },
     {
-      id: 'calc',
-      label: 'Kalkulator Pensiun',
-      icon: Calculator,
-      action: onOpenCalculator,
-      color: 'text-emerald-500'
-    },
-    {
-      id: 'sheets-project',
-      label: 'Project Google Sheets',
+      id: 'sync' as ActivePage,
+      label: 'Singkron Google Sheet',
+      sublabel: 'Mutasi & Live Data',
       icon: FolderSync,
-      action: onOpenProjectManager,
-      color: 'text-indigo-500'
+      badge: 'Live',
+      color: 'from-indigo-500/20 to-blue-500/20',
+      activeText: isDark ? 'text-indigo-300' : 'text-indigo-600',
+      iconColor: isDark ? 'text-indigo-400' : 'text-indigo-500'
     },
     {
-      id: 'inspector',
-      label: 'Kustomisasi Kaca',
+      id: 'theme' as ActivePage,
+      label: 'Custom Theme',
+      sublabel: 'Liquid Glass & Presets',
       icon: Sliders,
-      action: onOpenSettings,
-      color: 'text-amber-500'
+      badge: undefined,
+      color: 'from-amber-500/20 to-yellow-500/20',
+      activeText: isDark ? 'text-amber-300' : 'text-amber-600',
+      iconColor: isDark ? 'text-amber-400' : 'text-amber-500'
     }
   ];
 
@@ -436,35 +431,177 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
             )}
 
             <div className="space-y-1">
+              {/* Kalkulator Investasi (Pindahan dari Halaman Utama - Isi Lengkap & Active State) */}
+              {(() => {
+                const isCalcActive = activePage === 'calculator';
+                return (
+                  <button
+                    onClick={() => {
+                      triggerHaptic('light');
+                      onSelectPage('calculator');
+                      if (inMobileDrawer) onCloseMobile();
+                    }}
+                    title="Kalkulator Investasi (Dana Pensiun & 4% Rule)"
+                    className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group text-left ${
+                      isCalcActive
+                        ? isDark
+                          ? '!text-white text-white-force font-bold'
+                          : 'text-slate-900 font-bold'
+                        : isDark
+                          ? 'text-slate-200 hover:!text-white hover:text-white-force hover:bg-white/10'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                    } ${collapsed && !inMobileDrawer ? 'justify-center px-2' : ''}`}
+                  >
+                    {/* Active Sliding Liquid Glass Pill Background */}
+                    {isCalcActive && (
+                      <motion.div
+                        layoutId="active-sidebar-pill"
+                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                        className="absolute inset-0 rounded-2xl pointer-events-none"
+                        style={{
+                          background: isDark
+                            ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.25) 100%)'
+                            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(254, 243, 199, 0.95) 100%)',
+                          border: isDark
+                            ? '1px solid rgba(251, 191, 36, 0.5)'
+                            : '1px solid rgba(245, 158, 11, 0.5)',
+                          boxShadow: isDark
+                            ? '0 8px 24px -4px rgba(245, 158, 11, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3)'
+                            : '0 8px 20px -4px rgba(245, 158, 11, 0.15), inset 0 1.5px 1px rgba(255, 255, 255, 1)'
+                        }}
+                      />
+                    )}
+
+                    {/* Left Icon with subtle 3D highlight */}
+                    <div
+                      className={`relative z-10 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 ${
+                        isCalcActive
+                          ? 'scale-105 bg-amber-500/25 dark:bg-amber-500/30'
+                          : 'group-hover:scale-105 bg-amber-500/10 dark:bg-white/10'
+                      }`}
+                    >
+                      <Calculator className={`w-4.5 h-4.5 ${isCalcActive ? 'text-amber-500 dark:text-amber-400' : isDark ? 'text-amber-400 group-hover:text-amber-300' : 'text-amber-600'}`} />
+                    </div>
+
+                    {/* Text labels (hidden when collapsed) */}
+                    {(!collapsed || inMobileDrawer) && (
+                      <div className="relative z-10 flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`text-xs truncate ${
+                            isCalcActive
+                              ? isDark ? '!text-white text-white-force font-bold' : 'text-slate-900 font-bold'
+                              : isDark ? 'text-slate-100 group-hover:!text-white font-medium' : 'text-slate-800 font-semibold'
+                          }`}>
+                            Kalkulator Investasi
+                          </span>
+                          <span
+                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 border transition-colors ${
+                              isCalcActive
+                                ? 'bg-amber-500 !text-white text-white-force border-amber-500 shadow-xs'
+                                : isDark
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                  : 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
+                            }`}
+                          >
+                            4% Rule
+                          </span>
+                        </div>
+                        <span className={`text-[10px] truncate block ${
+                          isDark ? 'text-slate-300 group-hover:text-slate-100' : 'text-slate-500'
+                        }`}>
+                          Dana Pensiun & 4% Rule
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })()}
+
               {quickTools.map((tool) => {
                 const Icon = tool.icon;
+                const isToolActive = activePage === tool.id;
+
                 return (
                   <button
                     key={tool.id}
                     onClick={() => {
                       triggerHaptic('light');
-                      tool.action();
+                      onSelectPage(tool.id);
                       if (inMobileDrawer) onCloseMobile();
                     }}
                     title={tool.label}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all group text-left ${
-                      isDark
-                        ? 'text-slate-200 hover:!text-white hover:text-white-force hover:bg-white/10'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                    } ${
-                      collapsed && !inMobileDrawer ? 'justify-center px-2' : ''
-                    }`}
+                    className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group text-left ${
+                      isToolActive
+                        ? isDark
+                          ? '!text-white text-white-force font-bold'
+                          : 'text-slate-900 font-bold'
+                        : isDark
+                          ? 'text-slate-200 hover:!text-white hover:text-white-force hover:bg-white/10'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                    } ${collapsed && !inMobileDrawer ? 'justify-center px-2' : ''}`}
                   >
-                    <div className="w-6 h-6 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                      <Icon className={`w-4 h-4 ${tool.color}`} />
+                    {/* Active Sliding Liquid Glass Pill Background */}
+                    {isToolActive && (
+                      <motion.div
+                        layoutId="active-sidebar-pill"
+                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                        className="absolute inset-0 rounded-2xl pointer-events-none"
+                        style={{
+                          background: isDark
+                            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(147, 51, 234, 0.3) 100%)'
+                            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 246, 255, 0.95) 100%)',
+                          border: isDark
+                            ? '1px solid rgba(147, 197, 253, 0.45)'
+                            : '1px solid rgba(203, 213, 225, 0.8)',
+                          boxShadow: isDark
+                            ? '0 8px 24px -4px rgba(59, 130, 246, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3)'
+                            : '0 8px 20px -4px rgba(99, 102, 241, 0.12), inset 0 1.5px 1px rgba(255, 255, 255, 1)'
+                        }}
+                      />
+                    )}
+
+                    {/* Left Icon with subtle 3D highlight */}
+                    <div
+                      className={`relative z-10 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 ${
+                        isToolActive
+                          ? 'scale-105 bg-blue-500/20 dark:bg-white/20'
+                          : 'group-hover:scale-105'
+                      }`}
+                    >
+                      <Icon className={`w-4.5 h-4.5 ${isToolActive ? tool.iconColor : isDark ? 'text-slate-300 group-hover:text-white' : 'text-slate-500'}`} />
                     </div>
 
+                    {/* Text labels (hidden when collapsed) */}
                     {(!collapsed || inMobileDrawer) && (
-                      <span className={`text-xs truncate flex-1 ${
-                        isDark ? 'text-slate-200 group-hover:!text-white font-medium' : 'text-slate-700 font-medium'
-                      }`}>
-                        {tool.label}
-                      </span>
+                      <div className="relative z-10 flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`text-xs truncate ${
+                            isToolActive
+                              ? isDark ? '!text-white text-white-force font-bold' : 'text-slate-900 font-bold'
+                              : isDark ? 'text-slate-100 group-hover:!text-white font-medium' : 'text-slate-700 font-medium'
+                          }`}>
+                            {tool.label}
+                          </span>
+                          {tool.badge && (
+                            <span
+                              className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 border transition-colors ${
+                                isToolActive
+                                  ? 'bg-blue-600 !text-white text-white-force border-blue-600 shadow-xs'
+                                  : isDark
+                                    ? 'bg-white/15 !text-white text-white-force border-white/20'
+                                    : 'bg-slate-100 text-slate-700 border-slate-200/80'
+                              }`}
+                            >
+                              {tool.badge}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] truncate block ${
+                          isDark ? 'text-slate-300 group-hover:text-slate-100' : 'text-slate-400'
+                        }`}>
+                          {tool.sublabel}
+                        </span>
+                      </div>
                     )}
                   </button>
                 );

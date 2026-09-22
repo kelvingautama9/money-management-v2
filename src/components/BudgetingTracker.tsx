@@ -237,10 +237,15 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl bg-[#0e1224] border border-white/20 p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <Pencil className="w-4 h-4 text-sky-400" />
-                Edit Pos Budgeting ({editingBudget.nama})
-              </h4>
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-sky-400" />
+                  Edit Pos Budgeting
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Perubahan nama akan otomatis tersingkron ke Google Sheet
+                </p>
+              </div>
               <button
                 onClick={() => setEditingBudget(null)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"

@@ -23,6 +23,9 @@ export interface BudgetCategory {
   keterangan: string;
   targetBulanan: number;
   akunTerkait: string;
+  sheetCell?: string;
+  sheetRow?: number;
+  sheetCol?: number;
 }
 
 export interface AccountBalance {

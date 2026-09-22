@@ -42,7 +42,8 @@ import {
   parseSheetGridData,
   syncRenameAccountInSheet,
   syncAddAccountToSheet,
-  syncAssetToSheet
+  syncAssetToSheet,
+  syncBudgetToSheet
 } from './lib/sheetsApi';
 import { triggerHaptic } from './lib/haptics';
 
@@ -68,6 +69,10 @@ import { GlassMenuPopup } from './components/GlassMenuPopup';
 import { GlassButton } from './components/GlassButton';
 import { ProjectSyncManagerModal } from './components/ProjectSyncManagerModal';
 import { RetirementInvestmentCalculator } from './components/RetirementInvestmentCalculator';
+import { AuditFinancialPage } from './components/AuditFinancialPage';
+import { SmartAnalysisPage } from './components/SmartAnalysisPage';
+import { SyncSheetPage } from './components/SyncSheetPage';
+import { CustomThemePage } from './components/CustomThemePage';
 import {
   DEFAULT_MONTH_SHEETS,
   INITIAL_TRANSACTIONS_BY_MONTH,
@@ -854,7 +859,8 @@ export default function App() {
           if (
             summary.totalAset ||
             summary.totalInvestment ||
-            (summary.accountBalances && Object.keys(summary.accountBalances).length > 0)
+            (summary.accountBalances && Object.keys(summary.accountBalances).length > 0) ||
+            (summary.budgets && summary.budgets.length > 0)
           ) {
             setSheetSummaries((prev) => {
               const updated = {
@@ -868,6 +874,74 @@ export default function App() {
               } catch (e) {}
               return updated;
             });
+
+            // If Google Sheets has budget categories (Jenis Budgeting), synchronize names & targets to web app
+            if (summary.budgets && summary.budgets.length > 0) {
+              setCustomBudgets((prevBudgets) => {
+                const updatedBudgets = [...prevBudgets];
+                summary.budgets!.forEach((sheetBud, idx) => {
+                  if (!sheetBud.nama) return;
+                  const cleanSheetName = sheetBud.nama.trim();
+                  const cleanLower = cleanSheetName.toLowerCase();
+
+                  // Find match by keyword or by index
+                  const matchIdx = updatedBudgets.findIndex((b) => {
+                    const bLower = b.nama.toLowerCase();
+                    if (bLower === cleanLower) return true;
+                    if (cleanLower.includes('dating') && bLower.includes('dating')) return true;
+                    if (cleanLower.includes('listrik') && bLower.includes('listrik')) return true;
+                    if (cleanLower.includes('entertainment') && bLower.includes('entertainment')) return true;
+                    if (cleanLower.includes('transport') && bLower.includes('transport')) return true;
+                    return false;
+                  });
+
+                  if (matchIdx >= 0) {
+                    updatedBudgets[matchIdx] = {
+                      ...updatedBudgets[matchIdx],
+                      nama: cleanSheetName,
+                      targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[matchIdx].targetBulanan,
+                      budgeting: sheetBud.budgeting ?? updatedBudgets[matchIdx].budgeting,
+                      saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal,
+                      sheetCell: sheetBud.sheetCell ?? updatedBudgets[matchIdx].sheetCell,
+                      sheetRow: sheetBud.sheetRow ?? updatedBudgets[matchIdx].sheetRow,
+                      sheetCol: sheetBud.sheetCol ?? updatedBudgets[matchIdx].sheetCol
+                    };
+                  } else if (idx < updatedBudgets.length) {
+                    updatedBudgets[idx] = {
+                      ...updatedBudgets[idx],
+                      nama: cleanSheetName,
+                      targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[idx].targetBulanan,
+                      budgeting: sheetBud.budgeting ?? updatedBudgets[idx].budgeting,
+                      saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal,
+                      sheetCell: sheetBud.sheetCell ?? updatedBudgets[idx].sheetCell,
+                      sheetRow: sheetBud.sheetRow ?? updatedBudgets[idx].sheetRow,
+                      sheetCol: sheetBud.sheetCol ?? updatedBudgets[idx].sheetCol
+                    };
+                  } else {
+                    updatedBudgets.push({
+                      id: `budget_sheet_${idx}_${Date.now()}`,
+                      nama: cleanSheetName,
+                      targetBulanan: sheetBud.targetBulanan || 0,
+                      budgeting: sheetBud.budgeting || sheetBud.targetBulanan || 0,
+                      saldoAwal: sheetBud.saldoAwal || 0,
+                      totalSaldo: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
+                      actualSpend: 0,
+                      sisa: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
+                      keterangan: '-',
+                      akunTerkait: 'Bank BCA',
+                      sheetCell: sheetBud.sheetCell,
+                      sheetRow: sheetBud.sheetRow,
+                      sheetCol: sheetBud.sheetCol
+                    });
+                  }
+                });
+
+                try {
+                  localStorage.setItem('kelvin_financial_custom_budgets', JSON.stringify(updatedBudgets));
+                } catch (e) {}
+                return updatedBudgets;
+              });
+            }
           }
 
           if (parsedRows.length > 0 || summary.totalAset) {
@@ -970,7 +1044,8 @@ export default function App() {
         if (
           summary.totalAset ||
           summary.totalInvestment ||
-          (summary.accountBalances && Object.keys(summary.accountBalances).length > 0)
+          (summary.accountBalances && Object.keys(summary.accountBalances).length > 0) ||
+          (summary.budgets && summary.budgets.length > 0)
         ) {
           setSheetSummaries((prev) => {
             const updated = {
@@ -984,6 +1059,73 @@ export default function App() {
             } catch (e) {}
             return updated;
           });
+
+          // Sync Google Sheet budget categories (names & targets) into web app
+          if (summary.budgets && summary.budgets.length > 0) {
+            setCustomBudgets((prevBudgets) => {
+              const updatedBudgets = [...prevBudgets];
+              summary.budgets!.forEach((sheetBud, idx) => {
+                if (!sheetBud.nama) return;
+                const cleanSheetName = sheetBud.nama.trim();
+                const cleanLower = cleanSheetName.toLowerCase();
+
+                const matchIdx = updatedBudgets.findIndex((b) => {
+                  const bLower = b.nama.toLowerCase();
+                  if (bLower === cleanLower) return true;
+                  if (cleanLower.includes('dating') && bLower.includes('dating')) return true;
+                  if (cleanLower.includes('listrik') && bLower.includes('listrik')) return true;
+                  if (cleanLower.includes('entertainment') && bLower.includes('entertainment')) return true;
+                  if (cleanLower.includes('transport') && bLower.includes('transport')) return true;
+                  return false;
+                });
+
+                if (matchIdx >= 0) {
+                  updatedBudgets[matchIdx] = {
+                    ...updatedBudgets[matchIdx],
+                    nama: cleanSheetName,
+                    targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[matchIdx].targetBulanan,
+                    budgeting: sheetBud.budgeting ?? updatedBudgets[matchIdx].budgeting,
+                    saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal,
+                    sheetCell: sheetBud.sheetCell ?? updatedBudgets[matchIdx].sheetCell,
+                    sheetRow: sheetBud.sheetRow ?? updatedBudgets[matchIdx].sheetRow,
+                    sheetCol: sheetBud.sheetCol ?? updatedBudgets[matchIdx].sheetCol
+                  };
+                } else if (idx < updatedBudgets.length) {
+                  updatedBudgets[idx] = {
+                    ...updatedBudgets[idx],
+                    nama: cleanSheetName,
+                    targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[idx].targetBulanan,
+                    budgeting: sheetBud.budgeting ?? updatedBudgets[idx].budgeting,
+                    saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal,
+                    sheetCell: sheetBud.sheetCell ?? updatedBudgets[idx].sheetCell,
+                    sheetRow: sheetBud.sheetRow ?? updatedBudgets[idx].sheetRow,
+                    sheetCol: sheetBud.sheetCol ?? updatedBudgets[idx].sheetCol
+                  };
+                } else {
+                  updatedBudgets.push({
+                    id: `budget_sheet_${idx}_${Date.now()}`,
+                    nama: cleanSheetName,
+                    targetBulanan: sheetBud.targetBulanan || 0,
+                    budgeting: sheetBud.budgeting || sheetBud.targetBulanan || 0,
+                    saldoAwal: sheetBud.saldoAwal || 0,
+                    totalSaldo: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
+                    actualSpend: 0,
+                    sisa: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
+                    keterangan: '-',
+                    akunTerkait: 'Bank BCA',
+                    sheetCell: sheetBud.sheetCell,
+                    sheetRow: sheetBud.sheetRow,
+                    sheetCol: sheetBud.sheetCol
+                  });
+                }
+              });
+
+              try {
+                localStorage.setItem('kelvin_financial_custom_budgets', JSON.stringify(updatedBudgets));
+              } catch (e) {}
+              return updatedBudgets;
+            });
+          }
         }
 
         if (parsedRows.length > 0) {
@@ -1126,13 +1268,46 @@ export default function App() {
     setSyncNotice(`Pos budget "${newBudget.nama}" berhasil ditambahkan.`);
   };
 
-  const handleEditBudget = (id: string, updated: Partial<BudgetCategory>) => {
+  const handleEditBudget = async (id: string, updated: Partial<BudgetCategory>) => {
+    const existing = customBudgets.find((b) => b.id === id);
+    const oldName = existing?.nama || '';
+    const newName = updated.nama || oldName;
+
     const next = customBudgets.map((b) => (b.id === id ? { ...b, ...updated } : b));
     setCustomBudgets(next);
     try {
       localStorage.setItem('kelvin_financial_custom_budgets', JSON.stringify(next));
     } catch (e) {}
-    setSyncNotice(`Pos budget berhasil diperbarui.`);
+    setSyncNotice(`Pos budget "${newName}" berhasil diperbarui.`);
+
+    // Push updated budget title & target to Google Sheets if connected
+    const token = await getAccessToken();
+    const cleanId = extractSpreadsheetId(spreadsheetId);
+    if (token && cleanId && !cleanId.startsWith('1x_SheetsID')) {
+      try {
+        const syncRes = await syncBudgetToSheet(
+          cleanId,
+          sheetName,
+          oldName,
+          newName,
+          updated.targetBulanan ?? existing?.targetBulanan,
+          existing?.sheetCell,
+          token
+        );
+        if (syncRes.success) {
+          setLastSynced(new Date());
+          setSyncNotice(`Judul budgeting "${newName}" berhasil tersingkron ke Google Sheet tab ${sheetName} (cell: ${syncRes.cell || 'OK'}).`);
+          // Update sheetCell reference in state if newly located
+          if (syncRes.cell && existing?.sheetCell !== syncRes.cell) {
+            setCustomBudgets((current) =>
+              current.map((b) => (b.id === id ? { ...b, sheetCell: syncRes.cell } : b))
+            );
+          }
+        }
+      } catch (err: any) {
+        console.warn('Sync budget title error:', err);
+      }
+    }
   };
 
   const handleDeleteBudget = (id: string) => {
@@ -1618,7 +1793,7 @@ export default function App() {
                         onAddAsset={handleAddAsset}
                         onEditAsset={handleEditAsset}
                         onDeleteAsset={handleDeleteAsset}
-                        onOpenSmartAnalysis={() => setIsSmartAnalysisOpen(true)}
+                        onOpenSmartAnalysis={() => setActivePage('analysis')}
                         onOpenCalculator={() => setActivePage('calculator')}
                       />
                       <EmergencyFundCard fund={emergencyFund} settings={glassSettings} />
@@ -1668,6 +1843,72 @@ export default function App() {
                         currentInvestment={totalInvestment}
                         currentNetWorth={totalAset}
                         onBack={() => setActivePage('portfolio')}
+                      />
+                    </div>
+                  )}
+
+                  {/* PAGE 8: AUDIT FINANCIAL */}
+                  {activePage === 'audit' && (
+                    <div>
+                      <AuditFinancialPage
+                        settings={glassSettings}
+                        totalAset={totalAset}
+                        totalIncome={totalPemasukan}
+                        totalExpense={totalPengeluaran}
+                        transactions={transactions}
+                        budgets={budgets}
+                        emergencyFund={emergencyFund}
+                        currentSheetName={sheetName}
+                        onBack={() => setActivePage('summary')}
+                      />
+                    </div>
+                  )}
+
+                  {/* PAGE 9: SMART ANALISIS PRO */}
+                  {activePage === 'analysis' && (
+                    <div>
+                      <SmartAnalysisPage
+                        settings={glassSettings}
+                        assets={assets}
+                        history={history}
+                        cashStandby={cashStandbyDanaDarurat}
+                        onBack={() => setActivePage('portfolio')}
+                      />
+                    </div>
+                  )}
+
+                  {/* PAGE 10: SINGKRON GOOGLE SHEET */}
+                  {activePage === 'sync' && (
+                    <div>
+                      <SyncSheetPage
+                        user={user}
+                        currentSpreadsheetId={spreadsheetId}
+                        currentSheetName={sheetName}
+                        onSaveProjectConfig={(newId, newSheet) => {
+                          setSpreadsheetId(newId);
+                          setSheetName(newSheet);
+                          localStorage.setItem('kelvin_financial_spreadsheet_id', newId);
+                          localStorage.setItem('kelvin_financial_sheet_name', newSheet);
+                          setSyncNotice(`Konfigurasi Google Sheet berhasil diperbarui ke tab ${newSheet}.`);
+                        }}
+                        onLogin={handleGoogleLogin}
+                        onSyncNow={async () => {
+                          await handleSyncFromSheets();
+                        }}
+                        isSyncing={isSyncing}
+                        settings={glassSettings}
+                        onBack={() => setActivePage('summary')}
+                      />
+                    </div>
+                  )}
+
+                  {/* PAGE 11: CUSTOM THEME */}
+                  {activePage === 'theme' && (
+                    <div>
+                      <CustomThemePage
+                        settings={glassSettings}
+                        onUpdateSettings={setGlassSettings}
+                        onBack={() => setActivePage('summary')}
                       />
                     </div>
                   )}

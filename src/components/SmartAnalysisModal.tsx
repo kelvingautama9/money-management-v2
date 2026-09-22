@@ -218,6 +218,37 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
             padding: 6px 10px !important;
             border-radius: 10px !important;
           }
+          #smart-analysis-printable-area h1,
+          #smart-analysis-printable-area h2,
+          #smart-analysis-printable-area h3,
+          #smart-analysis-printable-area h4,
+          #smart-analysis-printable-area p,
+          #smart-analysis-printable-area span,
+          #smart-analysis-printable-area div,
+          #smart-analysis-printable-area li,
+          #smart-analysis-printable-area strong {
+            color: #0f172a !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+          #smart-analysis-printable-area .text-emerald-300,
+          #smart-analysis-printable-area .text-emerald-400,
+          #smart-analysis-printable-area .text-emerald-500,
+          #smart-analysis-printable-area .text-emerald-600 {
+            color: #047857 !important;
+            -webkit-text-fill-color: #047857 !important;
+          }
+          #smart-analysis-printable-area .text-sky-300,
+          #smart-analysis-printable-area .text-sky-400,
+          #smart-analysis-printable-area .text-blue-600 {
+            color: #1d4ed8 !important;
+            -webkit-text-fill-color: #1d4ed8 !important;
+          }
+          #smart-analysis-printable-area .text-amber-300,
+          #smart-analysis-printable-area .text-amber-400,
+          #smart-analysis-printable-area .text-amber-600 {
+            color: #b45309 !important;
+            -webkit-text-fill-color: #b45309 !important;
+          }
         }
       `}</style>
 
