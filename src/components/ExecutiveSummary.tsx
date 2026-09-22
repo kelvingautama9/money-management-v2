@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GlassContainer } from './GlassContainer';
 import { InteractiveGlossyCard } from './InteractiveGlossyCard';
-import { GlassSettings, BudgetCategory, AccountBalance, Transaction, InvestmentAsset, InvestmentHistory } from '../types';
+import { GlassSettings, BudgetCategory, AccountBalance, Transaction, InvestmentAsset, InvestmentHistory, EmergencyFund } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import { FinancialReportPreviewModal } from './FinancialReportPreviewModal';
 import {
   Wallet,
   ArrowDownLeft,
@@ -25,7 +26,10 @@ import {
   TrendingUp,
   LineChart,
   FileSpreadsheet,
-  Calculator
+  Calculator,
+  FileText,
+  FileDown,
+  Printer
 } from 'lucide-react';
 
 interface ExecutiveSummaryProps {
@@ -41,6 +45,7 @@ interface ExecutiveSummaryProps {
   transactions?: Transaction[];
   assets?: InvestmentAsset[];
   history?: InvestmentHistory[];
+  emergencyFund?: EmergencyFund;
   onNavigate?: (page: 'summary' | 'cashflow' | 'budgeting' | 'portfolio' | 'accounts' | 'journal') => void;
   onSyncGoogleSheets?: () => void;
   onOpenProjectManager?: () => void;
@@ -64,6 +69,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   transactions = [],
   assets = [],
   history = [],
+  emergencyFund,
   onNavigate,
   onSyncGoogleSheets,
   onOpenProjectManager,
@@ -74,6 +80,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   onSelectMonthSheet
 }) => {
   const [hideBalance, setHideBalance] = useState(false);
+  const [isReportPreviewOpen, setIsReportPreviewOpen] = useState(false);
   const isDark = settings.themeMode !== 'light' && settings.themeMode !== 'beige';
   const [centerWalletIndex, setCenterWalletIndex] = useState(0);
   const walletScrollRef = useRef<HTMLDivElement>(null);
@@ -154,6 +161,23 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               Total Kekayaan Bersih (Net Worth)
             </span>
             <div className="flex items-center gap-2">
+              <button
+                id="btn-hero-report-preview"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  setIsReportPreviewOpen(true);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 shadow-xs cursor-pointer ${
+                  isDark
+                    ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30 text-blue-300'
+                    : 'bg-blue-100 hover:bg-blue-200/90 border-blue-300 text-blue-950 font-bold'
+                }`}
+                title="Buka Preview Laporan Keuangan, Ekspor PDF & Cetak"
+              >
+                <FileText className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-800'}`} />
+                <span className="hidden sm:inline">Export PDF / Print</span>
+                <span className="sm:hidden">PDF / Cetak</span>
+              </button>
               {onOpenCalculator && (
                 <button
                   onClick={() => {
@@ -423,6 +447,78 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
           </div>
         </div>
       </GlassContainer>
+
+      {/* PROMINENT REPORT EXPORT & PRINT BANNER */}
+      <div
+        style={
+          isDark
+            ? {
+                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                boxShadow: '0 8px 24px -6px rgba(0, 0, 0, 0.4)'
+              }
+            : {
+                backgroundColor: '#ffffff',
+                border: '1px solid #bfdbfe',
+                boxShadow: '0 4px 16px -2px rgba(37, 99, 235, 0.08)'
+              }
+        }
+        className="p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 w-full min-w-0 transition-all"
+      >
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className={`text-sm font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Laporan Keuangan Periode {currentMonthSheet}
+              </h3>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                Arsip Offline PDF & Cetak
+              </span>
+            </div>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              Pratinjau laporan audit berlatar putih murni standar cetak (WCAG AAA) sebelum ekspor PDF atau cetak fisik.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center flex-wrap">
+          {/* Button 1: Export PDF (opens modal preview directly ready to export) */}
+          <button
+            id="btn-banner-export-pdf"
+            onClick={() => {
+              triggerHaptic('medium');
+              setIsReportPreviewOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white text-xs font-bold transition shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer"
+            title="Preview dan Export Laporan ke format PDF"
+          >
+            <FileDown className="w-4 h-4" />
+            <span>Export PDF</span>
+          </button>
+
+          {/* Button 2: Print Report (opens modal preview for print verification) */}
+          <button
+            id="btn-banner-print-report"
+            onClick={() => {
+              triggerHaptic('medium');
+              setIsReportPreviewOpen(true);
+            }}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border active:scale-95 cursor-pointer ${
+              isDark
+                ? 'bg-white/10 hover:bg-white/15 text-white border-white/20'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+            }`}
+            title="Preview dan Cetak Laporan Finansial"
+          >
+            <Printer className="w-4 h-4 text-slate-400" />
+            <span>Print Report</span>
+          </button>
+        </div>
+      </div>
 
       {/* QUICK ACTIONS ROW (Image 4 Clean Interface Match) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full min-w-0">
@@ -787,6 +883,24 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
           </div>
         </GlassContainer>
       </div>
+
+      {/* MODAL PREVIEW FOR FINANCIAL AUDIT REPORT (Export PDF & Print) */}
+      <FinancialReportPreviewModal
+        isOpen={isReportPreviewOpen}
+        onClose={() => setIsReportPreviewOpen(false)}
+        currentSheetName={currentMonthSheet}
+        totalAset={totalAset}
+        totalIncome={totalPemasukan}
+        totalExpense={totalPengeluaran}
+        sisaSaldoIncome={sisaSaldoIncome}
+        cashStandbyDanaDarurat={cashStandbyDanaDarurat}
+        totalInvestment={totalInvestment}
+        transactions={transactions}
+        budgets={budgets}
+        accounts={accounts}
+        assets={assets}
+        emergencyFund={emergencyFund}
+      />
     </div>
   );
 };

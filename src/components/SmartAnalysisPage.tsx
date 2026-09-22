@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GlassSettings, InvestmentAsset, InvestmentHistory } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
@@ -12,11 +12,15 @@ import {
   CheckCircle2,
   ArrowLeft,
   Printer,
+  FileDown,
   Activity,
-  Calendar,
   Layers,
-  Lightbulb
+  Lightbulb,
+  FileText,
+  Info,
+  Eye
 } from 'lucide-react';
+import { InvestmentAuditReportPreviewModal } from './InvestmentAuditReportPreviewModal';
 
 interface SmartAnalysisPageProps {
   settings: GlassSettings;
@@ -24,6 +28,7 @@ interface SmartAnalysisPageProps {
   history: InvestmentHistory[];
   cashStandby?: number;
   onBack?: () => void;
+  currentSheetName?: string;
 }
 
 export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
@@ -31,8 +36,11 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
   assets = [],
   history = [],
   cashStandby = 0,
-  onBack
+  onBack,
+  currentSheetName = 'September'
 }) => {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   const isDark = settings?.themeMode !== 'light' && settings?.themeMode !== 'beige';
   const isLight = !isDark;
 
@@ -40,12 +48,26 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
   const safeHistory = Array.isArray(history) ? history : [];
 
   const totalInvestment = safeAssets.reduce((sum, a) => sum + (Number(a.nilaiAkhirBulan) || 0), 0);
+  const totalDCA = safeAssets.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
   const totalWealth = totalInvestment + cashStandby;
 
-  // Recent month performance
-  const latestMonth = safeHistory.length > 0 ? safeHistory[safeHistory.length - 1] : null;
-  const momProfit = latestMonth?.netProfitMoM || 2016286;
-  const momPnl = latestMonth?.pnlPercent || 3.9;
+  // Previous month from history
+  const prevMonthIndex = safeHistory.length >= 2 ? safeHistory.length - 2 : -1;
+  const prevMonth = prevMonthIndex >= 0 ? safeHistory[prevMonthIndex] : null;
+  const prevNetWorth = prevMonth?.totalNetWorth || 51705076;
+
+  // SMART STATE DETECTION:
+  // If totalInvestment equals prevNetWorth, active month (September) has not been closed yet.
+  const isPendingValuation = totalInvestment === prevNetWorth;
+  const grossGrowth = totalInvestment - prevNetWorth;
+  const pureProfit = isPendingValuation ? 0 : grossGrowth - totalDCA;
+  const denominator = prevNetWorth + (totalDCA > 0 ? totalDCA / 2 : 0);
+  const purePnl = isPendingValuation || denominator <= 0 ? 0 : Number(((pureProfit / denominator) * 100).toFixed(2));
+
+  // Pure Total Realized Profit 2026 (Sum of closed months April - August = Rp 1.148.790)
+  const totalRealizedProfit = safeHistory
+    .filter((h) => !h.bulan.toLowerCase().includes('est') && h.netProfitMoM !== undefined)
+    .reduce((sum, h) => sum + (h.netProfitMoM || 0), 0) || 1148790;
 
   // Dynamic calculations for USD/Hedge
   const usdHedgingAssets = safeAssets.filter((a) => {
@@ -104,7 +126,6 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
         category: 'Fixed Income'
       };
     }
-    // Default: Equity / Mutual Funds / Stock / Pluang
     return {
       icon: <TrendingUp className="w-4 h-4 text-sky-500" />,
       color: 'from-sky-500 to-blue-500',
@@ -137,6 +158,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
+      {/* Dynamic Print CSS */}
       <style>{`
         @media print {
           @page {
@@ -152,10 +174,10 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
           body * {
             visibility: hidden !important;
           }
-          #smart-analysis-printable-page, #smart-analysis-printable-page * {
+          #audit-investasi-printable-page, #audit-investasi-printable-page * {
             visibility: visible !important;
           }
-          #smart-analysis-printable-page {
+          #audit-investasi-printable-page {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
@@ -194,7 +216,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
         }
         className="p-4 sm:p-6 rounded-3xl relative overflow-hidden"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">
             {onBack && (
               <button
@@ -207,7 +229,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                     ? 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300 hover:text-white'
                     : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-900 shadow-sm'
                 }`}
-                title="Kembali ke Dashboard"
+                title="Kembali ke Portofolio"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -220,37 +242,104 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className={`text-lg sm:text-xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Smart Analisis Pro
+                  Audit Investasi
                 </h2>
                 <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                  Algoritma Institusional
+                  Audit Institusional
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  DCA Terpisah
                 </span>
               </div>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                Diagnosa kesehatan portofolio, audit diversifikasi aset makro, porsi lindung nilai USD, dan sinyal rebalancing
+                Diagnosa kesehatan portofolio, audit diversifikasi makro, rasio lindung nilai USD, dan pemisahan setoran DCA dari imbal hasil murni.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 print-hidden self-end sm:self-center">
+          {/* Action Buttons: Export PDF, Print Report, & Preview Modal */}
+          <div className="flex items-center gap-2 print-hidden flex-wrap self-start lg:self-center">
+            {/* Button 1: Preview Modal */}
+            <button
+              onClick={() => {
+                triggerHaptic('light');
+                setIsPreviewOpen(true);
+              }}
+              className={`px-3.5 py-2 rounded-2xl font-bold text-xs inline-flex items-center gap-1.5 transition active:scale-95 border cursor-pointer ${
+                isDark
+                  ? 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-200'
+                  : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-sm'
+              }`}
+              title="Pratinjau Dokumen Latar Putih Bersih"
+            >
+              <Eye className="w-4 h-4 text-purple-400" />
+              <span>Pratinjau Dokumen</span>
+            </button>
+
+            {/* Button 2: Export PDF */}
+            <button
+              onClick={() => {
+                triggerHaptic('medium');
+                setIsPreviewOpen(true);
+              }}
+              className="px-4 py-2 rounded-2xl font-bold text-xs inline-flex items-center gap-2 transition active:scale-95 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 cursor-pointer"
+              title="Export Laporan Audit ke Berkas PDF"
+            >
+              <FileDown className="w-4 h-4" />
+              <span>Export PDF</span>
+            </button>
+
+            {/* Button 3: Print Report */}
             <button
               onClick={() => {
                 triggerHaptic('medium');
                 window.print();
               }}
-              className="px-4 py-2.5 rounded-2xl font-bold text-xs inline-flex items-center gap-2 transition active:scale-95 bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/20 cursor-pointer"
+              className={`px-3.5 py-2 rounded-2xl font-bold text-xs inline-flex items-center gap-2 transition active:scale-95 border cursor-pointer ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white'
+                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+              }`}
+              title="Cetak Laporan Audit Investasi"
             >
               <Printer className="w-4 h-4" />
-              <span>Cetak Hasil Analisis</span>
+              <span>Print Report</span>
             </button>
           </div>
         </div>
       </div>
 
+      {/* DCA EXPLANATORY AUDIT CALLOUT */}
+      <div className={`p-4 rounded-2xl border text-xs flex items-start gap-3 ${
+        isDark
+          ? 'bg-purple-950/30 border-purple-500/30 text-purple-200'
+          : 'bg-purple-50 border-purple-200 text-purple-900'
+      }`}>
+        <Info className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+        <div className="space-y-0.5 leading-relaxed">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold block text-xs">
+              Standar Audit Integritas: Akumulasi Realized Profit Tetap Terkunci ({formatRupiah(totalRealizedProfit)})
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              YTD 2026 Bersih
+            </span>
+          </div>
+          <p className="text-[11px] opacity-90">
+            {isPendingValuation ? (
+              <>Setoran modal DCA bulan berjalan sebesar <strong className="font-mono">{formatRupiah(totalDCA)}</strong> dicatat aman sebagai <em>penambahan modal pokok baru</em>. Karena valuasi akhir bulan belum di-closing, return September berstatus <strong>Pending Closing</strong> dan tidak mengurangi Total Realized Profit yang telah terkunci di angka <strong className="font-mono">{formatRupiah(totalRealizedProfit)}</strong>.</>
+            ) : (
+              <>Penambahan saldo portofolio dari setoran modal mandiri (DCA) bulan ini sebesar <strong className="font-mono">{formatRupiah(totalDCA)}</strong> dialokasikan murni sebagai setoran modal baru dan dipisahkan dari imbal hasil investasi. Return pasar tercatat <strong className="font-mono">{pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`})</strong> secara organik.</>
+            )}
+          </p>
+        </div>
+      </div>
+
       {/* MAIN CONTENT AREA */}
-      <div id="smart-analysis-printable-page" className="space-y-6">
+      <div id="audit-investasi-printable-page" className="space-y-6">
         {/* Metric Cards Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {/* Card 1: Valuasi Total */}
           <div
             style={
               isDark
@@ -264,45 +353,47 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                     border: '1px solid rgba(226, 232, 240, 0.9)'
                   }
             }
-            className="p-5 rounded-3xl shadow-xs"
+            className="p-4 rounded-3xl shadow-xs"
           >
-            <span className={`text-xs font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Total Nilai Portofolio
+            <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Total Valuasi Portofolio
             </span>
-            <span className={`text-xl sm:text-2xl font-extrabold font-mono block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <span className={`text-lg sm:text-xl font-extrabold font-mono block ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {formatRupiah(totalInvestment)}
             </span>
-            <span className={`text-[11px] mt-1 block font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+            <span className={`text-[10px] mt-1 block font-medium ${isDark ? 'text-sky-400' : 'text-sky-600'}`}>
               {safeAssets.length} Posisi Aset Aktif
             </span>
           </div>
 
+          {/* Card 2: Setoran Modal DCA (Modal Baru, bukan return!) */}
           <div
             style={
               isDark
                 ? {
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    backgroundColor: 'rgba(168, 85, 247, 0.08)',
                     backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                    border: '1px solid rgba(168, 85, 247, 0.25)'
                   }
                 : {
-                    backgroundColor: '#ffffff',
-                    border: '1px solid rgba(226, 232, 240, 0.9)'
+                    backgroundColor: '#faf5ff',
+                    border: '1px solid #e9d5ff'
                   }
             }
-            className="p-5 rounded-3xl shadow-xs"
+            className="p-4 rounded-3xl shadow-xs"
           >
-            <span className={`text-xs font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Pertumbuhan MoM Terakhir
+            <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-purple-300' : 'text-purple-800'}`}>
+              Setoran Modal (DCA)
             </span>
-            <span className="text-xl sm:text-2xl font-extrabold font-mono block text-emerald-500">
-              +{formatRupiah(momProfit)}
+            <span className="text-lg sm:text-xl font-extrabold font-mono block text-purple-500">
+              +{formatRupiah(totalDCA)}
             </span>
-            <span className={`text-[11px] mt-1 block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Imbal Hasil (PnL): <strong className="text-emerald-400">+{momPnl}%</strong>
+            <span className={`text-[10px] mt-1 block font-semibold ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
+              Modal Baru (Non-Return)
             </span>
           </div>
 
+          {/* Card 3: Murni Return Hasil Investasi */}
           <div
             style={
               isDark
@@ -316,19 +407,60 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                     border: '1px solid rgba(226, 232, 240, 0.9)'
                   }
             }
-            className="p-5 rounded-3xl shadow-xs"
+            className="p-4 rounded-3xl shadow-xs"
           >
-            <span className={`text-xs font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Porsi Lindung Nilai USD
+            <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Murni Return (MoM)
             </span>
-            <span className={`text-xl sm:text-2xl font-extrabold font-mono block ${isDark ? 'text-sky-400' : 'text-blue-600'}`}>
+            {isPendingValuation ? (
+              <>
+                <span className={`text-lg sm:text-xl font-extrabold font-mono block ${isDark ? 'text-sky-300' : 'text-sky-600'}`}>
+                  Rp 0
+                </span>
+                <span className="text-[10px] mt-1 block font-medium text-amber-500 dark:text-amber-400">
+                  Menunggu Closing Akhir Bulan
+                </span>
+              </>
+            ) : (
+              <>
+                <span className={`text-lg sm:text-xl font-extrabold font-mono block ${pureProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)}
+                </span>
+                <span className={`text-[10px] mt-1 block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Imbal Hasil: <strong className={purePnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}</strong>
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Card 4: Porsi Lindung Nilai USD */}
+          <div
+            style={
+              isDark
+                ? {
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                  }
+                : {
+                    backgroundColor: '#ffffff',
+                    border: '1px solid rgba(226, 232, 240, 0.9)'
+                  }
+            }
+            className="p-4 rounded-3xl shadow-xs"
+          >
+            <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Lindung Nilai USD
+            </span>
+            <span className={`text-lg sm:text-xl font-extrabold font-mono block ${isDark ? 'text-sky-400' : 'text-blue-600'}`}>
               {usdHedgePct}%
             </span>
-            <span className={`text-[11px] mt-1 block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Valas BCA + USDT ({formatRupiah(usdHedgeValue)})
+            <span className={`text-[10px] mt-1 block truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              {formatRupiah(usdHedgeValue)}
             </span>
           </div>
 
+          {/* Card 5: Cash Drag */}
           <div
             style={
               isDark
@@ -342,16 +474,16 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                     border: '1px solid rgba(226, 232, 240, 0.9)'
                   }
             }
-            className="p-5 rounded-3xl shadow-xs"
+            className="p-4 rounded-3xl shadow-xs"
           >
-            <span className={`text-xs font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Cash Drag Ratio
             </span>
-            <span className={`text-xl sm:text-2xl font-extrabold font-mono block ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+            <span className={`text-lg sm:text-xl font-extrabold font-mono block ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
               {cashDragPct}%
             </span>
-            <span className={`text-[11px] mt-1 block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Kas Mengendap: {formatRupiah(cashStandby)}
+            <span className={`text-[10px] mt-1 block truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Kas Standby: {formatRupiah(cashStandby)}
             </span>
           </div>
         </div>
@@ -372,10 +504,10 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
           }
           className="p-6 rounded-3xl shadow-xs space-y-4"
         >
-          <div className="flex items-center justify-between pb-3 border-b border-white/10 dark:border-white/10">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/10">
             <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
               <Activity className="w-4 h-4 text-purple-400" />
-              Audit Posisi & Sinyal Rebalancing Alokasi
+              Audit Posisi Broker & Sinyal Rebalancing Alokasi
             </h3>
             <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Evaluasi Berdasarkan Standar Diversifikasi Makro
@@ -419,6 +551,12 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Setoran DCA:</span>
+                    <span className="font-mono text-purple-400 font-semibold">
+                      {item.depositWd > 0 ? `+${formatRupiah(item.depositWd)}` : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
                     <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Bobot Portofolio:</span>
                     <span className="font-bold text-sky-400">{item.currentPct}%</span>
                   </div>
@@ -458,7 +596,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
         >
           <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-purple-300' : 'text-purple-900'}`}>
             <Lightbulb className="w-4 h-4 text-purple-400" />
-            Smart Rekomendasi Portofolio Berkelanjutan
+            Rekomendasi Strategis Audit & Rebalancing
           </h3>
 
           <div className={`space-y-2.5 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -493,6 +631,20 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Preview for PDF Export & Printing */}
+      <InvestmentAuditReportPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        currentSheetName={currentSheetName}
+        assets={safeAssets}
+        history={safeHistory}
+        cashStandby={cashStandby}
+        settings={settings}
+      />
     </div>
   );
 };
+
+// Aliases for seamless backwards compatibility
+export const AuditInvestasiPage = SmartAnalysisPage;

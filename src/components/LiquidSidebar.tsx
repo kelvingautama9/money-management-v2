@@ -173,10 +173,10 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
     },
     {
       id: 'analysis' as ActivePage,
-      label: 'Smart Analisis Pro',
-      sublabel: 'Rebalancing & Portofolio',
+      label: 'Audit Investasi',
+      sublabel: 'Audit Aset & Rebalancing',
       icon: Sparkles,
-      badge: 'Pro',
+      badge: 'Audit',
       color: 'from-purple-500/20 to-pink-500/20',
       activeText: isDark ? 'text-purple-300' : 'text-purple-600',
       iconColor: isDark ? 'text-purple-400' : 'text-purple-500'

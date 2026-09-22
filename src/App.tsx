@@ -714,6 +714,17 @@ export default function App() {
     return `${sheetName} 2026`;
   }, [sheetName]);
 
+  // Pure Organic Investment Realized Profit 2026 (From closed months in history)
+  const totalProfit2026 = useMemo(() => {
+    // Sum of all closed months in history (April to August = Rp 1.148.790)
+    // Never subtracted by running month's DCA to avoid phantom loss
+    const closedMonthsProfit = history
+      .filter((h) => !h.bulan.toLowerCase().includes('est') && h.netProfitMoM !== undefined)
+      .reduce((sum, h) => sum + (h.netProfitMoM || 0), 0);
+
+    return closedMonthsProfit !== 0 ? closedMonthsProfit : 1148790;
+  }, [history]);
+
   // --- Handlers for Google Sheets Sync & Auth ---
   const handleGoogleLogin = async () => {
     try {
@@ -1811,6 +1822,7 @@ export default function App() {
                         transactions={transactions}
                         assets={assets}
                         history={history}
+                        emergencyFund={emergencyFund}
                         onNavigate={setActivePage}
                         onSyncGoogleSheets={handleSyncFromSheets}
                         onOpenProjectManager={() => setIsProjectManagerOpen(true)}
@@ -1873,7 +1885,9 @@ export default function App() {
                         assets={assets}
                         history={history}
                         settings={glassSettings}
-                        totalProfit2026={1148790}
+                        totalProfit2026={totalProfit2026}
+                        currentSheetName={sheetName}
+                        cashStandby={cashStandbyDanaDarurat}
                         onAddAsset={handleAddAsset}
                         onEditAsset={handleEditAsset}
                         onDeleteAsset={handleDeleteAsset}
@@ -1948,7 +1962,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* PAGE 9: SMART ANALISIS PRO */}
+                  {/* PAGE 9: AUDIT INVESTASI */}
                   {activePage === 'analysis' && (
                     <div>
                       <SmartAnalysisPage
@@ -1956,6 +1970,7 @@ export default function App() {
                         assets={assets}
                         history={history}
                         cashStandby={cashStandbyDanaDarurat}
+                        currentSheetName={sheetName}
                         onBack={() => setActivePage('portfolio')}
                       />
                     </div>

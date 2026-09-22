@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassSettings, InvestmentAsset, InvestmentHistory } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
@@ -9,6 +9,7 @@ import {
   AlertCircle,
   X,
   Printer,
+  FileDown,
   DollarSign,
   Coins,
   ArrowUpRight,
@@ -20,8 +21,11 @@ import {
   AlertTriangle,
   Lightbulb,
   Sparkles,
-  Calendar
+  Calendar,
+  Info,
+  Eye
 } from 'lucide-react';
+import { InvestmentAuditReportPreviewModal } from './InvestmentAuditReportPreviewModal';
 
 interface SmartAnalysisModalProps {
   isOpen: boolean;
@@ -30,6 +34,7 @@ interface SmartAnalysisModalProps {
   history: InvestmentHistory[];
   settings: GlassSettings;
   cashStandby: number;
+  currentSheetName?: string;
 }
 
 export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
@@ -38,8 +43,11 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
   assets,
   history,
   settings,
-  cashStandby = 0
+  cashStandby = 0,
+  currentSheetName = 'September'
 }) => {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       const prev = document.body.style.overflow;
@@ -57,12 +65,21 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
   const safeHistory = Array.isArray(history) ? history : [];
 
   const totalInvestment = safeAssets.reduce((sum, a) => sum + (Number(a.nilaiAkhirBulan) || 0), 0);
+  const totalDCA = safeAssets.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
   const totalWealth = totalInvestment + cashStandby;
 
-  // Recent month performance
-  const latestMonth = safeHistory.length > 0 ? safeHistory[safeHistory.length - 1] : null;
-  const momProfit = latestMonth?.netProfitMoM || 2016286;
-  const momPnl = latestMonth?.pnlPercent || 3.9;
+  // Previous month baseline
+  const prevMonthIndex = safeHistory.length >= 2 ? safeHistory.length - 2 : -1;
+  const prevMonth = prevMonthIndex >= 0 ? safeHistory[prevMonthIndex] : null;
+  const prevNetWorth = prevMonth?.totalNetWorth || 51705076;
+
+  // SMART STATE DETECTION:
+  // If totalInvestment equals prevNetWorth, active month has not been closed yet.
+  const isPendingValuation = totalInvestment === prevNetWorth;
+  const grossGrowth = totalInvestment - prevNetWorth;
+  const pureProfit = isPendingValuation ? 0 : grossGrowth - totalDCA;
+  const denominator = prevNetWorth + (totalDCA > 0 ? totalDCA / 2 : 0);
+  const purePnl = isPendingValuation || denominator <= 0 ? 0 : Number(((pureProfit / denominator) * 100).toFixed(2));
 
   // Dynamic calculations for USD/Hedge
   const usdHedgingAssets = safeAssets.filter((a) => {
@@ -114,18 +131,17 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
       return {
         icon: <ShieldCheck className="w-4 h-4 text-blue-500" />,
         color: 'from-blue-500 to-cyan-400',
-        badgeBg: isLight ? 'bg-blue-100 text-blue-900 border-blue-300' : 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+        badgeBg: isLight ? 'bg-blue-100 text-blue-900 border-blue-300' : 'bg-blue-500/20 text-blue-300 border-blue-400/30',
         role: 'Pendapatan Tetap Defensif & Kupon Berkala',
         idealMin: 15,
         idealMax: 25,
         category: 'Fixed Income'
       };
     }
-    // Default: Equity / Mutual Funds / Stock / Pluang
     return {
       icon: <TrendingUp className="w-4 h-4 text-sky-500" />,
       color: 'from-sky-500 to-blue-500',
-      badgeBg: isLight ? 'bg-sky-100 text-sky-900 border-sky-300' : 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+      badgeBg: isLight ? 'bg-sky-100 text-sky-900 border-sky-300' : 'bg-sky-500/20 text-sky-300 border-sky-400/30',
       role: 'Akselerator Pertumbuhan Jangka Panjang (Capital Gain)',
       idealMin: 35,
       idealMax: 45,
@@ -133,127 +149,34 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
     };
   };
 
-  // Rebalancing and health audit calculations
   const dynamicAssetAudits = safeAssets.map((asset) => {
     const pct = totalInvestment > 0 ? Number(((asset.nilaiAkhirBulan / totalInvestment) * 100).toFixed(1)) : 0;
     const meta = getAssetMeta(asset.nama, pct);
     let status: 'optimal' | 'overweight' | 'underweight' = 'optimal';
-    let statusText = 'Optimal (Dalam Target)';
-
-    if (pct > meta.idealMax) {
-      status = 'overweight';
-      statusText = `Overweight (+${(pct - meta.idealMax).toFixed(1)}% di atas target)`;
-    } else if (pct < meta.idealMin) {
-      status = 'underweight';
-      statusText = `Underweight (-${(meta.idealMin - pct).toFixed(1)}% di bawah target)`;
-    }
+    if (pct > meta.idealMax) status = 'overweight';
+    else if (pct < meta.idealMin) status = 'underweight';
 
     return {
       ...asset,
-      pct,
+      currentPct: pct,
       meta,
-      status,
-      statusText
+      status
     };
   });
 
   const overweightAssets = dynamicAssetAudits.filter((a) => a.status === 'overweight');
   const underweightAssets = dynamicAssetAudits.filter((a) => a.status === 'underweight');
 
-  return typeof document !== 'undefined' ? createPortal(
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] w-screen h-[100dvh] bg-black/75 backdrop-blur-md p-3 sm:p-6 flex items-center justify-center overflow-hidden animate-in fade-in duration-200"
-      onClick={onClose}
+      onClick={() => {
+        triggerHaptic('light');
+        onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
     >
-      <style>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 6mm 8mm;
-          }
-          html, body {
-            background: #ffffff !important;
-            color: #0f172a !important;
-            overflow: visible !important;
-            height: auto !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          body * {
-            visibility: hidden !important;
-          }
-          #smart-analysis-printable-area, #smart-analysis-printable-area * {
-            visibility: visible !important;
-          }
-          #smart-analysis-printable-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 4px 6px !important;
-            background: #ffffff !important;
-            color: #0f172a !important;
-            border: none !important;
-            box-shadow: none !important;
-            max-height: none !important;
-            overflow: visible !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            page-break-after: avoid !important;
-          }
-          .print-hidden {
-            display: none !important;
-          }
-          .print-compact-body {
-            overflow: visible !important;
-            max-height: none !important;
-            gap: 8px !important;
-            margin-top: 8px !important;
-          }
-          .print-card {
-            background: #f8fafc !important;
-            border: 1px solid #cbd5e1 !important;
-            padding: 6px 10px !important;
-            border-radius: 10px !important;
-          }
-          #smart-analysis-printable-area h1,
-          #smart-analysis-printable-area h2,
-          #smart-analysis-printable-area h3,
-          #smart-analysis-printable-area h4,
-          #smart-analysis-printable-area p,
-          #smart-analysis-printable-area span,
-          #smart-analysis-printable-area div,
-          #smart-analysis-printable-area li,
-          #smart-analysis-printable-area strong {
-            color: #0f172a !important;
-            -webkit-text-fill-color: #0f172a !important;
-          }
-          #smart-analysis-printable-area .text-emerald-300,
-          #smart-analysis-printable-area .text-emerald-400,
-          #smart-analysis-printable-area .text-emerald-500,
-          #smart-analysis-printable-area .text-emerald-600 {
-            color: #047857 !important;
-            -webkit-text-fill-color: #047857 !important;
-          }
-          #smart-analysis-printable-area .text-sky-300,
-          #smart-analysis-printable-area .text-sky-400,
-          #smart-analysis-printable-area .text-blue-600 {
-            color: #1d4ed8 !important;
-            -webkit-text-fill-color: #1d4ed8 !important;
-          }
-          #smart-analysis-printable-area .text-amber-300,
-          #smart-analysis-printable-area .text-amber-400,
-          #smart-analysis-printable-area .text-amber-600 {
-            color: #b45309 !important;
-            -webkit-text-fill-color: #b45309 !important;
-          }
-        }
-      `}</style>
-
       <div
-        id="smart-analysis-printable-area"
+        id="audit-investasi-modal-area"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: isLight ? '#ffffff' : 'rgba(10, 14, 28, 0.98)',
@@ -262,37 +185,58 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
             ? '0 25px 50px -12px rgba(0, 0, 0, 0.18)'
             : '0 30px 80px rgba(0,0,0,0.85), inset 0 1px 1px rgba(255,255,255,0.25)'
         }}
-        className={`w-full max-w-3xl rounded-3xl border ${isLight ? 'border-slate-200 text-slate-900' : 'border-white/15 text-slate-100'} p-4 sm:p-6 my-auto shadow-2xl relative max-h-[92dvh] flex flex-col`}
+        className={`w-full max-w-4xl rounded-3xl border ${isLight ? 'border-slate-200 text-slate-900' : 'border-white/15 text-slate-100'} p-4 sm:p-6 my-auto shadow-2xl relative max-h-[92dvh] flex flex-col`}
       >
         {/* Header */}
         <div className={`flex items-start justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/10'} gap-3 shrink-0`}>
           <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl ${isLight ? 'bg-sky-50 border border-sky-200' : 'bg-gradient-to-tr from-sky-600/30 via-indigo-600/30 to-blue-500/20 border border-sky-400/30'} flex items-center justify-center shrink-0`}>
-              <Activity className={`w-4.5 h-4.5 ${isLight ? 'text-sky-600' : 'text-sky-400'}`} />
+            <div className={`w-9 h-9 rounded-xl ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-gradient-to-tr from-purple-600/30 via-indigo-600/30 to-blue-500/20 border border-purple-400/30'} flex items-center justify-center shrink-0`}>
+              <Activity className={`w-4.5 h-4.5 ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className={`text-base sm:text-lg font-bold tracking-tight ${isLight ? 'text-slate-900' : '!text-white'}`}>
-                  Smart Analisis Portofolio Investasi
+                  Audit Investasi & Portofolio
                 </h3>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${isLight ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-blue-500/20 text-blue-300 border border-blue-400/30'}`}>
-                  Pro Standard
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${isLight ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-purple-500/20 text-purple-300 border border-purple-400/30'}`}>
+                  Audit Institusional
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'}`}>
+                  DCA Terpisah
                 </span>
               </div>
               <p className={`text-[11px] sm:text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
-                Evaluasi performa real-time, perimbangan instrumen, dan rekomendasi rebalancing • Budgeting
+                Evaluasi kinerja organik real-time, perimbangan instrumen, dan pemisahan setoran DCA dari imbal hasil.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 print-hidden">
+            {/* Button: Export PDF */}
             <button
-              onClick={() => window.print()}
+              onClick={() => {
+                triggerHaptic('medium');
+                setIsPreviewOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+              title="Ekspor PDF"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export PDF</span>
+            </button>
+
+            {/* Button: Print */}
+            <button
+              onClick={() => {
+                triggerHaptic('medium');
+                window.print();
+              }}
               className={`p-2 rounded-xl border transition cursor-pointer ${isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-white/10 hover:bg-white/20 border-white/15 text-slate-200 hover:text-white'}`}
               title="Cetak Ringkasan"
             >
               <Printer className="w-4 h-4" />
             </button>
+
             <button
               onClick={() => {
                 triggerHaptic('light');
@@ -307,204 +251,197 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div className="overflow-y-auto pr-1 mt-4 space-y-5">
-          {/* 3 Executive Summary KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-              <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Kinerja MoM (Bulan Terakhir)
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className={`text-xl font-bold font-mono ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`}>
-                  +{momPnl}%
-                </span>
-                <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  ({formatRupiah(momProfit)})
-                </span>
-              </div>
-              <span className={`text-[10px] flex items-center gap-1 mt-1 font-semibold ${isLight ? 'text-emerald-700' : 'text-emerald-400/90'}`}>
-                <ArrowUpRight className="w-3 h-3" /> Target bulanan (+1.0%) tercapai
-              </span>
-            </div>
-
-            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-              <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                USD Currency Hedge Ratio
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className={`text-xl font-bold font-mono ${isLight ? 'text-blue-600' : 'text-sky-300'}`}>
-                  {usdHedgePct}%
-                </span>
-                <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Porsi Valas & Aset Asing</span>
-              </div>
-              <span className={`text-[10px] flex items-center gap-1 mt-1 font-semibold ${isLight ? 'text-blue-700' : 'text-sky-400/90'}`}>
-                <ShieldCheck className="w-3 h-3" /> Proteksi depresiasi Rupiah
-              </span>
-            </div>
-
-            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-              <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Cash Drag Index
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className={`text-xl font-bold font-mono ${isLight ? 'text-amber-600' : 'text-amber-300'}`}>
-                  {cashDragPct}%
-                </span>
-                <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Kas Standby</span>
-              </div>
-              <span className={`text-[10px] flex items-center gap-1 mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Ideal: 5-10% untuk likuiditas taktis
-              </span>
-            </div>
+        <div className="overflow-y-auto pr-1 mt-4 space-y-4">
+          {/* DCA Notice */}
+          <div className={`p-3 rounded-2xl border text-xs flex items-center gap-2.5 ${
+            isLight ? 'bg-purple-50 border-purple-200 text-purple-900' : 'bg-purple-950/30 border-purple-500/30 text-purple-200'
+          }`}>
+            <Info className="w-4 h-4 text-purple-400 shrink-0" />
+            <span className="text-[11px] leading-relaxed">
+              <strong>Audit Metodologi:</strong> Setoran berkala DCA (+{formatRupiah(totalDCA)}) dialokasikan sebagai <em>penambahan pokok modal mandiri</em> dan <strong>tidak dimasukkan ke dalam return hasil investasi</strong>.
+            </span>
           </div>
 
-          {/* Dynamic Asset Allocation & Benchmark Comparison Table */}
-          <div className={`p-4 rounded-2xl border space-y-3 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.02] border-white/10'}`}>
-            <div className="flex items-center justify-between">
-              <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                <Layers className={`w-3.5 h-3.5 ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
-                Alokasi Aset Aktif vs Standard Financial Planner
-              </h4>
-              <span className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Total Portofolio: {formatRupiah(totalInvestment)}</span>
+          {/* 4 Executive Summary KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Total Valuasi */}
+            <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                Total Valuasi Portofolio
+              </span>
+              <span className={`text-base sm:text-lg font-bold font-mono block ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {formatRupiah(totalInvestment)}
+              </span>
+              <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                {safeAssets.length} Posisi Aset
+              </span>
             </div>
 
-            <div className="space-y-3">
-              {dynamicAssetAudits.length > 0 ? (
-                dynamicAssetAudits.map((asset) => (
-                  <div
-                    key={asset.nama}
-                    className={`p-3.5 rounded-xl border space-y-2 transition-all ${isLight ? 'bg-white border-slate-200 hover:border-slate-300' : 'bg-white/[0.02] border-white/5 hover:border-white/15'}`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
-                      <div className="flex items-center gap-2">
-                        {asset.meta.icon}
-                        <span className={`font-bold tracking-tight ${isLight ? 'text-slate-800' : 'text-white'}`}>{asset.nama}</span>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${asset.meta.badgeBg}`}>
-                          {asset.meta.category}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 self-end sm:self-auto">
-                        <span className={`font-mono font-bold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                          {formatRupiah(asset.nilaiAkhirBulan)} ({asset.pct}%)
-                        </span>
-                        <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
-                            asset.status === 'optimal'
-                              ? isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/15 text-emerald-300'
-                              : asset.status === 'overweight'
-                              ? isLight ? 'bg-amber-100 text-amber-800' : 'bg-amber-500/15 text-amber-300'
-                              : isLight ? 'bg-rose-100 text-rose-800' : 'bg-rose-500/15 text-rose-300'
-                          }`}
-                        >
-                          {asset.statusText}
-                        </span>
-                      </div>
-                    </div>
+            {/* Setoran DCA */}
+            <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-purple-50/70 border-purple-200' : 'bg-purple-950/20 border-purple-500/20'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-purple-800' : 'text-purple-300'}`}>
+                Setoran Modal (DCA)
+              </span>
+              <span className="text-base sm:text-lg font-bold font-mono block text-purple-500">
+                +{formatRupiah(totalDCA)}
+              </span>
+              <span className={`text-[10px] block mt-0.5 font-medium ${isLight ? 'text-purple-700' : 'text-purple-400'}`}>
+                Modal Baru (Non-Return)
+              </span>
+            </div>
 
-                    {/* Progress bar comparison */}
-                    <div className={`w-full h-2 rounded-full overflow-hidden relative ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${asset.meta.color} transition-all duration-500`}
-                        style={{ width: `${Math.min(100, asset.pct)}%` }}
-                      />
-                    </div>
-
-                    <div className={`flex items-center justify-between text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                      <span className="truncate mr-2">Fungsi: {asset.meta.role}</span>
-                      <span className={`shrink-0 font-medium ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                        Target Ideal: {asset.meta.idealMin}% - {asset.meta.idealMax}%
-                      </span>
-                    </div>
+            {/* Murni Return MoM */}
+            <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                Murni Return MoM
+              </span>
+              {isPendingValuation ? (
+                <>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className={`text-base sm:text-lg font-bold font-mono ${isLight ? 'text-sky-600' : 'text-sky-400'}`}>
+                      0.00%
+                    </span>
+                    <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      (Rp 0)
+                    </span>
                   </div>
-                ))
+                  <span className="text-[10px] block mt-0.5 font-medium text-amber-500">
+                    Menunggu Closing
+                  </span>
+                </>
               ) : (
-                <p className={`text-xs p-3 text-center ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Belum ada instrumen investasi tercatat.</p>
+                <>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className={`text-base sm:text-lg font-bold font-mono ${pureProfit >= 0 ? (isLight ? 'text-emerald-600' : 'text-emerald-400') : 'text-rose-500'}`}>
+                      {pureProfit >= 0 ? `+${purePnl}%` : `${purePnl}%`}
+                    </span>
+                    <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      ({pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)})
+                    </span>
+                  </div>
+                  <span className={`text-[10px] flex items-center gap-1 mt-0.5 font-semibold ${pureProfit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    <ArrowUpRight className="w-3 h-3" /> {pureProfit >= 0 ? 'Pertumbuhan Organik' : 'Koreksi Pasar'}
+                  </span>
+                </>
               )}
             </div>
-          </div>
 
-          {/* Smart Rekomendasi & Pengingat Investasi */}
-          <div className="space-y-4">
-            {/* 1. Pengingat Jadwal Investasi Rutin (DCA Reminder) */}
-            <div className={`p-4 rounded-2xl border space-y-2 ${isLight ? 'bg-emerald-50/80 border-emerald-200' : 'bg-gradient-to-r from-emerald-950/30 via-teal-950/20 to-blue-950/20 border-emerald-500/30'}`}>
-              <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? 'text-emerald-900' : 'text-emerald-400'}`}>
-                <Bell className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
-                Pengingat Jadwal Investasi Rutin (DCA Reminder)
-              </h4>
-              <div className={`text-xs leading-relaxed flex items-start gap-2.5 ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                <Calendar className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
-                <div>
-                  <p className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    Jadwal Injeksi Modal Bulanan: <strong>Tanggal 25 - 30 Setiap Bulan</strong>
-                  </p>
-                  <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                    Setiap kali slip gaji cair (MYPAK), prioritaskan transfer otomatis <strong>Rp 2.016.286</strong> ke instrumen investasi sebelum saldo terpakai untuk pengeluaran konsumtif (*Pay Yourself First*).
-                  </p>
-                </div>
+            {/* USD Hedge Ratio */}
+            <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                Lindung Nilai USD
+              </span>
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-base sm:text-lg font-bold font-mono ${isLight ? 'text-blue-600' : 'text-sky-400'}`}>
+                  {usdHedgePct}%
+                </span>
+                <span className={`text-[10px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  ({formatRupiah(usdHedgeValue)})
+                </span>
               </div>
-            </div>
-
-            {/* 2. Smart Rekomendasi Perbaikan & Rebalancing */}
-            <div className={`p-4 rounded-2xl border space-y-2.5 ${isLight ? 'bg-blue-50/80 border-blue-200' : 'bg-gradient-to-br from-blue-950/30 to-indigo-950/20 border-blue-500/20'}`}>
-              <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? 'text-blue-900' : 'text-sky-300'}`}>
-                <Lightbulb className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
-                Smart Rekomendasi Perbaikan Portofolio
-              </h4>
-
-              <div className={`space-y-2 text-xs ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                {overweightAssets.length > 0 && (
-                  <div className={`p-2.5 rounded-xl border flex items-start gap-2 ${isLight ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'}`}>
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <strong>Peringatan Rebalancing:</strong> Aset{' '}
-                      <span className="font-bold">
-                        {overweightAssets.map((a) => a.nama).join(', ')}
-                      </span>{' '}
-                      berada di atas bobot ideal. Tidak perlu menjual (take profit kena fee), cukup{' '}
-                      <strong>alihkan setoran DCA baru bulan depan</strong> ke instrumen yang underweight untuk menyeimbangkan profil risiko.
-                    </div>
-                  </div>
-                )}
-
-                {underweightAssets.length > 0 && (
-                  <div className={`p-2.5 rounded-xl border flex items-start gap-2 ${isLight ? 'bg-blue-100/70 border-blue-300 text-blue-900' : 'bg-sky-500/10 border-sky-500/20 text-sky-200'}`}>
-                    <TrendingUp className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                    <div>
-                      <strong>Prioritas Top-Up Berikutnya:</strong> Aset{' '}
-                      <span className="font-bold">
-                        {underweightAssets.map((a) => a.nama).join(', ')}
-                      </span>{' '}
-                      masih di bawah benchmark ideal. Prioritaskan alokasi setoran berikutnya ke pos ini guna memperkuat motor pertumbuhan portofolio.
-                    </div>
-                  </div>
-                )}
-
-                <div className={`p-2.5 rounded-xl border flex items-start gap-2 ${isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Kekuatan Lindung Nilai USD ({usdHedgePct}%):</strong> Porsi aset berdenominasi mata uang kuat (Valas & USDT) sangat kokoh dalam menangkal pelemahan nilai tukar Rupiah dan menjaga daya beli global.
-                  </div>
-                </div>
-              </div>
+              <span className={`text-[10px] flex items-center gap-1 mt-0.5 font-semibold ${isLight ? 'text-blue-700' : 'text-sky-400/90'}`}>
+                <ShieldCheck className="w-3 h-3" /> Proteksi Mata Uang
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Footer Note */}
-        <div className={`mt-3 pt-2.5 border-t flex items-center justify-between text-[11px] shrink-0 ${isLight ? 'border-slate-200 text-slate-500' : 'border-white/10 text-slate-400'}`}>
-          <span>Budgeting • Data tersinkronisasi otomatis dengan Google Sheet</span>
-          <button
-            onClick={() => {
-              triggerHaptic('light');
-              onClose();
-            }}
-            className={`px-4 py-1.5 rounded-xl font-semibold transition cursor-pointer print-hidden ${isLight ? 'bg-slate-900 hover:bg-slate-800 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
-          >
-            Selesai
-          </button>
+          {/* Allocation & Audit Breakdown */}
+          <div className={`p-4 rounded-2xl border space-y-3 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.02] border-white/10'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                Audit Posisi Broker & Instrumen
+              </span>
+              <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                Target Seimbang 100%
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {dynamicAssetAudits.map((item) => (
+                <div
+                  key={item.nama}
+                  className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                    isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-white/10">{item.meta.icon}</div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{item.nama}</span>
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                            item.status === 'optimal'
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : item.status === 'overweight'
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          }`}
+                        >
+                          {item.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{item.meta.category}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs font-mono justify-between sm:justify-end">
+                    <div className="text-right">
+                      <span className={`block font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {formatRupiah(item.nilaiAkhirBulan)}
+                      </span>
+                      {item.depositWd > 0 && (
+                        <span className="text-[10px] text-purple-500 block">
+                          DCA: +{formatRupiah(item.depositWd)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="w-12 text-right">
+                      <span className="font-bold text-sky-400">{item.currentPct}%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Actionable Rebalancing Plan */}
+          <div className={`p-4 rounded-2xl border space-y-2 text-xs ${
+            isLight ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-purple-950/20 border-purple-500/20 text-purple-200'
+          }`}>
+            <h4 className="font-bold flex items-center gap-1.5 text-xs">
+              <Lightbulb className="w-4 h-4 text-purple-400" />
+              Saran Rebalancing Cerdas
+            </h4>
+            <p className="text-[11px] leading-relaxed opacity-90">
+              {overweightAssets.length > 0 ? (
+                <>
+                  Pos <strong>{overweightAssets.map((a) => a.nama).join(', ')}</strong> berbobot tinggi. Alihkan setoran DCA bulanan berikutnya ke pos yang masih underweight tanpa perlu menjual aset yang ada.
+                </>
+              ) : (
+                <>
+                  Seluruh alokasi portofolio berada dalam batas diversifikasi yang ideal dan seimbang. Pertahankan kedisiplinan setoran DCA bulanan.
+                </>
+              )}
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Modal Preview for PDF Export */}
+      <InvestmentAuditReportPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        currentSheetName={currentSheetName}
+        assets={safeAssets}
+        history={safeHistory}
+        cashStandby={cashStandby}
+        settings={settings}
+      />
     </div>,
     document.body
-  ) : null;
+  );
 };
+
+// Aliases for seamless backwards compatibility
+export const AuditInvestasiModal = SmartAnalysisModal;

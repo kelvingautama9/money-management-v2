@@ -45,7 +45,7 @@ const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
   journal: { title: 'Jurnal & Rekap Data', subtitle: 'Tabel Mutasi Google Sheets' },
   calculator: { title: 'Kalkulator Investasi', subtitle: 'Simulasi Dana Pensiun & Aturan 4%' },
   audit: { title: 'Audit Financial', subtitle: 'Audit Neraca & Ekspor Laporan Finansial' },
-  analysis: { title: 'Smart Analisis Pro', subtitle: 'Diagnosa Portofolio & Rebalancing Aset' },
+  analysis: { title: 'Audit Investasi', subtitle: 'Audit Portofolio, Rebalancing & Ekspor PDF' },
   sync: { title: 'Singkron Google Sheet', subtitle: 'Integrasi Spreadsheet & Mutasi Realtime' },
   theme: { title: 'Custom Theme', subtitle: 'Pengaturan Kaca Liquid & Gaya Tema' }
 };

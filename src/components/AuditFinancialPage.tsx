@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GlassSettings, Transaction, BudgetCategory, EmergencyFund } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   FileText,
   Printer,
+  FileDown,
+  Loader2,
   ShieldCheck,
   TrendingUp,
   Wallet,
@@ -40,6 +44,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
   onBack
 }) => {
   const isDark = settings?.themeMode !== 'light' && settings?.themeMode !== 'beige';
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
   const safeBudgets = Array.isArray(budgets) ? budgets : [];
@@ -60,6 +65,55 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
   const budgetAbsorptionPct = totalBudgetPlafon > 0 ? ((totalBudgetSpend / totalBudgetPlafon) * 100).toFixed(1) : '0';
 
   const emergencyPct = safeEmergency.target > 0 ? ((safeEmergency.current / safeEmergency.target) * 100).toFixed(1) : '0';
+
+  const handleExportPdf = async () => {
+    const element = document.getElementById('audit-financial-printable-area');
+    if (!element) return;
+    triggerHaptic('medium');
+    setIsExportingPdf(true);
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(`Audit-Finansial-${currentSheetName.toUpperCase()}-2026.pdf`);
+      triggerHaptic('success');
+    } catch (err) {
+      console.error('Gagal export PDF:', err);
+      triggerHaptic('error');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
@@ -212,16 +266,44 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 print-hidden self-end sm:self-center">
+          <div className="flex items-center gap-2 print-hidden self-end sm:self-center flex-wrap">
+            {/* Button 1: Export PDF */}
             <button
+              id="audit-page-btn-export-pdf"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              className="px-4 py-2.5 rounded-2xl font-bold text-xs inline-flex items-center gap-2 transition active:scale-95 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white shadow-lg shadow-blue-500/20 cursor-pointer disabled:opacity-50"
+              title="Download format PDF berlatar putih resmi"
+            >
+              {isExportingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Membuat PDF...</span>
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-4 h-4" />
+                  <span>Export PDF</span>
+                </>
+              )}
+            </button>
+
+            {/* Button 2: Print Report */}
+            <button
+              id="audit-page-btn-print-report"
               onClick={() => {
                 triggerHaptic('medium');
                 window.print();
               }}
-              className="px-4 py-2.5 rounded-2xl font-bold text-xs inline-flex items-center gap-2 transition active:scale-95 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 cursor-pointer"
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs inline-flex items-center gap-2 transition active:scale-95 cursor-pointer border ${
+                isDark
+                  ? 'bg-white/10 hover:bg-white/15 text-white border-white/20'
+                  : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-300 shadow-sm'
+              }`}
+              title="Cetak langsung menggunakan browser print"
             >
               <Printer className="w-4 h-4" />
-              <span>Cetak / Ekspor PDF</span>
+              <span>Print Report</span>
             </button>
           </div>
         </div>

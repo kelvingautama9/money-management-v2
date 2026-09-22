@@ -218,7 +218,7 @@ export const INITIAL_INVESTMENT_HISTORY: InvestmentHistory[] = [
   { bulan: 'Juni', pluang: 14821204, valasBca: 22787237, usdtBinance: 12420431, totalNetWorth: 50028872, netProfitMoM: 862172, pnlPercent: 1.75 },
   { bulan: 'Juli', pluang: 13427751, valasBca: 22901809, usdtBinance: 12528992, totalNetWorth: 48858552, netProfitMoM: -1170320, pnlPercent: -2.34 },
   { bulan: 'Agustus', pluang: 16860459, valasBca: 22507000, usdtBinance: 12337617, totalNetWorth: 51705076, netProfitMoM: 830238, pnlPercent: 1.63 },
-  { bulan: 'September (Est)', pluang: 18876745, valasBca: 22507000, usdtBinance: 12337617, totalNetWorth: 53721362, netProfitMoM: 2016286, pnlPercent: 3.90 }
+  { bulan: 'September (Est)', pluang: 18876745, valasBca: 22507000, usdtBinance: 12337617, totalNetWorth: 53721362, netProfitMoM: 0, pnlPercent: 0 }
 ];
 
 export const DEFAULT_GLASS_SETTINGS: GlassSettings = {

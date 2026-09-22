@@ -18,14 +18,20 @@ import {
   Check,
   Building2,
   Activity,
-  Calculator
+  Calculator,
+  FileDown,
+  Printer,
+  ShieldCheck
 } from 'lucide-react';
+import { InvestmentAuditReportPreviewModal } from './InvestmentAuditReportPreviewModal';
 
 interface InvestmentPortfolioProps {
   assets: InvestmentAsset[];
   history: InvestmentHistory[];
   settings: GlassSettings;
   totalProfit2026?: number;
+  currentSheetName?: string;
+  cashStandby?: number;
   onAddAsset?: (asset: InvestmentAsset) => void;
   onEditAsset?: (oldName: string, asset: InvestmentAsset) => void;
   onDeleteAsset?: (name: string) => void;
@@ -38,6 +44,8 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   history,
   settings,
   totalProfit2026 = 1148790,
+  currentSheetName = 'September',
+  cashStandby = 0,
   onAddAsset,
   onEditAsset,
   onDeleteAsset,
@@ -45,6 +53,7 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   onOpenCalculator
 }) => {
   const [activeTab, setActiveTab] = useState<'trend' | 'allocation'>('trend');
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -56,7 +65,23 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   const [formDeposit, setFormDeposit] = useState('');
   const [formColor, setFormColor] = useState('#38bdf8');
 
-  const totalCurrentInvestment = assets.reduce((sum, a) => sum + a.nilaiAkhirBulan, 0);
+  const totalCurrentInvestment = assets.reduce((sum, a) => sum + (Number(a.nilaiAkhirBulan) || 0), 0);
+  const totalDCA = assets.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
+
+  // Previous month baseline from history (Agustus = 51.705.076)
+  const prevMonthIndex = history.length >= 2 ? history.length - 2 : -1;
+  const prevMonth = prevMonthIndex >= 0 ? history[prevMonthIndex] : null;
+  const prevNetWorth = prevMonth?.totalNetWorth || 51705076;
+
+  // SMART STATE DETECTION:
+  // If totalCurrentInvestment is identical to previous month net worth,
+  // it indicates the active month (September) is pending closing/revaluation.
+  // DCA will NOT create phantom loss (-Rp 2.016.286).
+  const isPendingValuation = totalCurrentInvestment === prevNetWorth;
+  const grossGrowth = totalCurrentInvestment - prevNetWorth;
+  const pureProfit = isPendingValuation ? 0 : grossGrowth - totalDCA;
+  const denominator = prevNetWorth + (totalDCA > 0 ? totalDCA / 2 : 0);
+  const purePnl = isPendingValuation || denominator <= 0 ? 0 : Number(((pureProfit / denominator) * 100).toFixed(2));
 
   const pieData = assets.map((a) => ({
     name: a.nama,
@@ -64,12 +89,16 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
     color: a.warna
   }));
 
-  const chartData = history.map((h) => ({
-    bulan: h.bulan,
-    netWorth: h.totalNetWorth,
-    profit: h.netProfitMoM,
-    pnl: h.pnlPercent
-  }));
+  const chartData = history.map((h, i) => {
+    const isLatest = i === history.length - 1;
+    return {
+      bulan: h.bulan,
+      netWorth: isLatest ? totalCurrentInvestment : h.totalNetWorth,
+      profit: isLatest ? (isPendingValuation ? 0 : pureProfit) : h.netProfitMoM,
+      pnl: isLatest ? (isPendingValuation ? 0 : purePnl) : h.pnlPercent,
+      isPending: isLatest && isPendingValuation
+    };
+  });
 
   const getAssetIcon = (nama: string) => {
     const n = nama.toLowerCase();
@@ -177,21 +206,37 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
             </p>
           </div>
 
-          {/* Action Buttons: Smart Analysis + Kalkulator Pensiun + Add Broker + Tabs */}
+          {/* Action Buttons: Audit Investasi + Kalkulator Pensiun + Add Broker + Tabs */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* 3D Glass Smart Analysis Button */}
+            {/* Audit Investasi Button */}
             {onOpenSmartAnalysis && (
               <button
+                id="btn-audit-investasi-portfolio"
                 onClick={() => {
                   triggerHaptic('medium');
                   onOpenSmartAnalysis();
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-bold text-xs shadow-lg shadow-blue-500/25 border border-white/20 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-purple-500/25 border border-white/20 transition-all active:scale-95 cursor-pointer"
               >
-                <Activity className="w-3.5 h-3.5 text-sky-200" />
-                <span>Smart Analisis (Pro)</span>
+                <Activity className="w-3.5 h-3.5 text-purple-200" />
+                <span>Audit Investasi</span>
               </button>
             )}
+
+            {/* Export PDF / Cetak Laporan Audit */}
+            <button
+              id="btn-export-pdf-invest-portfolio"
+              onClick={() => {
+                triggerHaptic('light');
+                setIsAuditModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs transition-all active:scale-95 cursor-pointer"
+              title="Ekspor PDF & Cetak Laporan Audit Investasi"
+            >
+              <FileDown className="w-3.5 h-3.5 text-purple-300" />
+              <span className="hidden sm:inline">Export PDF / Cetak</span>
+              <span className="sm:hidden">PDF</span>
+            </button>
 
             {/* Kalkulator Dana Pensiun & Target Button */}
             {onOpenCalculator && (
@@ -210,7 +255,7 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
             {/* Add Asset / Broker Button */}
             <button
               onClick={handleOpenAdd}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs transition-all active:scale-95 cursor-pointer"
               title="Tambah Portofolio Broker / Wallet Baru"
             >
               <Plus className="w-3.5 h-3.5 text-emerald-400" />
@@ -245,24 +290,54 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
 
         {/* Total Valuasi Portofolio Hero Banner */}
         <div className="my-5 p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-indigo-500/10 dark:from-sky-950/40 dark:via-blue-950/25 dark:to-indigo-950/40 border border-sky-400/30 dark:border-sky-500/25 relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
             <div>
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-300 block mb-1">
-                Total Valuasi Portofolio
-              </span>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-300">
+                  Total Valuasi Portofolio
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  DCA Terpisah (Non-Return)
+                </span>
+              </div>
               <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
                 <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
                   {formatRupiah(totalCurrentInvestment)}
                 </span>
-                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 inline-flex items-center gap-1">
-                  +{formatRupiah(assets.reduce((sum, a) => sum + (a.depositWd || 0), 0))} DCA
+                <span className="text-xs font-bold text-purple-600 dark:text-purple-300 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 inline-flex items-center gap-1">
+                  +{formatRupiah(totalDCA)} Setoran DCA
                 </span>
+                {isPendingValuation ? (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 text-sky-600 dark:text-sky-300 bg-sky-500/15 border-sky-500/30">
+                    Rp 0 (0.00%) Menunggu Closing Akhir Bulan
+                  </span>
+                ) : (
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+                    pureProfit >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border-emerald-500/30'
+                      : 'text-rose-600 dark:text-rose-400 bg-rose-500/15 border-rose-500/30'
+                  }`}>
+                    {pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) Murni Return
+                  </span>
+                )}
               </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                {isPendingValuation
+                  ? 'Setoran DCA dialokasikan aman sebagai modal pokok baru. Estimasi return pasar aktif setelah update saldo akhir bulan.'
+                  : 'Nilai setoran DCA dipisahkan dari return agar performa organik aset pasar terbaca akurat.'}
+              </p>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium text-[11px]">
-                {assets.length} Broker / Aset Terdaftar
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 self-start md:self-center">
+              <button
+                onClick={() => setIsAuditModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 border border-purple-500/30 text-purple-600 dark:text-purple-300 font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Audit & PDF</span>
+              </button>
+              <span className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium text-[11px]">
+                {assets.length} Broker Terdaftar
               </span>
             </div>
           </div>
@@ -343,7 +418,7 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                 <div className="flex items-center gap-2 text-xs">
                   <span className="flex items-center gap-1 text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                     <Award className="w-3.5 h-3.5" />
-                    Total Realized Profit: <strong>{formatRupiah(totalProfit2026)}</strong>
+                    Total Realized Profit (YTD): <strong>{formatRupiah(totalProfit2026)}</strong>
                   </span>
                 </div>
               </div>
@@ -372,10 +447,16 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                           return (
                             <div className="p-3 rounded-xl bg-slate-900/90 border border-white/20 backdrop-blur-md text-xs shadow-xl">
                               <p className="font-bold text-white mb-1">{data.bulan}</p>
-                              <p className="text-sky-300">Net Worth: {formatRupiah(data.netWorth)}</p>
-                              <p className={data.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                MoM Profit: {formatRupiah(data.profit)} ({data.pnl}%)
-                              </p>
+                              <p className="text-sky-300 font-mono">Net Worth: {formatRupiah(data.netWorth)}</p>
+                              {data.isPending ? (
+                                <p className="text-sky-400 font-medium mt-0.5">
+                                  MoM Profit: Rp 0 (Menunggu Closing Akhir Bulan)
+                                </p>
+                              ) : (
+                                <p className={`font-mono mt-0.5 ${data.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                  MoM Profit: {formatRupiah(data.profit)} ({data.pnl}%)
+                                </p>
+                              )}
                             </div>
                           );
                         }
@@ -614,6 +695,17 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Preview for PDF Export & Printing */}
+      <InvestmentAuditReportPreviewModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        currentSheetName={currentSheetName}
+        assets={assets}
+        history={history}
+        cashStandby={cashStandby}
+        settings={settings}
+      />
     </div>
   );
 };
