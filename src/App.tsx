@@ -43,7 +43,8 @@ import {
   syncRenameAccountInSheet,
   syncAddAccountToSheet,
   syncAssetToSheet,
-  syncBudgetToSheet
+  syncBudgetToSheet,
+  reconcileBudgetMetrics
 } from './lib/sheetsApi';
 import { triggerHaptic } from './lib/haptics';
 
@@ -217,7 +218,27 @@ export default function App() {
       const saved = localStorage.getItem('kelvin_financial_custom_budgets');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((b: BudgetCategory) => {
+            const reconciled = reconcileBudgetMetrics(b.nama, {
+              saldoAwal: b.saldoAwal,
+              budgeting: b.budgeting ?? b.targetBulanan,
+              totalSaldo: b.totalSaldo,
+              actualSpend: b.actualSpend,
+              sisa: b.sisa
+            });
+            return {
+              ...b,
+              saldoAwal: reconciled.saldoAwal,
+              budgeting: reconciled.budgeting,
+              targetBulanan: reconciled.budgeting,
+              totalSaldo: reconciled.totalSaldo,
+              actualSpend: reconciled.actualSpend,
+              sisa: reconciled.sisa,
+              keterangan: b.keterangan || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap')
+            };
+          });
+        }
       }
     } catch (e) {}
     return INITIAL_BUDGETS;
@@ -433,35 +454,46 @@ export default function App() {
         })
         .reduce((sum, t) => sum + t.jumlah, 0);
 
-      const saldoAwal = sheetBudget?.saldoAwal ?? initBudget.saldoAwal ?? 0;
-      const budgeting = sheetBudget?.budgeting ?? initBudget.budgeting ?? initBudget.targetBulanan ?? 0;
-      const totalSaldo = sheetBudget?.totalSaldo ?? (saldoAwal + budgeting);
+      const rawSaldoAwal = sheetBudget?.saldoAwal ?? initBudget.saldoAwal ?? 0;
+      const rawBudgeting = sheetBudget?.budgeting ?? initBudget.budgeting ?? initBudget.targetBulanan ?? 0;
+      const rawTotalSaldo = sheetBudget?.totalSaldo ?? (rawSaldoAwal + rawBudgeting);
 
-      // Prefer sheet precalculated actualSpend if available, otherwise transaction spend or fallback
-      const actualSpend =
+      // Prefer sheet precalculated actualSpend if valid and not equal to totalSaldo (unless zero spend),
+      // otherwise fallback to transaction-summed spend or initial spend
+      let rawActualSpend =
         sheetBudget?.actualSpend !== undefined && sheetBudget.actualSpend > 0
           ? sheetBudget.actualSpend
           : relevantSpend > 0
           ? relevantSpend
           : initBudget.actualSpend || 0;
 
-      const sisa =
-        sheetBudget?.sisa !== undefined
-          ? sheetBudget.sisa
-          : totalSaldo - actualSpend;
+      // Reconcile metrics mathematically and protect against swapped fields
+      const reconciled = reconcileBudgetMetrics(initBudget.nama, {
+        saldoAwal: rawSaldoAwal,
+        budgeting: rawBudgeting,
+        totalSaldo: rawTotalSaldo,
+        actualSpend: rawActualSpend,
+        sisa: sheetBudget?.sisa
+      });
+
+      // If relevant transaction spend exists and sheet produced zero or total capacity as spend, use relevantSpend
+      if (relevantSpend > 0 && (reconciled.actualSpend === 0 || reconciled.actualSpend === reconciled.totalSaldo)) {
+        reconciled.actualSpend = relevantSpend;
+        reconciled.sisa = reconciled.totalSaldo - relevantSpend;
+      }
 
       const keterangan =
         sheetBudget?.keterangan ||
-        (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : sisa < 0 ? `Defisit: ${formatRupiah(Math.abs(sisa))}` : 'Anggaran Terserap');
+        (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : reconciled.sisa < 0 ? `Defisit: ${formatRupiah(Math.abs(reconciled.sisa))}` : 'Anggaran Terserap');
 
       return {
         ...initBudget,
-        saldoAwal,
-        budgeting,
-        targetBulanan: budgeting,
-        totalSaldo,
-        actualSpend,
-        sisa,
+        saldoAwal: reconciled.saldoAwal,
+        budgeting: reconciled.budgeting,
+        targetBulanan: reconciled.budgeting,
+        totalSaldo: reconciled.totalSaldo,
+        actualSpend: reconciled.actualSpend,
+        sisa: reconciled.sisa,
         keterangan,
         sheetCell: sheetBudget?.sheetCell ?? initBudget.sheetCell,
         sheetRow: sheetBudget?.sheetRow ?? initBudget.sheetRow,
@@ -945,61 +977,75 @@ export default function App() {
                   });
 
                   if (matchIdx >= 0) {
-                    const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal ?? 0;
-                    const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[matchIdx].budgeting ?? 0;
-                    const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
-                    const actualSpend = sheetBud.actualSpend ?? updatedBudgets[matchIdx].actualSpend ?? 0;
-                    const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
+                    const rawSaldoAwal = sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal ?? 0;
+                    const rawBudgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[matchIdx].budgeting ?? 0;
+                    const rawTotalSaldo = sheetBud.totalSaldo ?? (rawSaldoAwal + rawBudgeting);
+                    const rawActualSpend = sheetBud.actualSpend ?? updatedBudgets[matchIdx].actualSpend ?? 0;
+                    const reconciled = reconcileBudgetMetrics(cleanSheetName, {
+                      saldoAwal: rawSaldoAwal,
+                      budgeting: rawBudgeting,
+                      totalSaldo: rawTotalSaldo,
+                      actualSpend: rawActualSpend,
+                      sisa: sheetBud.sisa
+                    });
                     updatedBudgets[matchIdx] = {
                       ...updatedBudgets[matchIdx],
                       nama: cleanSheetName,
-                      targetBulanan: budgeting,
-                      budgeting: budgeting,
-                      saldoAwal,
-                      totalSaldo,
-                      actualSpend,
-                      sisa,
-                      keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
+                      targetBulanan: reconciled.budgeting,
+                      budgeting: reconciled.budgeting,
+                      saldoAwal: reconciled.saldoAwal,
+                      totalSaldo: reconciled.totalSaldo,
+                      actualSpend: reconciled.actualSpend,
+                      sisa: reconciled.sisa,
+                      keterangan: sheetBud.keterangan || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap'),
                       sheetCell: sheetBud.sheetCell ?? updatedBudgets[matchIdx].sheetCell,
                       sheetRow: sheetBud.sheetRow ?? updatedBudgets[matchIdx].sheetRow,
                       sheetCol: sheetBud.sheetCol ?? updatedBudgets[matchIdx].sheetCol
                     };
                   } else if (idx < updatedBudgets.length) {
-                    const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal ?? 0;
-                    const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[idx].budgeting ?? 0;
-                    const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
-                    const actualSpend = sheetBud.actualSpend ?? updatedBudgets[idx].actualSpend ?? 0;
-                    const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
+                    const rawSaldoAwal = sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal ?? 0;
+                    const rawBudgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[idx].budgeting ?? 0;
+                    const rawTotalSaldo = sheetBud.totalSaldo ?? (rawSaldoAwal + rawBudgeting);
+                    const rawActualSpend = sheetBud.actualSpend ?? updatedBudgets[idx].actualSpend ?? 0;
+                    const reconciled = reconcileBudgetMetrics(cleanSheetName, {
+                      saldoAwal: rawSaldoAwal,
+                      budgeting: rawBudgeting,
+                      totalSaldo: rawTotalSaldo,
+                      actualSpend: rawActualSpend,
+                      sisa: sheetBud.sisa
+                    });
                     updatedBudgets[idx] = {
                       ...updatedBudgets[idx],
                       nama: cleanSheetName,
-                      targetBulanan: budgeting,
-                      budgeting: budgeting,
-                      saldoAwal,
-                      totalSaldo,
-                      actualSpend,
-                      sisa,
-                      keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
+                      targetBulanan: reconciled.budgeting,
+                      budgeting: reconciled.budgeting,
+                      saldoAwal: reconciled.saldoAwal,
+                      totalSaldo: reconciled.totalSaldo,
+                      actualSpend: reconciled.actualSpend,
+                      sisa: reconciled.sisa,
+                      keterangan: sheetBud.keterangan || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap'),
                       sheetCell: sheetBud.sheetCell ?? updatedBudgets[idx].sheetCell,
                       sheetRow: sheetBud.sheetRow ?? updatedBudgets[idx].sheetRow,
                       sheetCol: sheetBud.sheetCol ?? updatedBudgets[idx].sheetCol
                     };
                   } else {
-                    const saldoAwal = sheetBud.saldoAwal || 0;
-                    const budgeting = sheetBud.budgeting || sheetBud.targetBulanan || 0;
-                    const totalSaldo = sheetBud.totalSaldo || (saldoAwal + budgeting);
-                    const actualSpend = sheetBud.actualSpend || 0;
-                    const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
+                    const reconciled = reconcileBudgetMetrics(cleanSheetName, {
+                      saldoAwal: sheetBud.saldoAwal || 0,
+                      budgeting: sheetBud.budgeting || sheetBud.targetBulanan || 0,
+                      totalSaldo: sheetBud.totalSaldo,
+                      actualSpend: sheetBud.actualSpend || 0,
+                      sisa: sheetBud.sisa
+                    });
                     updatedBudgets.push({
                       id: `budget_sheet_${idx}_${Date.now()}`,
                       nama: cleanSheetName,
-                      targetBulanan: budgeting,
-                      budgeting: budgeting,
-                      saldoAwal,
-                      totalSaldo,
-                      actualSpend,
-                      sisa,
-                      keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
+                      targetBulanan: reconciled.budgeting,
+                      budgeting: reconciled.budgeting,
+                      saldoAwal: reconciled.saldoAwal,
+                      totalSaldo: reconciled.totalSaldo,
+                      actualSpend: reconciled.actualSpend,
+                      sisa: reconciled.sisa,
+                      keterangan: sheetBud.keterangan || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap'),
                       akunTerkait: 'Bank BCA',
                       sheetCell: sheetBud.sheetCell,
                       sheetRow: sheetBud.sheetRow,
@@ -1152,61 +1198,75 @@ export default function App() {
                 });
 
                 if (matchIdx >= 0) {
-                  const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal ?? 0;
-                  const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[matchIdx].budgeting ?? 0;
-                  const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
-                  const actualSpend = sheetBud.actualSpend ?? updatedBudgets[matchIdx].actualSpend ?? 0;
-                  const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
+                  const rawSaldoAwal = sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal ?? 0;
+                  const rawBudgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[matchIdx].budgeting ?? 0;
+                  const rawTotalSaldo = sheetBud.totalSaldo ?? (rawSaldoAwal + rawBudgeting);
+                  const rawActualSpend = sheetBud.actualSpend ?? updatedBudgets[matchIdx].actualSpend ?? 0;
+                  const reconciled = reconcileBudgetMetrics(cleanSheetName, {
+                    saldoAwal: rawSaldoAwal,
+                    budgeting: rawBudgeting,
+                    totalSaldo: rawTotalSaldo,
+                    actualSpend: rawActualSpend,
+                    sisa: sheetBud.sisa
+                  });
                   updatedBudgets[matchIdx] = {
                     ...updatedBudgets[matchIdx],
                     nama: cleanSheetName,
-                    targetBulanan: budgeting,
-                    budgeting: budgeting,
-                    saldoAwal,
-                    totalSaldo,
-                    actualSpend,
-                    sisa,
-                    keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
+                    targetBulanan: reconciled.budgeting,
+                    budgeting: reconciled.budgeting,
+                    saldoAwal: reconciled.saldoAwal,
+                    totalSaldo: reconciled.totalSaldo,
+                    actualSpend: reconciled.actualSpend,
+                    sisa: reconciled.sisa,
+                    keterangan: sheetBud.keterangan || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap'),
                     sheetCell: sheetBud.sheetCell ?? updatedBudgets[matchIdx].sheetCell,
                     sheetRow: sheetBud.sheetRow ?? updatedBudgets[matchIdx].sheetRow,
                     sheetCol: sheetBud.sheetCol ?? updatedBudgets[matchIdx].sheetCol
                   };
                 } else if (idx < updatedBudgets.length) {
-                  const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal ?? 0;
-                  const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[idx].budgeting ?? 0;
-                  const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
-                  const actualSpend = sheetBud.actualSpend ?? updatedBudgets[idx].actualSpend ?? 0;
-                  const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
+                  const rawSaldoAwal = sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal ?? 0;
+                  const rawBudgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[idx].budgeting ?? 0;
+                  const rawTotalSaldo = sheetBud.totalSaldo ?? (rawSaldoAwal + rawBudgeting);
+                  const rawActualSpend = sheetBud.actualSpend ?? updatedBudgets[idx].actualSpend ?? 0;
+                  const reconciled = reconcileBudgetMetrics(cleanSheetName, {
+                    saldoAwal: rawSaldoAwal,
+                    budgeting: rawBudgeting,
+                    totalSaldo: rawTotalSaldo,
+                    actualSpend: rawActualSpend,
+                    sisa: sheetBud.sisa
+                  });
                   updatedBudgets[idx] = {
                     ...updatedBudgets[idx],
                     nama: cleanSheetName,
-                    targetBulanan: budgeting,
-                    budgeting: budgeting,
-                    saldoAwal,
-                    totalSaldo,
-                    actualSpend,
-                    sisa,
-                    keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
+                    targetBulanan: reconciled.budgeting,
+                    budgeting: reconciled.budgeting,
+                    saldoAwal: reconciled.saldoAwal,
+                    totalSaldo: reconciled.totalSaldo,
+                    actualSpend: reconciled.actualSpend,
+                    sisa: reconciled.sisa,
+                    keterangan: sheetBud.keterangan || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap'),
                     sheetCell: sheetBud.sheetCell ?? updatedBudgets[idx].sheetCell,
                     sheetRow: sheetBud.sheetRow ?? updatedBudgets[idx].sheetRow,
                     sheetCol: sheetBud.sheetCol ?? updatedBudgets[idx].sheetCol
                   };
                 } else {
-                  const saldoAwal = sheetBud.saldoAwal || 0;
-                  const budgeting = sheetBud.budgeting || sheetBud.targetBulanan || 0;
-                  const totalSaldo = sheetBud.totalSaldo || (saldoAwal + budgeting);
-                  const actualSpend = sheetBud.actualSpend || 0;
-                  const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
+                  const reconciled = reconcileBudgetMetrics(cleanSheetName, {
+                    saldoAwal: sheetBud.saldoAwal || 0,
+                    budgeting: sheetBud.budgeting || sheetBud.targetBulanan || 0,
+                    totalSaldo: sheetBud.totalSaldo,
+                    actualSpend: sheetBud.actualSpend || 0,
+                    sisa: sheetBud.sisa
+                  });
                   updatedBudgets.push({
                     id: `budget_sheet_${idx}_${Date.now()}`,
                     nama: cleanSheetName,
-                    targetBulanan: budgeting,
-                    budgeting: budgeting,
-                    saldoAwal,
-                    totalSaldo,
-                    actualSpend,
-                    sisa,
-                    keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
+                    targetBulanan: reconciled.budgeting,
+                    budgeting: reconciled.budgeting,
+                    saldoAwal: reconciled.saldoAwal,
+                    totalSaldo: reconciled.totalSaldo,
+                    actualSpend: reconciled.actualSpend,
+                    sisa: reconciled.sisa,
+                    keterangan: sheetBud.keterangan || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap'),
                     akunTerkait: 'Bank BCA',
                     sheetCell: sheetBud.sheetCell,
                     sheetRow: sheetBud.sheetRow,

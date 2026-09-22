@@ -160,9 +160,10 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Total Kekayaan Bersih (Net Worth)
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Button 1: Export PDF */}
               <button
-                id="btn-hero-report-preview"
+                id="btn-hero-export-pdf"
                 onClick={() => {
                   triggerHaptic('medium');
                   setIsReportPreviewOpen(true);
@@ -172,12 +173,30 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                     ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30 text-blue-300'
                     : 'bg-blue-100 hover:bg-blue-200/90 border-blue-300 text-blue-950 font-bold'
                 }`}
-                title="Buka Preview Laporan Keuangan, Ekspor PDF & Cetak"
+                title="Preview dan Ekspor Laporan Keuangan ke PDF (Latar Belakang Putih Standar)"
               >
-                <FileText className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-800'}`} />
-                <span className="hidden sm:inline">Export PDF / Print</span>
-                <span className="sm:hidden">PDF / Cetak</span>
+                <FileDown className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-800'}`} />
+                <span>Export PDF</span>
               </button>
+
+              {/* Button 2: Print Report */}
+              <button
+                id="btn-hero-print-report"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  setIsReportPreviewOpen(true);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 shadow-xs cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700/80 border-slate-700 text-slate-200'
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800 font-bold'
+                }`}
+                title="Cetak Laporan Keuangan (Latar Belakang Putih Standar Cetak)"
+              >
+                <Printer className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`} />
+                <span>Print Report</span>
+              </button>
+
               {onOpenCalculator && (
                 <button
                   onClick={() => {

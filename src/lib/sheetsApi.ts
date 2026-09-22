@@ -98,6 +98,104 @@ export function colIndexToA1(colIndex: number): string {
   return letter;
 }
 
+export interface ReconciledBudgetMetrics {
+  saldoAwal: number;
+  budgeting: number;
+  totalSaldo: number;
+  actualSpend: number;
+  sisa: number;
+}
+
+/**
+ * Reconciles and sanitizes budget category metrics to prevent swapped monthly budget / prior balance,
+ * and fixes erroneous calculation where actual spend mistakenly reads total wallet capacity.
+ */
+export function reconcileBudgetMetrics(
+  categoryName: string,
+  raw: {
+    saldoAwal?: number;
+    budgeting?: number;
+    totalSaldo?: number;
+    actualSpend?: number;
+    sisa?: number;
+  },
+  candidateSlice?: number[]
+): ReconciledBudgetMetrics {
+  let saldoAwal = raw.saldoAwal ?? 0;
+  let budgeting = raw.budgeting ?? 0;
+  let totalSaldo = raw.totalSaldo ?? 0;
+  let actualSpend = raw.actualSpend ?? 0;
+  let sisa = raw.sisa;
+
+  // 1. If we have the 5 sequential numeric columns from the sheet row:
+  // Layout in Google Sheet:
+  // [Col 0: Saldo Awal / Sisa Bulan Lalu, Col 1: Budgeting Bulanan, Col 2: Total Saldo, Col 3: Actual Spend, Col 4: Sisa]
+  if (candidateSlice && candidateSlice.length >= 4) {
+    const c1 = candidateSlice[0] ?? 0;
+    const c2 = candidateSlice[1] ?? 0;
+    const c3 = candidateSlice[2] ?? 0;
+    const c4 = candidateSlice[3] ?? 0;
+    const c5 = candidateSlice[4];
+
+    // Check if c1 + c2 ≈ c3 (e.g. 200.122 + 300.000 = 500.122)
+    if (c3 > 0 && Math.abs((c1 + c2) - c3) <= 10) {
+      totalSaldo = c3;
+      actualSpend = c4;
+      sisa = c5 !== undefined ? c5 : totalSaldo - actualSpend;
+      saldoAwal = c1;
+      budgeting = c2;
+    }
+  }
+
+  // 2. Validate totalSaldo = saldoAwal + budgeting
+  if (totalSaldo === 0 && (saldoAwal > 0 || budgeting > 0)) {
+    totalSaldo = saldoAwal + budgeting;
+  }
+
+  // 3. Resolve swapped saldoAwal vs budgeting based on category name hint or roundness
+  // E.g. "Budget Listrik (300K/Bulan)": 300K means budgeting = 300.000, not saldoAwal = 300.000
+  const kMatch = categoryName.match(/(\d+)\s*k/i);
+  if (kMatch) {
+    const hint = parseInt(kMatch[1], 10) * 1000;
+    if (Math.abs(saldoAwal - hint) <= 100 && Math.abs(budgeting - hint) > 100) {
+      const tmp = budgeting;
+      budgeting = saldoAwal;
+      saldoAwal = tmp;
+    }
+  } else {
+    // If one is clean round thousands and the other has odd balance, clean is budgeting
+    if (budgeting % 1000 !== 0 && saldoAwal > 0 && saldoAwal % 10000 === 0 && saldoAwal > budgeting) {
+      const tmp = budgeting;
+      budgeting = saldoAwal;
+      saldoAwal = tmp;
+    }
+  }
+
+  // Ensure totalSaldo is consistent
+  if (totalSaldo === 0 || Math.abs(totalSaldo - (saldoAwal + budgeting)) > 10) {
+    totalSaldo = saldoAwal + budgeting;
+  }
+
+  // 4. Resolve actualSpend vs sisa
+  // If actualSpend mistakenly captured totalSaldo (e.g. actualSpend = 500.122 and sisa = 0)
+  if (sisa === undefined || (actualSpend === totalSaldo && totalSaldo > 0 && sisa === 0)) {
+    sisa = totalSaldo - actualSpend;
+  }
+
+  // Re-verify sisa = totalSaldo - actualSpend
+  if (Math.abs((totalSaldo - actualSpend) - (sisa ?? 0)) > 10 && actualSpend > 0) {
+    sisa = totalSaldo - actualSpend;
+  }
+
+  return {
+    saldoAwal,
+    budgeting,
+    totalSaldo,
+    actualSpend,
+    sisa: sisa ?? (totalSaldo - actualSpend)
+  };
+}
+
 /**
  * Parses both transaction records (columns A..F) and the spreadsheet's precalculated
  * monthly summary tables (columns H..N) from Google Sheets grid data.
@@ -192,15 +290,33 @@ export function parseSheetGridData(
         const sisaCol = budgetHeaderMap.sisa >= 0 ? budgetHeaderMap.sisa : budgetColIndex + 5;
         const ketCol = budgetHeaderMap.keterangan >= 0 ? budgetHeaderMap.keterangan : budgetColIndex + 6;
 
-        const saldoAwalNum = parseCurrencyToNumber(row[saldoAwalCol]);
-        const budgetingNum = parseCurrencyToNumber(row[budgetingCol]);
-        const totalSaldoNum = parseCurrencyToNumber(row[totalSaldoCol]) || (saldoAwalNum + budgetingNum);
-        const actualSpendNum = parseCurrencyToNumber(row[actualSpendCol]);
-        const sisaNum =
-          row[sisaCol] !== undefined && row[sisaCol] !== ''
-            ? parseCurrencyToNumber(row[sisaCol])
-            : totalSaldoNum - actualSpendNum;
-        const ketText = (row[ketCol] || '').toString().trim() || `Sisa: ${formatRupiah(sisaNum)}`;
+        const candidateSlice = [
+          parseCurrencyToNumber(row[budgetColIndex + 1]),
+          parseCurrencyToNumber(row[budgetColIndex + 2]),
+          parseCurrencyToNumber(row[budgetColIndex + 3]),
+          parseCurrencyToNumber(row[budgetColIndex + 4]),
+          parseCurrencyToNumber(row[budgetColIndex + 5]),
+        ];
+
+        const rawSaldoAwal = parseCurrencyToNumber(row[saldoAwalCol]);
+        const rawBudgeting = parseCurrencyToNumber(row[budgetingCol]);
+        const rawTotalSaldo = parseCurrencyToNumber(row[totalSaldoCol]);
+        const rawActualSpend = parseCurrencyToNumber(row[actualSpendCol]);
+        const rawSisa = row[sisaCol] !== undefined && row[sisaCol] !== '' ? parseCurrencyToNumber(row[sisaCol]) : undefined;
+
+        const reconciled = reconcileBudgetMetrics(
+          budNameCell,
+          {
+            saldoAwal: rawSaldoAwal,
+            budgeting: rawBudgeting,
+            totalSaldo: rawTotalSaldo,
+            actualSpend: rawActualSpend,
+            sisa: rawSisa
+          },
+          candidateSlice
+        );
+
+        const ketText = (row[ketCol] || '').toString().trim() || (reconciled.sisa > 0 ? `Sisa: ${formatRupiah(reconciled.sisa)}` : 'Anggaran Terserap');
 
         const rowNumber = rowIndex + 1;
         const colLetter = colIndexToA1(budgetColIndex);
@@ -209,12 +325,12 @@ export function parseSheetGridData(
         if (!summary.budgets) summary.budgets = [];
         summary.budgets.push({
           nama: budNameCell,
-          saldoAwal: saldoAwalNum,
-          budgeting: budgetingNum,
-          targetBulanan: budgetingNum,
-          totalSaldo: totalSaldoNum,
-          actualSpend: actualSpendNum,
-          sisa: sisaNum,
+          saldoAwal: reconciled.saldoAwal,
+          budgeting: reconciled.budgeting,
+          targetBulanan: reconciled.budgeting,
+          totalSaldo: reconciled.totalSaldo,
+          actualSpend: reconciled.actualSpend,
+          sisa: reconciled.sisa,
           keterangan: ketText,
           sheetCell: cellA1,
           sheetRow: rowNumber,
@@ -279,29 +395,56 @@ export function parseSheetGridData(
         // Scan columns in this row to detect exact column indices for each metric
         for (let hc = c; hc < Math.min(row.length, c + 10); hc++) {
           const hText = (row[hc] || '').toString().trim().toLowerCase();
-          if (hText.includes('saldo awal')) {
+          if (
+            hText.includes('saldo awal') ||
+            hText.includes('s. awal') ||
+            hText.includes('saldo bulan lalu') ||
+            hText.includes('sisa saldo bulan lalu') ||
+            hText.includes('sisa bulan lalu') ||
+            hText.includes('saldo lalu') ||
+            hText.includes('saldo kemarin') ||
+            hText.includes('carry over')
+          ) {
             budgetHeaderMap.saldoAwal = hc;
           } else if (
-            (hText === 'budgeting' || hText.includes('budgeting') || hText.includes('target') || hText.includes('plafon')) &&
+            (hText === 'budgeting' ||
+              hText.includes('budgeting') ||
+              hText.includes('target') ||
+              hText.includes('plafon') ||
+              hText.includes('alokasi') ||
+              hText.includes('kuota') ||
+              hText.includes('jatah')) &&
             !hText.includes('jenis') &&
             !hText.includes('total')
           ) {
             budgetHeaderMap.budgeting = hc;
-          } else if (hText.includes('total saldo') || hText.includes('saldo total')) {
+          } else if (
+            hText.includes('total saldo') ||
+            hText.includes('saldo total') ||
+            hText.includes('kapasitas') ||
+            hText.includes('jumlah saldo')
+          ) {
             budgetHeaderMap.totalSaldo = hc;
-          } else if (hText.includes('actual') || hText.includes('spend') || hText.includes('realisasi')) {
+          } else if (
+            hText.includes('actual') ||
+            hText.includes('spend') ||
+            hText.includes('realisasi') ||
+            hText.includes('pemakaian') ||
+            hText.includes('terpakai') ||
+            hText.includes('pengeluaran')
+          ) {
             budgetHeaderMap.actualSpend = hc;
-          } else if (hText.includes('sisa')) {
+          } else if (hText.includes('sisa') && !hText.includes('bulan lalu') && !hText.includes('awal')) {
             budgetHeaderMap.sisa = hc;
-          } else if (hText.includes('keterangan') || hText.includes('catatan') || hText.includes('ket')) {
+          } else if (hText.includes('keterangan') || hText.includes('catatan') || hText.includes('ket') || hText.includes('status')) {
             budgetHeaderMap.keterangan = hc;
           }
         }
 
         // Fallback default offsets if headers didn't strictly match:
         // Col H (0): Jenis Budgeting
-        // Col I (1): Saldo Awal
-        // Col J (2): Budgeting
+        // Col I (1): Saldo Awal / Sisa Saldo Bulan Lalu
+        // Col J (2): Budgeting Bulanan
         // Col K (3): Total Saldo
         // Col L (4): Actual Spend
         // Col M (5): Sisa

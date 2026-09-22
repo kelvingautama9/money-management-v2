@@ -489,9 +489,15 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
                           <td className="p-2.5 text-right font-mono font-bold text-emerald-700">{formatRupiah(sisa)}</td>
                           <td className="p-2.5 text-center">
                             {isOverMonthly ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
-                                Over (+{formatRupiah(monthlyDiff)})
-                              </span>
+                              sisa > 0 ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap" title="Over jatah bulanan, namun saldo dompet masih surplus">
+                                  Over Jatah (+{formatRupiah(monthlyDiff)})
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap" title="Dompet defisit / saldo habis">
+                                  Defisit (+{formatRupiah(monthlyDiff)})
+                                </span>
+                              )
                             ) : (
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                                 Disiplin

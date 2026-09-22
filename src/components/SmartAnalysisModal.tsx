@@ -231,10 +231,11 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
                 triggerHaptic('medium');
                 window.print();
               }}
-              className={`p-2 rounded-xl border transition cursor-pointer ${isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-white/10 hover:bg-white/20 border-white/15 text-slate-200 hover:text-white'}`}
-              title="Cetak Ringkasan"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition cursor-pointer text-xs font-bold ${isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-white/10 hover:bg-white/20 border-white/15 text-slate-200 hover:text-white'}`}
+              title="Cetak Ringkasan Audit"
             >
-              <Printer className="w-4 h-4" />
+              <Printer className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Print Report</span>
             </button>
 
             <button
