@@ -607,10 +607,10 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
                 <PieChart className="w-4 h-4 text-amber-400" />
-                Budgeting Envelopes (4 Kantong)
+                Budgeting Envelopes ({budgets.length} Kantong)
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Total Plafon: <strong className="text-slate-200">{formatRupiah(2450000)}</strong>
+                Target Kuota: <strong className="text-slate-200">{formatRupiah(budgets.reduce((s, b) => s + (b.budgeting || b.targetBulanan || 0), 0))}</strong> • Kapasitas: <strong className="text-slate-200">{formatRupiah(budgets.reduce((s, b) => s + (b.totalSaldo || (b.saldoAwal || 0) + (b.budgeting || b.targetBulanan || 0)), 0))}</strong>
               </p>
             </div>
 
@@ -625,37 +625,90 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
           <div className="space-y-3.5">
             {budgets.slice(0, 4).map((b) => {
-              const pct = b.totalSaldo > 0 ? Math.min(100, Math.round((b.actualSpend / b.totalSaldo) * 100)) : 0;
+              const monthlyBudget = b.budgeting || b.targetBulanan || 0;
+              const saldoAwal = b.saldoAwal || 0;
+              const totalSaldo = b.totalSaldo || saldoAwal + monthlyBudget;
+              const actualSpend = b.actualSpend || 0;
+              const sisa = b.sisa !== undefined ? b.sisa : totalSaldo - actualSpend;
+
+              const monthlySpendPct =
+                monthlyBudget > 0 ? Number(((actualSpend / monthlyBudget) * 100).toFixed(1)) : 0;
+              const isOverMonthly = actualSpend > monthlyBudget && monthlyBudget > 0;
+              const monthlyDiff = actualSpend - monthlyBudget;
+              const totalSpendPct =
+                totalSaldo > 0 ? Number(((actualSpend / totalSaldo) * 100).toFixed(1)) : 0;
+              const isDepleted = sisa <= 0;
+
               return (
-                <div key={b.id} className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
+                <div key={b.id} className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white flex items-center gap-2">
+                    <span className="font-semibold text-white flex items-center gap-2 truncate">
                       {getCategoryIcon(b.nama)}
-                      {b.nama}
+                      <span className="truncate">{b.nama}</span>
                     </span>
-                    <span className="text-slate-300 font-mono">
-                      {formatRupiah(b.actualSpend)} / {formatRupiah(b.totalSaldo)}
-                    </span>
+                    {isOverMonthly ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">
+                        Over Kuota (+{formatRupiah(monthlyDiff)})
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                        Dalam Kuota ({monthlySpendPct}%)
+                      </span>
+                    )}
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden relative">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        pct > 90
-                          ? 'bg-rose-500'
-                          : pct > 60
-                          ? 'bg-amber-400'
-                          : 'bg-emerald-400'
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
+                  {/* Dual Details Strip */}
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-0.5">
+                    {/* Detail 1: Jatah Bulanan */}
+                    <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                      <div className="text-[10px] text-slate-400 font-medium flex justify-between">
+                        <span>1. Kuota Bulanan</span>
+                        <span className={isOverMonthly ? 'text-rose-400 font-bold' : 'text-slate-300'}>
+                          {monthlySpendPct}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isOverMonthly ? 'bg-rose-500' : monthlySpendPct > 80 ? 'bg-amber-400' : 'bg-blue-400'
+                          }`}
+                          style={{ width: `${Math.min(100, monthlySpendPct)}%` }}
+                        />
+                      </div>
+                      <div className="text-[10px] text-slate-300 flex justify-between">
+                        <span className="truncate">Spend: {formatRupiah(actualSpend)}</span>
+                      </div>
+                    </div>
+
+                    {/* Detail 2: Saldo Kantong Total */}
+                    <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                      <div className="text-[10px] text-slate-400 font-medium flex justify-between">
+                        <span>2. Saldo Kantong</span>
+                        <span className={isDepleted ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                          {totalSpendPct}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isDepleted ? 'bg-rose-600' : totalSpendPct > 80 ? 'bg-amber-400' : 'bg-emerald-400'
+                          }`}
+                          style={{ width: `${Math.min(100, totalSpendPct)}%` }}
+                        />
+                      </div>
+                      <div className="text-[10px] flex justify-between">
+                        <span className="text-slate-400">Sisa:</span>
+                        <span className="font-mono font-bold text-emerald-400">{formatRupiah(sisa)}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>Terpakai: {pct}%</span>
-                    <span className="text-emerald-400 font-medium">Sisa: {formatRupiah(b.sisa)}</span>
-                  </div>
+                  {/* Context note if over-spending monthly but balance safe */}
+                  {isOverMonthly && !isDepleted && (
+                    <div className="text-[10px] text-amber-300/90 leading-tight pt-0.5">
+                      ⚠️ Over jatah bulanan, saldo kantong aman berkat sisa bulan lalu ({formatRupiah(saldoAwal)}).
+                    </div>
+                  )}
                 </div>
               );
             })}

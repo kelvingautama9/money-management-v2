@@ -405,6 +405,20 @@ export default function App() {
     }
     return customBudgets.map((initBudget) => {
       const budgetLower = initBudget.nama.toLowerCase();
+
+      // Check if activeSummary from Google Sheet contains this exact budget envelope
+      const sheetBudget = activeSummary?.budgets?.find((b) => {
+        if (!b.nama) return false;
+        const bLower = b.nama.toLowerCase();
+        return (
+          bLower === budgetLower ||
+          (bLower.includes('listrik') && budgetLower.includes('listrik')) ||
+          (bLower.includes('entertainment') && budgetLower.includes('entertainment')) ||
+          (bLower.includes('transport') && budgetLower.includes('transport')) ||
+          (bLower.includes('dating') && budgetLower.includes('dating'))
+        );
+      });
+
       const relevantSpend = transactions
         .filter((t) => {
           const catLower = t.kategori.toLowerCase();
@@ -419,18 +433,42 @@ export default function App() {
         })
         .reduce((sum, t) => sum + t.jumlah, 0);
 
-      const totalSaldo = (initBudget.saldoAwal || 0) + (initBudget.budgeting || initBudget.targetBulanan || 0);
-      const sisa = Math.max(0, totalSaldo - relevantSpend);
+      const saldoAwal = sheetBudget?.saldoAwal ?? initBudget.saldoAwal ?? 0;
+      const budgeting = sheetBudget?.budgeting ?? initBudget.budgeting ?? initBudget.targetBulanan ?? 0;
+      const totalSaldo = sheetBudget?.totalSaldo ?? (saldoAwal + budgeting);
+
+      // Prefer sheet precalculated actualSpend if available, otherwise transaction spend or fallback
+      const actualSpend =
+        sheetBudget?.actualSpend !== undefined && sheetBudget.actualSpend > 0
+          ? sheetBudget.actualSpend
+          : relevantSpend > 0
+          ? relevantSpend
+          : initBudget.actualSpend || 0;
+
+      const sisa =
+        sheetBudget?.sisa !== undefined
+          ? sheetBudget.sisa
+          : totalSaldo - actualSpend;
+
+      const keterangan =
+        sheetBudget?.keterangan ||
+        (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : sisa < 0 ? `Defisit: ${formatRupiah(Math.abs(sisa))}` : 'Anggaran Terserap');
 
       return {
         ...initBudget,
-        actualSpend: relevantSpend,
+        saldoAwal,
+        budgeting,
+        targetBulanan: budgeting,
         totalSaldo,
+        actualSpend,
         sisa,
-        keterangan: sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'
+        keterangan,
+        sheetCell: sheetBudget?.sheetCell ?? initBudget.sheetCell,
+        sheetRow: sheetBudget?.sheetRow ?? initBudget.sheetRow,
+        sheetCol: sheetBudget?.sheetCol ?? initBudget.sheetCol
       };
     });
-  }, [customBudgets, transactions, isZeroState]);
+  }, [customBudgets, transactions, activeSummary, isZeroState]);
 
   // 4. Dynamic Account Balances (Calculated from transactions and Google Sheet summary)
   const accounts: AccountBalance[] = useMemo(() => {
@@ -896,38 +934,61 @@ export default function App() {
                   });
 
                   if (matchIdx >= 0) {
+                    const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal ?? 0;
+                    const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[matchIdx].budgeting ?? 0;
+                    const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
+                    const actualSpend = sheetBud.actualSpend ?? updatedBudgets[matchIdx].actualSpend ?? 0;
+                    const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
                     updatedBudgets[matchIdx] = {
                       ...updatedBudgets[matchIdx],
                       nama: cleanSheetName,
-                      targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[matchIdx].targetBulanan,
-                      budgeting: sheetBud.budgeting ?? updatedBudgets[matchIdx].budgeting,
-                      saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal,
+                      targetBulanan: budgeting,
+                      budgeting: budgeting,
+                      saldoAwal,
+                      totalSaldo,
+                      actualSpend,
+                      sisa,
+                      keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
                       sheetCell: sheetBud.sheetCell ?? updatedBudgets[matchIdx].sheetCell,
                       sheetRow: sheetBud.sheetRow ?? updatedBudgets[matchIdx].sheetRow,
                       sheetCol: sheetBud.sheetCol ?? updatedBudgets[matchIdx].sheetCol
                     };
                   } else if (idx < updatedBudgets.length) {
+                    const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal ?? 0;
+                    const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[idx].budgeting ?? 0;
+                    const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
+                    const actualSpend = sheetBud.actualSpend ?? updatedBudgets[idx].actualSpend ?? 0;
+                    const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
                     updatedBudgets[idx] = {
                       ...updatedBudgets[idx],
                       nama: cleanSheetName,
-                      targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[idx].targetBulanan,
-                      budgeting: sheetBud.budgeting ?? updatedBudgets[idx].budgeting,
-                      saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal,
+                      targetBulanan: budgeting,
+                      budgeting: budgeting,
+                      saldoAwal,
+                      totalSaldo,
+                      actualSpend,
+                      sisa,
+                      keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
                       sheetCell: sheetBud.sheetCell ?? updatedBudgets[idx].sheetCell,
                       sheetRow: sheetBud.sheetRow ?? updatedBudgets[idx].sheetRow,
                       sheetCol: sheetBud.sheetCol ?? updatedBudgets[idx].sheetCol
                     };
                   } else {
+                    const saldoAwal = sheetBud.saldoAwal || 0;
+                    const budgeting = sheetBud.budgeting || sheetBud.targetBulanan || 0;
+                    const totalSaldo = sheetBud.totalSaldo || (saldoAwal + budgeting);
+                    const actualSpend = sheetBud.actualSpend || 0;
+                    const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
                     updatedBudgets.push({
                       id: `budget_sheet_${idx}_${Date.now()}`,
                       nama: cleanSheetName,
-                      targetBulanan: sheetBud.targetBulanan || 0,
-                      budgeting: sheetBud.budgeting || sheetBud.targetBulanan || 0,
-                      saldoAwal: sheetBud.saldoAwal || 0,
-                      totalSaldo: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
-                      actualSpend: 0,
-                      sisa: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
-                      keterangan: '-',
+                      targetBulanan: budgeting,
+                      budgeting: budgeting,
+                      saldoAwal,
+                      totalSaldo,
+                      actualSpend,
+                      sisa,
+                      keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
                       akunTerkait: 'Bank BCA',
                       sheetCell: sheetBud.sheetCell,
                       sheetRow: sheetBud.sheetRow,
@@ -1080,38 +1141,61 @@ export default function App() {
                 });
 
                 if (matchIdx >= 0) {
+                  const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal ?? 0;
+                  const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[matchIdx].budgeting ?? 0;
+                  const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
+                  const actualSpend = sheetBud.actualSpend ?? updatedBudgets[matchIdx].actualSpend ?? 0;
+                  const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
                   updatedBudgets[matchIdx] = {
                     ...updatedBudgets[matchIdx],
                     nama: cleanSheetName,
-                    targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[matchIdx].targetBulanan,
-                    budgeting: sheetBud.budgeting ?? updatedBudgets[matchIdx].budgeting,
-                    saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[matchIdx].saldoAwal,
+                    targetBulanan: budgeting,
+                    budgeting: budgeting,
+                    saldoAwal,
+                    totalSaldo,
+                    actualSpend,
+                    sisa,
+                    keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
                     sheetCell: sheetBud.sheetCell ?? updatedBudgets[matchIdx].sheetCell,
                     sheetRow: sheetBud.sheetRow ?? updatedBudgets[matchIdx].sheetRow,
                     sheetCol: sheetBud.sheetCol ?? updatedBudgets[matchIdx].sheetCol
                   };
                 } else if (idx < updatedBudgets.length) {
+                  const saldoAwal = sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal ?? 0;
+                  const budgeting = sheetBud.budgeting ?? sheetBud.targetBulanan ?? updatedBudgets[idx].budgeting ?? 0;
+                  const totalSaldo = sheetBud.totalSaldo ?? (saldoAwal + budgeting);
+                  const actualSpend = sheetBud.actualSpend ?? updatedBudgets[idx].actualSpend ?? 0;
+                  const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
                   updatedBudgets[idx] = {
                     ...updatedBudgets[idx],
                     nama: cleanSheetName,
-                    targetBulanan: sheetBud.targetBulanan ?? updatedBudgets[idx].targetBulanan,
-                    budgeting: sheetBud.budgeting ?? updatedBudgets[idx].budgeting,
-                    saldoAwal: sheetBud.saldoAwal ?? updatedBudgets[idx].saldoAwal,
+                    targetBulanan: budgeting,
+                    budgeting: budgeting,
+                    saldoAwal,
+                    totalSaldo,
+                    actualSpend,
+                    sisa,
+                    keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
                     sheetCell: sheetBud.sheetCell ?? updatedBudgets[idx].sheetCell,
                     sheetRow: sheetBud.sheetRow ?? updatedBudgets[idx].sheetRow,
                     sheetCol: sheetBud.sheetCol ?? updatedBudgets[idx].sheetCol
                   };
                 } else {
+                  const saldoAwal = sheetBud.saldoAwal || 0;
+                  const budgeting = sheetBud.budgeting || sheetBud.targetBulanan || 0;
+                  const totalSaldo = sheetBud.totalSaldo || (saldoAwal + budgeting);
+                  const actualSpend = sheetBud.actualSpend || 0;
+                  const sisa = sheetBud.sisa !== undefined ? sheetBud.sisa : (totalSaldo - actualSpend);
                   updatedBudgets.push({
                     id: `budget_sheet_${idx}_${Date.now()}`,
                     nama: cleanSheetName,
-                    targetBulanan: sheetBud.targetBulanan || 0,
-                    budgeting: sheetBud.budgeting || sheetBud.targetBulanan || 0,
-                    saldoAwal: sheetBud.saldoAwal || 0,
-                    totalSaldo: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
-                    actualSpend: 0,
-                    sisa: (sheetBud.saldoAwal || 0) + (sheetBud.budgeting || sheetBud.targetBulanan || 0),
-                    keterangan: '-',
+                    targetBulanan: budgeting,
+                    budgeting: budgeting,
+                    saldoAwal,
+                    totalSaldo,
+                    actualSpend,
+                    sisa,
+                    keterangan: sheetBud.keterangan || (sisa > 0 ? `Sisa: ${formatRupiah(sisa)}` : 'Anggaran Terserap'),
                     akunTerkait: 'Bank BCA',
                     sheetCell: sheetBud.sheetCell,
                     sheetRow: sheetBud.sheetRow,

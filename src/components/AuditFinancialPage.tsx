@@ -472,13 +472,26 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
               Status Budgeting Amplop ({safeBudgets.length} Pos Aktif)
             </h3>
             <span className={`text-xs font-mono font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Total Plafon: {formatRupiah(totalBudgetPlafon)}
+              Target Bulanan: {formatRupiah(safeBudgets.reduce((s, b) => s + (b.budgeting || b.targetBulanan || 0), 0))} • Kapasitas: {formatRupiah(safeBudgets.reduce((s, b) => s + (b.totalSaldo || (b.saldoAwal || 0) + (b.budgeting || b.targetBulanan || 0)), 0))}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {safeBudgets.map((b) => {
-              const pct = b.totalSaldo > 0 ? Math.min(100, Math.round((b.actualSpend / b.totalSaldo) * 100)) : 0;
+              const monthlyBudget = b.budgeting || b.targetBulanan || 0;
+              const saldoAwal = b.saldoAwal || 0;
+              const totalSaldo = b.totalSaldo || saldoAwal + monthlyBudget;
+              const actualSpend = b.actualSpend || 0;
+              const sisa = b.sisa !== undefined ? b.sisa : totalSaldo - actualSpend;
+
+              const monthlySpendPct =
+                monthlyBudget > 0 ? Number(((actualSpend / monthlyBudget) * 100).toFixed(1)) : 0;
+              const isOverMonthly = actualSpend > monthlyBudget && monthlyBudget > 0;
+              const monthlyDiff = actualSpend - monthlyBudget;
+              const totalSpendPct =
+                totalSaldo > 0 ? Number(((actualSpend / totalSaldo) * 100).toFixed(1)) : 0;
+              const isDepleted = sisa <= 0;
+
               return (
                 <div
                   key={b.id}
@@ -486,22 +499,52 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
                     isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-xs gap-1.5">
                     <span className={`font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{b.nama}</span>
-                    <span className="font-mono text-emerald-500 font-bold shrink-0">{pct}%</span>
+                    {isOverMonthly ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0">
+                        Over (+{formatRupiah(monthlyDiff)})
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        Aman ({monthlySpendPct}%)
+                      </span>
+                    )}
                   </div>
-                  <div className="w-full h-2 rounded-full bg-white/10 dark:bg-white/10 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        pct > 90 ? 'bg-rose-500' : pct > 60 ? 'bg-amber-400' : 'bg-emerald-400'
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
+
+                  {/* Detail 1: Jatah Bulanan */}
+                  <div className="text-[10px] text-slate-400 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Jatah Bulanan:</span>
+                      <span className="font-mono text-slate-300">{formatRupiah(monthlyBudget)}</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-white/10 dark:bg-slate-200 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isOverMonthly ? 'bg-rose-500' : 'bg-blue-400'
+                        }`}
+                        style={{ width: `${Math.min(100, monthlySpendPct)}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className={`flex items-center justify-between text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    <span>Terpakai: {formatRupiah(b.actualSpend)}</span>
-                    <span className="font-medium text-emerald-400">Sisa: {formatRupiah(b.sisa)}</span>
+
+                  {/* Detail 2: Total Saldo Kantong */}
+                  <div className="text-[10px] text-slate-400 space-y-1 pt-0.5 border-t border-white/5">
+                    <div className="flex justify-between">
+                      <span>Total Kapasitas:</span>
+                      <span className="font-mono text-slate-300">{formatRupiah(totalSaldo)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Spend: <strong className="text-slate-200">{formatRupiah(actualSpend)}</strong></span>
+                      <span>Sisa: <strong className={isDepleted ? 'text-rose-400' : 'text-emerald-400'}>{formatRupiah(sisa)}</strong></span>
+                    </div>
                   </div>
+
+                  {isOverMonthly && !isDepleted && (
+                    <div className="text-[9px] text-amber-300/90 leading-tight pt-1">
+                      ⚠️ Over kuota bulanan, namun saldo kantong belum defisit (sisa bulan lalu: {formatRupiah(saldoAwal)}).
+                    </div>
+                  )}
                 </div>
               );
             })}

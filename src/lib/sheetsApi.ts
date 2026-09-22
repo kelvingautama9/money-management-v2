@@ -119,6 +119,15 @@ export function parseSheetGridData(
   let readingAccountSection = false;
   let budgetColIndex = -1;
   let readingBudgetSection = false;
+  const budgetHeaderMap = {
+    name: -1,
+    saldoAwal: -1,
+    budgeting: -1,
+    totalSaldo: -1,
+    actualSpend: -1,
+    sisa: -1,
+    keterangan: -1
+  };
 
   rows.forEach((row, rowIndex) => {
     if (!row || row.length === 0) return;
@@ -175,14 +184,23 @@ export function parseSheetGridData(
       ) {
         readingBudgetSection = false;
       } else if (!budLower.includes('jenis budgeting') && !budLower.includes('kategori')) {
-        // Find Target / Budgeting and Saldo Awal in adjacent columns
-        const val1 = row[budgetColIndex + 1];
-        const val2 = row[budgetColIndex + 2];
-        const val3 = row[budgetColIndex + 3];
+        // Resolve actual column indices for each metric
+        const saldoAwalCol = budgetHeaderMap.saldoAwal >= 0 ? budgetHeaderMap.saldoAwal : budgetColIndex + 1;
+        const budgetingCol = budgetHeaderMap.budgeting >= 0 ? budgetHeaderMap.budgeting : budgetColIndex + 2;
+        const totalSaldoCol = budgetHeaderMap.totalSaldo >= 0 ? budgetHeaderMap.totalSaldo : budgetColIndex + 3;
+        const actualSpendCol = budgetHeaderMap.actualSpend >= 0 ? budgetHeaderMap.actualSpend : budgetColIndex + 4;
+        const sisaCol = budgetHeaderMap.sisa >= 0 ? budgetHeaderMap.sisa : budgetColIndex + 5;
+        const ketCol = budgetHeaderMap.keterangan >= 0 ? budgetHeaderMap.keterangan : budgetColIndex + 6;
 
-        const targetNum = parseCurrencyToNumber(val1);
-        const saldoAwalNum = parseCurrencyToNumber(val2);
-        const actualNum = parseCurrencyToNumber(val3);
+        const saldoAwalNum = parseCurrencyToNumber(row[saldoAwalCol]);
+        const budgetingNum = parseCurrencyToNumber(row[budgetingCol]);
+        const totalSaldoNum = parseCurrencyToNumber(row[totalSaldoCol]) || (saldoAwalNum + budgetingNum);
+        const actualSpendNum = parseCurrencyToNumber(row[actualSpendCol]);
+        const sisaNum =
+          row[sisaCol] !== undefined && row[sisaCol] !== ''
+            ? parseCurrencyToNumber(row[sisaCol])
+            : totalSaldoNum - actualSpendNum;
+        const ketText = (row[ketCol] || '').toString().trim() || `Sisa: ${formatRupiah(sisaNum)}`;
 
         const rowNumber = rowIndex + 1;
         const colLetter = colIndexToA1(budgetColIndex);
@@ -191,10 +209,13 @@ export function parseSheetGridData(
         if (!summary.budgets) summary.budgets = [];
         summary.budgets.push({
           nama: budNameCell,
-          targetBulanan: targetNum || 0,
-          budgeting: targetNum || 0,
-          saldoAwal: saldoAwalNum || 0,
-          actualSpend: actualNum || 0,
+          saldoAwal: saldoAwalNum,
+          budgeting: budgetingNum,
+          targetBulanan: budgetingNum,
+          totalSaldo: totalSaldoNum,
+          actualSpend: actualSpendNum,
+          sisa: sisaNum,
+          keterangan: ketText,
           sheetCell: cellA1,
           sheetRow: rowNumber,
           sheetCol: budgetColIndex
@@ -253,6 +274,44 @@ export function parseSheetGridData(
       ) {
         readingBudgetSection = true;
         budgetColIndex = c;
+        budgetHeaderMap.name = c;
+
+        // Scan columns in this row to detect exact column indices for each metric
+        for (let hc = c; hc < Math.min(row.length, c + 10); hc++) {
+          const hText = (row[hc] || '').toString().trim().toLowerCase();
+          if (hText.includes('saldo awal')) {
+            budgetHeaderMap.saldoAwal = hc;
+          } else if (
+            (hText === 'budgeting' || hText.includes('budgeting') || hText.includes('target') || hText.includes('plafon')) &&
+            !hText.includes('jenis') &&
+            !hText.includes('total')
+          ) {
+            budgetHeaderMap.budgeting = hc;
+          } else if (hText.includes('total saldo') || hText.includes('saldo total')) {
+            budgetHeaderMap.totalSaldo = hc;
+          } else if (hText.includes('actual') || hText.includes('spend') || hText.includes('realisasi')) {
+            budgetHeaderMap.actualSpend = hc;
+          } else if (hText.includes('sisa')) {
+            budgetHeaderMap.sisa = hc;
+          } else if (hText.includes('keterangan') || hText.includes('catatan') || hText.includes('ket')) {
+            budgetHeaderMap.keterangan = hc;
+          }
+        }
+
+        // Fallback default offsets if headers didn't strictly match:
+        // Col H (0): Jenis Budgeting
+        // Col I (1): Saldo Awal
+        // Col J (2): Budgeting
+        // Col K (3): Total Saldo
+        // Col L (4): Actual Spend
+        // Col M (5): Sisa
+        // Col N (6): Keterangan
+        if (budgetHeaderMap.saldoAwal === -1) budgetHeaderMap.saldoAwal = c + 1;
+        if (budgetHeaderMap.budgeting === -1) budgetHeaderMap.budgeting = c + 2;
+        if (budgetHeaderMap.totalSaldo === -1) budgetHeaderMap.totalSaldo = c + 3;
+        if (budgetHeaderMap.actualSpend === -1) budgetHeaderMap.actualSpend = c + 4;
+        if (budgetHeaderMap.sisa === -1) budgetHeaderMap.sisa = c + 5;
+        if (budgetHeaderMap.keterangan === -1) budgetHeaderMap.keterangan = c + 6;
       }
 
       // Check Total Aset (Net Worth)

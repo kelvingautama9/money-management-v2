@@ -179,22 +179,22 @@ export const INITIAL_BUDGETS: BudgetCategory[] = [
     saldoAwal: 419885,
     budgeting: 200000,
     totalSaldo: 619885,
-    actualSpend: 27000,
-    sisa: 592885,
-    keterangan: 'Sisa: Rp 592.885',
+    actualSpend: 58000,
+    sisa: 561885,
+    keterangan: 'Sisa: Rp 561.885',
     targetBulanan: 200000,
     akunTerkait: 'Jago-Transport'
   },
   {
     id: 'budget-4',
-    nama: 'Dating with Shareen (400K/Bulan)',
+    nama: 'Dating with Shareen (500K/Bulan)',
     saldoAwal: 0,
     budgeting: 500000,
     totalSaldo: 500000,
     actualSpend: 500000,
     sisa: 0,
     keterangan: 'Budget terserap penuh',
-    targetBulanan: 400000,
+    targetBulanan: 500000,
     akunTerkait: 'Blu BCA - Date'
   }
 ];
