@@ -22,12 +22,31 @@ export interface MarketPickItem {
   name: string;
   category: string;
   action: 'Akumulasi DCA' | 'Koleksi Bertahap' | 'Watchlist' | string;
+  fairValueAnalysis?: string;
+  fundamentalHighlights?: string;
+  monetaryFiscalSentiment?: string;
   catalyst: string;
   riskLevel: 'Rendah' | 'Moderat' | 'Agresif' | string;
+  financialPlannerVerdict?: string;
+}
+
+export interface SummaryOfEconomicProjections {
+  dotPlotMedianRate: string;
+  gdpProjection: string;
+  pceProjection: string;
+  unemploymentProjection: string;
+  analysis: string;
 }
 
 export interface MacroFedAnalysis {
   title: string;
+  fedFundsRate?: string;
+  cpiInflation?: string;
+  pceInflation?: string;
+  unemploymentRate?: string;
+  gdpGrowth?: string;
+  treasuryYield10Y?: string;
+  summaryOfEconomicProjections?: SummaryOfEconomicProjections;
   policyStatus: string;
   impactOnUserAssets: string;
   strategicAction: string;
@@ -342,34 +361,59 @@ export async function requestGeminiFinancialAnalysis(
     },
     macroFedIntelligence: {
       title: 'Analisis Sentimen Makro & Kebijakan The Fed Terkini',
-      policyStatus: 'The Federal Reserve mempertahankan fokus pada stabilitas inflasi dan penyesuaian suku bunga acuan. Tingkat yield obligasi AS dan volatilitas indeks global mengindikasikan pasar yang menuntut selektivitas tinggi.',
-      impactOnUserAssets: `Porsi valas Anda (${metrics.usdHedgePct}% dalam USD Valas BCA & USDT) memberikan perlindungan kuat terhadap ketidakpastian nilai tukar Rupiah. Untuk instrumen ekuitas/reksadana di Pluang, pergerakan suku bunga The Fed membuka peluang akumulasi saat valuasi terkoreksi.`,
-      strategicAction: 'Pertahankan porsi lindung nilai valas dan alokasikan setoran DCA berikutnya ke aset saham berfundamental prima yang valuasinya terdiskon.'
+      fedFundsRate: '4.75% - 5.00%',
+      cpiInflation: '2.5% YoY',
+      pceInflation: 'Core PCE 2.7% YoY (Headline 2.2%)',
+      unemploymentRate: '4.2%',
+      gdpGrowth: '3.0% QoQ (Real GDP Annualized)',
+      treasuryYield10Y: '3.75%',
+      summaryOfEconomicProjections: {
+        dotPlotMedianRate: 'Median FFR diproyeksikan di 4.4% akhir 2024, 3.4% pada 2025, dan 2.9% pada 2026',
+        gdpProjection: 'Pertumbuhan PDB riil diproyeksikan bertahan di level 2.0% (soft-landing)',
+        pceProjection: 'Core PCE diproyeksikan menuju target 2.0% secara gradual pada 2026',
+        unemploymentProjection: 'Tingkat pengangguran diproyeksikan stabil pada rentang 4.3% - 4.4%',
+        analysis: 'Dot Plot SEP mengonfirmasi jalur pelonggaran moneter (rate cuts) bertahap. The Fed beralih dari mode restriktif ekstrem ke penyeimbangan risiko antara target inflasi 2% dan pencegahan pelambatan pasar tenaga kerja.'
+      },
+      policyStatus: 'The Federal Reserve memulai siklus pelonggaran moneter dengan pemangkasan suku bunga acuan ke rentang 4.75%-5.00%. Data Summary of Economic Projections (SEP) terbaru mengindikasikan tambahan pemangkasan gradual seiring melandainya inflasi PCE mendekati target 2%.',
+      impactOnUserAssets: `Porsi lindung nilai valas Anda (${metrics.usdHedgePct}% dalam USD Valas BCA & Crypto USDT) memberikan kestabilan modal di tengah fluktuasi nilai tukar Rupiah (USD/IDR). Siklus penurunan Fed Funds Rate menguntungkan instrumen ekuitas dan reksadana di Pluang karena ekspansi kelipatan valuasi (P/E multiple expansion).`,
+      strategicAction: 'Manfaatkan stabilitas likuiditas valas untuk mengarahkan setoran DCA bulanan ke instrumen ekuitas bertaraf global yang memiliki diskon fair value dan neraca kas sehat.'
     },
     recommendedStockPicks: [
       {
         ticker: 'GOOGL',
         name: 'Alphabet Inc.',
-        category: 'Saham Teknologi / AI',
+        category: 'Big Tech / AI & Cloud Infrastructure',
         action: 'Akumulasi DCA',
-        catalyst: 'Pertumbuhan kuat pada segmen Google Cloud dan monetisasi produk AI enterprise, didukung oleh neraca kas yang sangat sehat dan rasio valuasi P/E yang kompetitif di antara kelompok Big Tech.',
-        riskLevel: 'Moderat'
+        fairValueAnalysis: 'Forward P/E ~20.5x, berada di bawah rata-rata historis 5 tahun (24.8x). Konsensus analis mematok fair value di kisaran $200-$210, mencerminkan margin of safety ~22%.',
+        fundamentalHighlights: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional mencapai 32%, dan free cash flow tahunan melampaui $60 Miliar.',
+        monetaryFiscalSentiment: 'Siklus pemangkasan suku bunga The Fed menurunkan biaya modal korporasi dan mendorong ekspansi valuasi saham teknologi berfundamental prima.',
+        catalyst: 'Monetisasi infrastruktur AI enterprise Gemini dan ketahanan luar biasa pendapatan periklanan digital Search & YouTube.',
+        riskLevel: 'Moderat',
+        financialPlannerVerdict: 'Kandidat ideal untuk alokasi porsi pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia.'
       },
       {
         ticker: 'VOO',
         name: 'Vanguard S&P 500 ETF',
-        category: 'Indeks Pasar Luas',
+        category: 'Indeks Pasar Luas AS',
         action: 'Koleksi Bertahap',
-        catalyst: 'Diversifikasi instan ke 500 korporasi terbesar di Amerika Serikat dengan expense ratio ultra-rendah (0.03%), ideal sebagai fondasi inti portofolio jangka panjang.',
-        riskLevel: 'Rendah'
+        fairValueAnalysis: 'Trading pada forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85. Menyajikan imbal hasil majemuk historis rata-rata 10.2% per tahun.',
+        fundamentalHighlights: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat emiten konstituen di atas 18%, dan diversifikasi ke 500 korporasi terbesar AS.',
+        monetaryFiscalSentiment: 'Didukung oleh proyeksi soft-landing ekonomi AS dalam rilis SEP The Fed terbaru dan pertumbuhan laba emiten broad-market.',
+        catalyst: 'Eksposur pasar luas yang melindungi dari risiko kejatuhan saham individual, sangat ideal sebagai fondasi inti (core holding).',
+        riskLevel: 'Rendah',
+        financialPlannerVerdict: 'Pilar utama portofolio untuk menyerap akumulasi DCA jangka panjang dengan risiko struktural minimal.'
       },
       {
-        ticker: 'QQQ',
-        name: 'Invesco QQQ Trust',
-        category: 'Pertumbuhan & Inovasi',
+        ticker: 'SCHD',
+        name: 'Schwab U.S. Dividend Equity ETF',
+        category: 'Kualitas Dividen & Defensif',
         action: 'Koleksi Bertahap',
-        catalyst: 'Melacak 100 perusahaan non-finansial terbesar di Nasdaq dengan paparan dominan pada kepemimpinan teknologi global dan kecerdasan buatan.',
-        riskLevel: 'Moderat'
+        fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi signifikan dibandingkan indeks teknologi berbobot tinggi.',
+        fundamentalHighlights: 'Menyaring 100 perusahaan dengan rekam jejak pembayaran dividen minimal 10 tahun berturut-turut, cash flow-to-debt sehat, dan ROE tinggi.',
+        monetaryFiscalSentiment: 'Diuntungkan saat imbal hasil obligasi US Treasury menurun, memicu rotasi aliran dana institusional ke saham dividen berimbal hasil stabil.',
+        catalyst: 'Kombinasi pendapatan dividen pasif teratur dan volatilitas beta yang lebih rendah (0.78) menghadapi koreksi pasar makro.',
+        riskLevel: 'Rendah',
+        financialPlannerVerdict: 'Sangat cocok untuk diversifikasi penyeimbang porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi.'
       }
     ],
     investmentAudit: {

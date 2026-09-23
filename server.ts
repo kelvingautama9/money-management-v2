@@ -208,8 +208,8 @@ app.post('/api/gemini/analyze', async (req: Request, res: Response) => {
   const modelsToTry = Array.from(new Set(candidateModels));
 
   const prompt = `
-Anda adalah seorang Senior Chief Investment Officer (CIO) & Macro Financial Strategist terkemuka.
-Tugas Anda adalah melakukan audit mendalam terhadap portofolio investasi dan keuangan user untuk periode ${monthName} 2026, sekaligus mengintegrasikan DATA PASAR GLOBAL TERBARU (hasil Google Search) mengenai kebijakan The Fed (suku bunga & inflasi), earnings/kinerja saham global (seperti GOOGL / Big Tech, S&P 500 / VOO), dan implikasinya terhadap portofolio user.
+Anda adalah seorang Senior Chief Investment Officer (CIO), Certified Financial Planner (CFP), dan Global Macro Strategist terkemuka.
+Tugas Anda adalah melakukan audit mendalam terhadap portofolio investasi dan keuangan user untuk periode ${monthName} 2026, sekaligus mengintegrasikan DATA PASAR & MAKROEKONOMI GLOBAL TERBARU (hasil Google Search) dengan ANGKA AKTUAL DAN REAL-TIME.
 
 DATA PORTOFOLIO & KEUANGAN USER (100% Deterministic & Akurat):
 - Total Aset Bersih: ${metrics.totalAsetFormatted || 'Rp 54.148.790'}
@@ -227,15 +227,33 @@ DATA PORTOFOLIO & KEUANGAN USER (100% Deterministic & Akurat):
   ${(metrics.assetAllocations || []).map((a: any) => `* ${a.nama}: Nilai ${a.nilai}, Porsi ${a.persentase}%, Status: ${a.weightStatus || 'Normal'}`).join('\n  ')}
 - Porsi Lindung Nilai Valas (USD & USDT): ${metrics.usdHedgePct || '67.4'}%
 
-INSTRUKSI WAJIB:
-1. Lakukan pencarian informasi pasar terkini (via Google Search tool):
-   - Kebijakan The Fed terkini (suku bunga acuan Fed Funds Rate, sikap hawkish/dovish, inflasi AS CPI/PCE) dan pengaruhnya ke pasar global serta nilai tukar Rupiah (USD/IDR).
-   - Update berita terkini saham/indeks unggulan (misal: Alphabet / GOOGL dengan katalis revenue/earnings cloud AI terbaru, Indeks S&P 500 / ETF VOO, Nasdaq QQQ, atau instrumen defensif).
-2. Analisis bagaimana sentimen The Fed & inflasi tersebut mempengaruhi portofolio user (khususnya aset USD Valas BCA, Crypto USDT, dan reksadana/saham di Pluang).
-3. Berikan saran koleksi saham/indeks konkret yang layak diakumulasi user secara bertahap menggunakan setoran modal DCA berikutnya.
-4. JANGAN PERNAH mengubah angka riil portofolio user yang sudah diinput.
-5. Gunakan bahasa Indonesia profesional, analitis, tajam, dan mudah dipahami tanpa kata klise berlebihan (jangan gunakan 'master finansial' atau 'hedge fund').
-6. Kembalikan HANYA format JSON valid tanpa teks pengantar di luar JSON.
+INSTRUKSI WAJIB RISET & DATA REAL-TIME (CARI VIA GOOGLE SEARCH):
+1. DATA MAKROEKONOMI, MONETER & FISKAL REAL-TIME (WAJIB SERTAKAN ANGKA-ANGKA AKTUAL):
+   - Suku Bunga Acuan The Fed (Fed Funds Rate) saat ini (misal: 4.75% - 5.00% atau level terkini).
+   - Inflasi Headline CPI (% YoY & MoM) dan Inflasi Core PCE (% YoY) terkini.
+   - Tingkat Pengangguran AS (Unemployment Rate %) & pasar tenaga kerja Non-Farm Payrolls terkini.
+   - Pertumbuhan PDB (Real GDP Growth % annualized) & Yield Obligasi US Treasury 10-Tahun.
+   - **WAJIB:** DATA SUMMARY OF ECONOMIC PROJECTIONS (SEP / DOT PLOT) TERAKHIR DARI FOMC:
+     * Proyeksi median Fed Funds Rate untuk tahun berjalan dan tahun-tahun berikutnya.
+     * Proyeksi pertumbuhan PDB The Fed.
+     * Proyeksi Core PCE The Fed.
+     * Proyeksi Unemployment Rate The Fed.
+     * Evaluasi arah pengetatan/pelonggaran moneter (soft landing vs persistent inflation).
+   - Jelaskan dampak riil angka-angka ini terhadap aset user: USD Valas BCA (${metrics.usdHedgePct || '67.4'}%), Crypto USDT, dan instrumen saham global/reksadana di Pluang.
+
+2. REKOMENDASI KOLEKSI SAHAM & INDEKS PILIHAN (DINAMIS, ADAPTIF, MULTI-FAKTOR):
+   - JANGAN TERPAKU HANYA PADA GOOGL ATAU ETF BIASA!
+   - Sesuaikan rekomendasi secara cerdas dengan kondisi portofolio user (posisi USD Valas BCA overweight, crypto tinggi, Pluang moderat, dan dana darurat perlu penambahan).
+   - Pilih 3 instrumen investasi unggulan yang paling optimal saat ini (bisa saham individual berfundamental prima, thematic/broad ETF, dividend aristocrats, global quality, atau instrumen defensif).
+   - Setiap aset yang dipilih WAJIB dianalisis mendalam mencakup 3 pilar:
+     a) Fair Value: Estimasi valuasi wajar, Forward P/E vs historis, diskon/margin of safety, atau konsensus target harga Wall Street.
+     b) Fundamental: Kualitas neraca kas, pertumbuhan laba/revenue YoY, margin operasional, ROE, dan free cash flow.
+     c) Sentimen Moneter/Fiskal: Mengapa instrumen ini diuntungkan atau tahan banting dalam siklus suku bunga The Fed dan inflasi terkini.
+
+3. KETENTUAN FORMAT:
+   - Gunakan bahasa Indonesia profesional, analitis, padat data angka, dan terukur.
+   - JANGAN PERNAH mengubah angka riil portofolio user yang sudah diinput.
+   - Kembalikan HANYA format JSON valid tanpa teks pengantar atau markdown di luar blok JSON.
 
 FORMAT JSON OUTPUT YANG WAJIB DIIKUTI:
 \`\`\`json
@@ -247,34 +265,35 @@ FORMAT JSON OUTPUT YANG WAJIB DIIKUTI:
   },
   "macroFedIntelligence": {
     "title": "Analisis Sentimen Makro & Kebijakan The Fed Terkini",
-    "policyStatus": "Update data terkini mengenai arah suku bunga The Fed (Fed Funds Rate) dan tren inflasi global.",
-    "impactOnUserAssets": "Pengaruh langsung kebijakan suku bunga The Fed dan kurs USD terhadap aset user (USD Valas BCA ${metrics.usdHedgePct || '67.4'}%, crypto USDT, dan saham AS di Pluang).",
-    "strategicAction": "Saran langkah antisipasi taktis bagi user menghadapi pergerakan suku bunga dan kurs saat ini."
+    "fedFundsRate": "4.75% - 5.00%",
+    "cpiInflation": "2.5% YoY",
+    "pceInflation": "Core PCE 2.7% YoY",
+    "unemploymentRate": "4.2%",
+    "gdpGrowth": "3.0% annualized",
+    "treasuryYield10Y": "3.75%",
+    "summaryOfEconomicProjections": {
+      "dotPlotMedianRate": "Median FFR diproyeksikan di 4.4% akhir tahun, berlanjut ke 3.4% pada tahun berikutnya",
+      "gdpProjection": "Pertumbuhan PDB riil diproyeksikan di 2.0%",
+      "pceProjection": "Core PCE diproyeksikan melandai menuju 2.0% pada target jangka menengah",
+      "unemploymentProjection": "Tingkat pengangguran diproyeksikan berada pada rentang 4.3% - 4.4%",
+      "analysis": "Dot plot SEP mengindikasikan kelanjutan siklus pelonggaran moneter bertahap dengan komitmen menyeimbangkan mandat ganda inflasi dan stabilitas tenaga kerja."
+    },
+    "policyStatus": "Rangkuman komprehensif arah kebijakan moneter The Fed dan kondisi likuiditas global terkini.",
+    "impactOnUserAssets": "Analisis terperinci dampak moneter & inflasi terhadap USD Valas BCA (${metrics.usdHedgePct || '67.4'}%), Crypto USDT, dan Pluang.",
+    "strategicAction": "Saran langkah taktis alokasi setoran DCA bulanan menghadapi dinamika makro."
   },
   "recommendedStockPicks": [
     {
-      "ticker": "GOOGL",
-      "name": "Alphabet Inc.",
-      "category": "Saham Teknologi / AI",
+      "ticker": "KODE_TICKER",
+      "name": "Nama Lengkap Perusahaan / ETF",
+      "category": "Kategori / Sektor",
       "action": "Akumulasi DCA",
-      "catalyst": "Katalis fundamental terkini (misal pertumbuhan pendapatan Google Cloud, adopsi AI enterprise, dan valuasi P/E yang atraktif).",
-      "riskLevel": "Moderat"
-    },
-    {
-      "ticker": "VOO / SPY",
-      "name": "Vanguard S&P 500 ETF",
-      "category": "Indeks Pasar Luas",
-      "action": "Koleksi Bertahap",
-      "catalyst": "Eksposur diversifikasi 500 perusahaan raksasa AS, historis return stabil jangka panjang di berbagai siklus ekonomi.",
-      "riskLevel": "Rendah"
-    },
-    {
-      "ticker": "QQQ",
-      "name": "Invesco QQQ (Nasdaq-100)",
-      "category": "Pertumbuhan & Inovasi",
-      "action": "Koleksi Bertahap",
-      "catalyst": "Didorong oleh momentum komputasi AI, semikonduktor, dan efisiensi margin perusahaan teknologi global.",
-      "riskLevel": "Moderat"
+      "fairValueAnalysis": "Analisis valuasi wajar, kelipatan P/E, diskon terhadap fair value, dan margin of safety.",
+      "fundamentalHighlights": "Pertumbuhan revenue YoY, margin laba, ROE, kesehatan neraca kas & free cash flow.",
+      "monetaryFiscalSentiment": "Korelasi dan daya tahan terhadap kebijakan suku bunga The Fed dan iklim makro terkini.",
+      "catalyst": "Katalis bisnis spesifik dan pendorong pertumbuhan jangka menengah/panjang.",
+      "riskLevel": "Moderat",
+      "financialPlannerVerdict": "Saran penempatan alokasi dari perspektif financial planning untuk portofolio user."
     }
   ],
   "investmentAudit": {
