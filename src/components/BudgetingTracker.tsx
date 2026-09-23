@@ -434,29 +434,27 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                     <>
                       <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                       <div>
-                        <strong>Catatan Finansial:</strong> Meskipun pengeluaran bulan ini (
-                        {formatRupiah(actualSpend)}) mengalami <strong>over-spending</strong> terhadap jatah
-                        budget bulanan ({formatRupiah(monthlyBudget)}) sebesar{' '}
-                        <strong>+{formatRupiah(monthlyDiff)}</strong>, saldo amplop <strong>belum defisit</strong>{' '}
-                        karena tertolong akumulasi sisa bulan lalu ({formatRupiah(saldoAwal)}). Sisa saldo kantong
-                        tersedia: <strong className="text-white">{formatRupiah(sisa)}</strong>.
+                        <strong>Evaluasi Anggaran & Likuiditas:</strong> Realisasi pengeluaran ({formatRupiah(actualSpend)}) mencatat deviasi <strong>+{formatRupiah(monthlyDiff)}</strong> ({((monthlyDiff / (monthlyBudget || 1)) * 100).toFixed(1)}%) di atas pagu bulanan ({formatRupiah(monthlyBudget)}). Namun, bantalan kas <em>carry-over</em> periode lalu ({formatRupiah(saldoAwal)}) berhasil mengabsorpsi volatilitas ini secara mandiri sehingga struktur kas tetap solven. Sisa likuiditas kantong tersedia: <strong className="text-white">{formatRupiah(sisa)}</strong>.
+                        <span className="block mt-1 text-amber-300/95 font-medium">
+                          <strong>Rekomendasi:</strong> Pertahankan pagu alokasi dasar dan normalisasikan laju serapan pada siklus berikutnya guna menjaga ketahanan <em>cash buffer</em> tetap optimal tanpa perlu injeksi modal tambahan.
+                        </span>
                       </div>
                     </>
                   ) : isDepleted ? (
                     <>
                       <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                       <div>
-                        <strong>Peringatan Saldo:</strong> Total saldo amplop telah terserap penuh / defisit.
-                        Sisa saldo saat ini: <strong className="text-white">{formatRupiah(sisa)}</strong>.
+                        <strong>Peringatan Likuiditas:</strong> Seluruh kapasitas saldo dan alokasi periode ini telah terserap penuh (defisit). Sisa likuiditas: <strong className="text-white">{formatRupiah(sisa)}</strong>.
+                        <span className="block mt-1 text-rose-300/95 font-medium">
+                          <strong>Rekomendasi:</strong> Lakukan rebalancing darurat dari pos surplus lain atau tunda pengeluaran diskresioner hingga siklus alokasi berikutnya.
+                        </span>
                       </div>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                       <div>
-                        <strong>Kondisi Prima:</strong> Pengeluaran sangat disiplin dalam kuota jatah bulanan (
-                        {monthlySpendPct}% terpakai). Saldo total amplop dalam kondisi aman dan surplus (
-                        <strong className="text-white">{formatRupiah(sisa)}</strong>).
+                        <strong>Disiplin Anggaran:</strong> Penyerapan kas berada dalam batas terkendali ({monthlySpendPct}% dari pagu). Cadangan likuiditas terjaga stabil dengan surplus kas tersedia: <strong className="text-white">{formatRupiah(sisa)}</strong>.
                       </div>
                     </>
                   )}

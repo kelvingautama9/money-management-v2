@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { GlassContainer } from './GlassContainer';
-import { GlassSettings, InvestmentAsset, InvestmentHistory } from '../types';
+import { GlassSettings, InvestmentAsset, InvestmentHistory, Transaction } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import { getMonthlyInvestmentMetrics } from '../lib/investmentUtils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import {
   TrendingUp,
@@ -21,7 +22,8 @@ import {
   Calculator,
   FileDown,
   Printer,
-  ShieldCheck
+  ShieldCheck,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import { InvestmentAuditReportPreviewModal } from './InvestmentAuditReportPreviewModal';
 
@@ -32,6 +34,7 @@ interface InvestmentPortfolioProps {
   totalProfit2026?: number;
   currentSheetName?: string;
   cashStandby?: number;
+  transactions?: Transaction[];
   onAddAsset?: (asset: InvestmentAsset) => void;
   onEditAsset?: (oldName: string, asset: InvestmentAsset) => void;
   onDeleteAsset?: (name: string) => void;
@@ -46,13 +49,13 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   totalProfit2026 = 1148790,
   currentSheetName = 'September',
   cashStandby = 0,
+  transactions = [],
   onAddAsset,
   onEditAsset,
   onDeleteAsset,
   onOpenSmartAnalysis,
   onOpenCalculator
 }) => {
-  const [activeTab, setActiveTab] = useState<'trend' | 'allocation'>('trend');
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
   // Modal states
@@ -65,38 +68,37 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   const [formDeposit, setFormDeposit] = useState('');
   const [formColor, setFormColor] = useState('#38bdf8');
 
-  const totalCurrentInvestment = assets.reduce((sum, a) => sum + (Number(a.nilaiAkhirBulan) || 0), 0);
-  const totalDCA = assets.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
+  // Dynamic month-synchronized investment metrics (handles DCA, closing returns, and broker balances)
+  const monthlyMetrics = useMemo(() => {
+    return getMonthlyInvestmentMetrics(currentSheetName, assets, history, transactions);
+  }, [currentSheetName, assets, history, transactions]);
 
-  // Previous month baseline from history (Agustus = 51.705.076)
-  const prevMonthIndex = history.length >= 2 ? history.length - 2 : -1;
-  const prevMonth = prevMonthIndex >= 0 ? history[prevMonthIndex] : null;
-  const prevNetWorth = prevMonth?.totalNetWorth || 51705076;
+  const activeAssets = monthlyMetrics.assets;
+  const totalCurrentInvestment = monthlyMetrics.totalCurrentInvestment;
+  const totalDCA = monthlyMetrics.totalDCA;
+  const isPendingValuation = monthlyMetrics.isPendingValuation;
+  const isClosed = monthlyMetrics.isClosed;
+  const pureProfit = monthlyMetrics.pureProfit;
+  const purePnl = monthlyMetrics.purePnl;
+  const prevNetWorth = monthlyMetrics.prevNetWorth;
 
-  // SMART STATE DETECTION:
-  // If totalCurrentInvestment is identical to previous month net worth,
-  // it indicates the active month (September) is pending closing/revaluation.
-  // DCA will NOT create phantom loss (-Rp 2.016.286).
-  const isPendingValuation = totalCurrentInvestment === prevNetWorth;
-  const grossGrowth = totalCurrentInvestment - prevNetWorth;
-  const pureProfit = isPendingValuation ? 0 : grossGrowth - totalDCA;
-  const denominator = prevNetWorth + (totalDCA > 0 ? totalDCA / 2 : 0);
-  const purePnl = isPendingValuation || denominator <= 0 ? 0 : Number(((pureProfit / denominator) * 100).toFixed(2));
-
-  const pieData = assets.map((a) => ({
+  const pieData = activeAssets.map((a) => ({
     name: a.nama,
     value: a.nilaiAkhirBulan,
     color: a.warna
   }));
 
   const chartData = history.map((h, i) => {
-    const isLatest = i === history.length - 1;
+    const isSelectedMonth =
+      h.bulan.toLowerCase().replace(/[^a-z]/g, '') === currentSheetName.toLowerCase().replace(/[^a-z]/g, '') ||
+      currentSheetName.toLowerCase().includes(h.bulan.toLowerCase().replace(/[^a-z]/g, ''));
+    const isPending = !h.isClosed && h.bulan.toLowerCase().includes('september');
     return {
       bulan: h.bulan,
-      netWorth: isLatest ? totalCurrentInvestment : h.totalNetWorth,
-      profit: isLatest ? (isPendingValuation ? 0 : pureProfit) : h.netProfitMoM,
-      pnl: isLatest ? (isPendingValuation ? 0 : purePnl) : h.pnlPercent,
-      isPending: isLatest && isPendingValuation
+      netWorth: isSelectedMonth ? totalCurrentInvestment : h.totalNetWorth,
+      profit: isSelectedMonth ? (isPendingValuation ? 0 : pureProfit) : h.netProfitMoM,
+      pnl: isSelectedMonth ? (isPendingValuation ? 0 : purePnl) : h.pnlPercent,
+      isPending
     };
   });
 
@@ -261,30 +263,6 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
               <Plus className="w-3.5 h-3.5 text-emerald-400" />
               <span>Tambah Broker</span>
             </button>
-
-            {/* View Switcher Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
-              <button
-                onClick={() => setActiveTab('trend')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
-                  activeTab === 'trend'
-                    ? 'bg-blue-500/30 text-white border border-blue-400/40 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Tren Net Worth
-              </button>
-              <button
-                onClick={() => setActiveTab('allocation')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
-                  activeTab === 'allocation'
-                    ? 'bg-blue-500/30 text-white border border-blue-400/40 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Alokasi
-              </button>
-            </div>
           </div>
         </div>
 
@@ -292,21 +270,37 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
         <div className="my-5 p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-indigo-500/10 dark:from-sky-950/40 dark:via-blue-950/25 dark:to-indigo-950/40 border border-sky-400/30 dark:border-sky-500/25 relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-300">
-                  Total Valuasi Portofolio
+                  Total Valuasi Portofolio • {currentSheetName}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                   DCA Terpisah (Non-Return)
                 </span>
+                {isClosed ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 inline-flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" />
+                    Sudah Closing (Closed)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    Bulan Berjalan (Pending Closing)
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
                 <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
                   {formatRupiah(totalCurrentInvestment)}
                 </span>
-                <span className="text-xs font-bold text-purple-600 dark:text-purple-300 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 inline-flex items-center gap-1">
-                  +{formatRupiah(totalDCA)} Setoran DCA
-                </span>
+                {totalDCA > 0 ? (
+                  <span className="text-xs font-bold text-purple-600 dark:text-purple-300 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 inline-flex items-center gap-1">
+                    +{formatRupiah(totalDCA)} Setoran DCA
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-500/10 px-2.5 py-0.5 rounded-full border border-slate-500/20 inline-flex items-center gap-1">
+                    Rp 0 Setoran DCA
+                  </span>
+                )}
                 {isPendingValuation ? (
                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 text-sky-600 dark:text-sky-300 bg-sky-500/15 border-sky-500/30">
                     Rp 0 (0.00%) Menunggu Closing Akhir Bulan
@@ -324,7 +318,9 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                 {isPendingValuation
                   ? 'Setoran DCA dialokasikan aman sebagai modal pokok baru. Estimasi return pasar aktif setelah update saldo akhir bulan.'
-                  : 'Nilai setoran DCA dipisahkan dari return agar performa organik aset pasar terbaca akurat.'}
+                  : totalDCA > 0
+                  ? `Setoran DCA ${formatRupiah(totalDCA)} dialokasikan aman sebagai modal mandiri. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni mencerminkan pertumbuhan organik aset pasar (periode ${currentSheetName} sudah closing).`
+                  : `Tidak ada setoran DCA pada periode ${currentSheetName}. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni mencerminkan kinerja pasar periode ${currentSheetName} yang telah di-closing.`}
               </p>
             </div>
 
@@ -337,7 +333,7 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                 <span>Audit & PDF</span>
               </button>
               <span className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium text-[11px]">
-                {assets.length} Broker Terdaftar
+                {activeAssets.length} Broker Terdaftar
               </span>
             </div>
           </div>
@@ -346,12 +342,12 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
         {/* Compact Broker & Asset Cards (Optimized 2-column mobile grid) */}
         <div className="space-y-2 mb-6">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-300">Daftar Broker & Aset Investasi</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-300">Daftar Broker & Aset Investasi ({currentSheetName})</span>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Alokasi Total: 100%</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
-            {assets.map((asset) => {
+            {activeAssets.map((asset) => {
               const allocationPct = totalCurrentInvestment > 0
                 ? ((asset.nilaiAkhirBulan / totalCurrentInvestment) * 100).toFixed(1)
                 : '0';
@@ -366,7 +362,7 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                       <div className="shrink-0 scale-90 sm:scale-100">
                         {getAssetIcon(asset.nama)}
                       </div>
-                      <span className="text-[11px] sm:text-xs font-bold text-white truncate" title={asset.nama}>
+                      <span className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white truncate" title={asset.nama}>
                         {asset.nama}
                       </span>
                     </div>
@@ -390,7 +386,7 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                   </div>
 
                   <div className="my-1">
-                    <span className="text-xs sm:text-base font-bold text-white font-mono block tracking-tight truncate">
+                    <span className="text-xs sm:text-base font-bold text-slate-900 dark:text-white font-mono block tracking-tight truncate">
                       {formatRupiah(asset.nilaiAkhirBulan)}
                     </span>
                   </div>
@@ -407,85 +403,110 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
           </div>
         </div>
 
-        {/* Chart Section */}
-        <div className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/10">
-          {activeTab === 'trend' ? (
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                <span className="text-xs font-medium text-slate-300">
-                  Pertumbuhan Nilai Investasi Bulanan (April – September 2026)
-                </span>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                    <Award className="w-3.5 h-3.5" />
-                    Total Realized Profit (YTD): <strong>{formatRupiah(totalProfit2026)}</strong>
+        {/* Combined Analytics: Tren Net Worth & Alokasi Portofolio in 1 Single View */}
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Left: Tren Net Worth (7 cols on lg) */}
+          <div className="lg:col-span-7 p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <LineChart className="w-4 h-4 text-sky-400" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
+                    Tren Pertumbuhan Portofolio (2026)
                   </span>
                 </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Pertumbuhan nilai valuasi bersih historis MoM
+                </p>
               </div>
-
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="netWorthGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="bulan" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                    <YAxis
-                      stroke="#94a3b8"
-                      fontSize={11}
-                      tickLine={false}
-                      tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`}
-                      domain={['dataMin - 1000000', 'dataMax + 1000000']}
-                    />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as any;
-                          return (
-                            <div className="p-3 rounded-xl bg-slate-900/90 border border-white/20 backdrop-blur-md text-xs shadow-xl">
-                              <p className="font-bold text-white mb-1">{data.bulan}</p>
-                              <p className="text-sky-300 font-mono">Net Worth: {formatRupiah(data.netWorth)}</p>
-                              {data.isPending ? (
-                                <p className="text-sky-400 font-medium mt-0.5">
-                                  MoM Profit: Rp 0 (Menunggu Closing Akhir Bulan)
-                                </p>
-                              ) : (
-                                <p className={`font-mono mt-0.5 ${data.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                  MoM Profit: {formatRupiah(data.profit)} ({data.pnl}%)
-                                </p>
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="netWorth"
-                      stroke="#38bdf8"
-                      strokeWidth={2.5}
-                      fillOpacity={1}
-                      fill="url(#netWorthGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
+                <Award className="w-3.5 h-3.5" />
+                <span>Realized YTD: <strong>{formatRupiah(totalProfit2026)}</strong></span>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col md:flex-row items-center justify-around gap-6 py-2">
-              <div className="h-56 w-56 relative">
+
+            <div className="h-60 sm:h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="netWorthGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="bulan" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <YAxis
+                    stroke="#94a3b8"
+                    fontSize={11}
+                    tickLine={false}
+                    tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`}
+                    domain={['dataMin - 1000000', 'dataMax + 1000000']}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload as any;
+                        return (
+                          <div className="p-3 rounded-xl bg-slate-900/95 border border-white/20 backdrop-blur-md text-xs shadow-xl">
+                            <p className="font-bold text-white mb-1">{data.bulan}</p>
+                            <p className="text-sky-300 font-mono">Net Worth: {formatRupiah(data.netWorth)}</p>
+                            {data.isPending ? (
+                              <p className="text-sky-400 font-medium mt-0.5">
+                                MoM Profit: Rp 0 (Bulan Berjalan)
+                              </p>
+                            ) : (
+                              <p className={`font-mono mt-0.5 ${data.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                MoM Profit: {data.profit >= 0 ? `+${formatRupiah(data.profit)}` : formatRupiah(data.profit)} ({data.pnl >= 0 ? `+${data.pnl}%` : `${data.pnl}%`})
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="netWorth"
+                    stroke="#38bdf8"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#netWorthGrad)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Right: Alokasi Portofolio (5 cols on lg) */}
+          <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <PieChartIcon className="w-4 h-4 text-indigo-400" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
+                    Alokasi Aset • {currentSheetName}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Porsi instrumen & broker aktif
+                </p>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                Total: {formatRupiah(totalCurrentInvestment)}
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center justify-around gap-4 py-1">
+              <div className="h-44 w-44 shrink-0 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={85}
+                      innerRadius={50}
+                      outerRadius={70}
                       paddingAngle={4}
                       dataKey="value"
                     >
@@ -496,25 +517,39 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[10px] text-slate-400 uppercase font-medium">Portofolio</span>
-                  <span className="text-xs font-bold text-white font-mono">100%</span>
+                  <span className="text-[9px] text-slate-400 uppercase font-semibold">Portofolio</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">100%</span>
                 </div>
               </div>
 
-              {/* Legend breakdown */}
-              <div className="space-y-3 w-full max-w-xs">
-                {pieData.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-md" style={{ backgroundColor: item.color }} />
-                      <span className="text-slate-300 font-medium">{item.name}</span>
+              {/* Legend Breakdown */}
+              <div className="space-y-2.5 w-full min-w-0">
+                {activeAssets.map((asset) => {
+                  const allocPct = totalCurrentInvestment > 0
+                    ? ((asset.nilaiAkhirBulan / totalCurrentInvestment) * 100).toFixed(1)
+                    : '0';
+                  return (
+                    <div key={asset.nama} className="flex items-center justify-between text-xs gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-md shrink-0" style={{ backgroundColor: asset.warna }} />
+                        <span className="text-slate-700 dark:text-slate-300 font-medium truncate text-[11px]" title={asset.nama}>
+                          {asset.nama}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="font-mono text-[11px] font-semibold text-slate-900 dark:text-slate-200">
+                          {formatRupiah(asset.nilaiAkhirBulan)}
+                        </span>
+                        <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-1 py-0.2 rounded border border-sky-500/20">
+                          {allocPct}%
+                        </span>
+                      </div>
                     </div>
-                    <span className="font-mono text-slate-200">{formatRupiah(item.value)}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </GlassContainer>
 
@@ -701,10 +736,11 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
         currentSheetName={currentSheetName}
-        assets={assets}
+        assets={activeAssets}
         history={history}
         cashStandby={cashStandby}
         settings={settings}
+        transactions={transactions}
       />
     </div>
   );

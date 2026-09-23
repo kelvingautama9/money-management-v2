@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { GlassSettings, InvestmentAsset, InvestmentHistory } from '../types';
+import React, { useState, useMemo } from 'react';
+import { GlassSettings, InvestmentAsset, InvestmentHistory, Transaction } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import { getMonthlyInvestmentMetrics } from '../lib/investmentUtils';
 import {
   Sparkles,
   TrendingUp,
@@ -29,6 +30,7 @@ interface SmartAnalysisPageProps {
   cashStandby?: number;
   onBack?: () => void;
   currentSheetName?: string;
+  transactions?: Transaction[];
 }
 
 export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
@@ -37,32 +39,30 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
   history = [],
   cashStandby = 0,
   onBack,
-  currentSheetName = 'September'
+  currentSheetName = 'September',
+  transactions = []
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const isDark = settings?.themeMode !== 'light' && settings?.themeMode !== 'beige';
   const isLight = !isDark;
 
-  const safeAssets = Array.isArray(assets) ? assets : [];
-  const safeHistory = Array.isArray(history) ? history : [];
+  // Dynamic monthly metrics synchronized with active month
+  const monthlyMetrics = useMemo(() => {
+    return getMonthlyInvestmentMetrics(currentSheetName, assets, history, transactions);
+  }, [currentSheetName, assets, history, transactions]);
 
-  const totalInvestment = safeAssets.reduce((sum, a) => sum + (Number(a.nilaiAkhirBulan) || 0), 0);
-  const totalDCA = safeAssets.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
+  const safeAssets = monthlyMetrics.assets;
+  const safeHistory = Array.isArray(history) && history.length > 0 ? history : [];
+
+  const totalInvestment = monthlyMetrics.totalCurrentInvestment;
+  const totalDCA = monthlyMetrics.totalDCA;
   const totalWealth = totalInvestment + cashStandby;
 
-  // Previous month from history
-  const prevMonthIndex = safeHistory.length >= 2 ? safeHistory.length - 2 : -1;
-  const prevMonth = prevMonthIndex >= 0 ? safeHistory[prevMonthIndex] : null;
-  const prevNetWorth = prevMonth?.totalNetWorth || 51705076;
-
-  // SMART STATE DETECTION:
-  // If totalInvestment equals prevNetWorth, active month (September) has not been closed yet.
-  const isPendingValuation = totalInvestment === prevNetWorth;
-  const grossGrowth = totalInvestment - prevNetWorth;
-  const pureProfit = isPendingValuation ? 0 : grossGrowth - totalDCA;
-  const denominator = prevNetWorth + (totalDCA > 0 ? totalDCA / 2 : 0);
-  const purePnl = isPendingValuation || denominator <= 0 ? 0 : Number(((pureProfit / denominator) * 100).toFixed(2));
+  const prevNetWorth = monthlyMetrics.prevNetWorth;
+  const isPendingValuation = monthlyMetrics.isPendingValuation;
+  const pureProfit = monthlyMetrics.pureProfit;
+  const purePnl = monthlyMetrics.purePnl;
 
   // Pure Total Realized Profit 2026 (Sum of closed months April - August = Rp 1.148.790)
   const totalRealizedProfit = safeHistory
@@ -641,6 +641,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
         history={safeHistory}
         cashStandby={cashStandby}
         settings={settings}
+        transactions={transactions}
       />
     </div>
   );

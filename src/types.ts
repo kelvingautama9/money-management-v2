@@ -60,6 +60,8 @@ export interface InvestmentHistory {
   totalNetWorth: number;
   netProfitMoM: number;
   pnlPercent: number;
+  dca?: number;
+  isClosed?: boolean;
 }
 
 export interface SheetSummary {

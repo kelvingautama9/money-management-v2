@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { GlassSettings, InvestmentAsset, InvestmentHistory } from '../types';
+import { GlassSettings, InvestmentAsset, InvestmentHistory, Transaction } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import { getMonthlyInvestmentMetrics } from '../lib/investmentUtils';
 import {
   TrendingUp,
   ShieldCheck,
@@ -35,6 +36,7 @@ interface SmartAnalysisModalProps {
   settings: GlassSettings;
   cashStandby: number;
   currentSheetName?: string;
+  transactions?: Transaction[];
 }
 
 export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
@@ -44,7 +46,8 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
   history,
   settings,
   cashStandby = 0,
-  currentSheetName = 'September'
+  currentSheetName = 'September',
+  transactions = []
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -58,28 +61,25 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
     }
   }, [isOpen]);
 
+  // Dynamic monthly metrics synchronized with active month
+  const monthlyMetrics = useMemo(() => {
+    return getMonthlyInvestmentMetrics(currentSheetName, assets, history, transactions);
+  }, [currentSheetName, assets, history, transactions]);
+
   if (!isOpen) return null;
 
   const isLight = settings?.themeMode === 'light' || settings?.themeMode === 'beige';
-  const safeAssets = Array.isArray(assets) ? assets : [];
-  const safeHistory = Array.isArray(history) ? history : [];
+  const safeAssets = monthlyMetrics.assets;
+  const safeHistory = Array.isArray(history) && history.length > 0 ? history : [];
 
-  const totalInvestment = safeAssets.reduce((sum, a) => sum + (Number(a.nilaiAkhirBulan) || 0), 0);
-  const totalDCA = safeAssets.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
+  const totalInvestment = monthlyMetrics.totalCurrentInvestment;
+  const totalDCA = monthlyMetrics.totalDCA;
   const totalWealth = totalInvestment + cashStandby;
 
-  // Previous month baseline
-  const prevMonthIndex = safeHistory.length >= 2 ? safeHistory.length - 2 : -1;
-  const prevMonth = prevMonthIndex >= 0 ? safeHistory[prevMonthIndex] : null;
-  const prevNetWorth = prevMonth?.totalNetWorth || 51705076;
-
-  // SMART STATE DETECTION:
-  // If totalInvestment equals prevNetWorth, active month has not been closed yet.
-  const isPendingValuation = totalInvestment === prevNetWorth;
-  const grossGrowth = totalInvestment - prevNetWorth;
-  const pureProfit = isPendingValuation ? 0 : grossGrowth - totalDCA;
-  const denominator = prevNetWorth + (totalDCA > 0 ? totalDCA / 2 : 0);
-  const purePnl = isPendingValuation || denominator <= 0 ? 0 : Number(((pureProfit / denominator) * 100).toFixed(2));
+  const prevNetWorth = monthlyMetrics.prevNetWorth;
+  const isPendingValuation = monthlyMetrics.isPendingValuation;
+  const pureProfit = monthlyMetrics.pureProfit;
+  const purePnl = monthlyMetrics.purePnl;
 
   // Dynamic calculations for USD/Hedge
   const usdHedgingAssets = safeAssets.filter((a) => {
@@ -438,6 +438,7 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
         history={safeHistory}
         cashStandby={cashStandby}
         settings={settings}
+        transactions={transactions}
       />
     </div>,
     document.body

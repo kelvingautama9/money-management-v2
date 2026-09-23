@@ -1948,6 +1948,7 @@ export default function App() {
                         totalProfit2026={totalProfit2026}
                         currentSheetName={sheetName}
                         cashStandby={cashStandbyDanaDarurat}
+                        transactions={transactions}
                         onAddAsset={handleAddAsset}
                         onEditAsset={handleEditAsset}
                         onDeleteAsset={handleDeleteAsset}
@@ -2031,6 +2032,7 @@ export default function App() {
                         history={history}
                         cashStandby={cashStandbyDanaDarurat}
                         currentSheetName={sheetName}
+                        transactions={transactions}
                         onBack={() => setActivePage('portfolio')}
                       />
                     </div>
@@ -2114,6 +2116,8 @@ export default function App() {
         history={history}
         settings={glassSettings}
         cashStandby={cashStandbyDanaDarurat}
+        currentSheetName={sheetName}
+        transactions={transactions}
       />
 
       {/* Semi-Transparent Liquid Glass Popup Menu Container */}

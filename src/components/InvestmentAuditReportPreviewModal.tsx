@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { InvestmentAsset, InvestmentHistory, GlassSettings } from '../types';
+import React, { useState, useRef, useMemo } from 'react';
+import { InvestmentAsset, InvestmentHistory, GlassSettings, Transaction } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import { getMonthlyInvestmentMetrics } from '../lib/investmentUtils';
 import {
   FileDown,
   Printer,
@@ -32,6 +33,7 @@ interface InvestmentAuditReportPreviewModalProps {
   history?: InvestmentHistory[];
   cashStandby?: number;
   settings?: GlassSettings;
+  transactions?: Transaction[];
 }
 
 export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPreviewModalProps> = ({
@@ -40,34 +42,32 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
   currentSheetName = 'September',
   assets = [],
   history = [],
-  cashStandby = 0
+  cashStandby = 0,
+  transactions = []
 }) => {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [previewZoom, setPreviewZoom] = useState<'fit' | '100%'>('fit');
   const reportRef = useRef<HTMLDivElement>(null);
 
+  // Dynamic monthly metrics synchronized with active month
+  const monthlyMetrics = useMemo(() => {
+    return getMonthlyInvestmentMetrics(currentSheetName, assets, history, transactions);
+  }, [currentSheetName, assets, history, transactions]);
+
   if (!isOpen) return null;
 
-  const safeAssets = Array.isArray(assets) ? assets : [];
-  const safeHistory = Array.isArray(history) ? history : [];
+  const safeAssets = monthlyMetrics.assets;
+  const safeHistory = Array.isArray(history) && history.length > 0 ? history : [];
 
-  const totalCurrentInvestment = safeAssets.reduce((sum, a) => sum + (Number(a.nilaiAkhirBulan) || 0), 0);
-  const totalDCA = safeAssets.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
+  const totalCurrentInvestment = monthlyMetrics.totalCurrentInvestment;
+  const totalDCA = monthlyMetrics.totalDCA;
   const totalWealth = totalCurrentInvestment + cashStandby;
 
-  // Find previous month in history
-  const prevMonthIndex = safeHistory.length >= 2 ? safeHistory.length - 2 : -1;
-  const prevMonth = prevMonthIndex >= 0 ? safeHistory[prevMonthIndex] : null;
-  const prevNetWorth = prevMonth?.totalNetWorth || 51705076; // Agustus baseline default
-
-  // SMART STATE DETECTION:
-  // If totalCurrentInvestment equals prevNetWorth, active month has not been closed yet.
-  const isPendingValuation = totalCurrentInvestment === prevNetWorth;
-  const grossGrowth = totalCurrentInvestment - prevNetWorth;
-  const pureProfit = isPendingValuation ? 0 : grossGrowth - totalDCA;
-  const denominator = prevNetWorth + (totalDCA > 0 ? totalDCA / 2 : 0);
-  const purePnl = isPendingValuation || denominator <= 0 ? 0 : Number(((pureProfit / denominator) * 100).toFixed(2));
+  const prevNetWorth = monthlyMetrics.prevNetWorth;
+  const isPendingValuation = monthlyMetrics.isPendingValuation;
+  const pureProfit = monthlyMetrics.pureProfit;
+  const purePnl = monthlyMetrics.purePnl;
 
   // Pure Realized profit calculation: sum of closed months in history (April - Agustus = Rp 1.148.790)
   const totalRealizedProfit = safeHistory

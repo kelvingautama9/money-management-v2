@@ -212,14 +212,125 @@ export const INITIAL_INVESTMENT_ASSETS: InvestmentAsset[] = [
   { nama: 'USDT - Binance', nilaiAkhirBulan: 12337617, depositWd: 0, alokasiPercent: 23.9, warna: '#f59e0b' }
 ];
 
+export const INITIAL_INVESTMENT_ASSETS_BY_MONTH: Record<string, InvestmentAsset[]> = {
+  'APRIL': [
+    { nama: 'Pluang (Reksadana & Saham AS)', nilaiAkhirBulan: 13800000, depositWd: 0, alokasiPercent: 28.4, warna: '#38bdf8' },
+    { nama: 'USD - Valas BCA', nilaiAkhirBulan: 22400000, depositWd: 0, alokasiPercent: 46.1, warna: '#34d399' },
+    { nama: 'USDT - Binance', nilaiAkhirBulan: 12340000, depositWd: 0, alokasiPercent: 25.5, warna: '#f59e0b' }
+  ],
+  'MEI': [
+    { nama: 'Pluang (Reksadana & Saham AS)', nilaiAkhirBulan: 14252195, depositWd: 0, alokasiPercent: 29.0, warna: '#38bdf8' },
+    { nama: 'USD - Valas BCA', nilaiAkhirBulan: 22570821, depositWd: 0, alokasiPercent: 45.9, warna: '#34d399' },
+    { nama: 'USDT - Binance', nilaiAkhirBulan: 12343684, depositWd: 0, alokasiPercent: 25.1, warna: '#f59e0b' }
+  ],
+  'JUNI': [
+    { nama: 'Pluang (Reksadana & Saham AS)', nilaiAkhirBulan: 14821204, depositWd: 0, alokasiPercent: 29.6, warna: '#38bdf8' },
+    { nama: 'USD - Valas BCA', nilaiAkhirBulan: 22787237, depositWd: 0, alokasiPercent: 45.6, warna: '#34d399' },
+    { nama: 'USDT - Binance', nilaiAkhirBulan: 12420431, depositWd: 0, alokasiPercent: 24.8, warna: '#f59e0b' }
+  ],
+  'JULI': [
+    { nama: 'Pluang (Reksadana & Saham AS)', nilaiAkhirBulan: 13427751, depositWd: 3000000, alokasiPercent: 27.5, warna: '#38bdf8' },
+    { nama: 'USD - Valas BCA', nilaiAkhirBulan: 22901809, depositWd: 0, alokasiPercent: 46.9, warna: '#34d399' },
+    { nama: 'USDT - Binance', nilaiAkhirBulan: 12528992, depositWd: 0, alokasiPercent: 25.6, warna: '#f59e0b' }
+  ],
+  'AGUSTUS': [
+    { nama: 'Pluang (Reksadana & Saham AS)', nilaiAkhirBulan: 16860459, depositWd: 2000000, alokasiPercent: 32.6, warna: '#38bdf8' },
+    { nama: 'USD - Valas BCA', nilaiAkhirBulan: 22507000, depositWd: 0, alokasiPercent: 43.5, warna: '#34d399' },
+    { nama: 'USDT - Binance', nilaiAkhirBulan: 12337617, depositWd: 0, alokasiPercent: 23.9, warna: '#f59e0b' }
+  ],
+  'SEPTEMBER': [
+    { nama: 'Pluang (Reksadana & Saham AS)', nilaiAkhirBulan: 16860459, depositWd: 2016286, alokasiPercent: 32.6, warna: '#38bdf8' },
+    { nama: 'USD - Valas BCA', nilaiAkhirBulan: 22507000, depositWd: 0, alokasiPercent: 43.5, warna: '#34d399' },
+    { nama: 'USDT - Binance', nilaiAkhirBulan: 12337617, depositWd: 0, alokasiPercent: 23.9, warna: '#f59e0b' }
+  ]
+};
+
 export const INITIAL_INVESTMENT_HISTORY: InvestmentHistory[] = [
-  { bulan: 'April', pluang: 13800000, valasBca: 22400000, usdtBinance: 12340000, totalNetWorth: 48540000, netProfitMoM: 0, pnlPercent: 0 },
-  { bulan: 'Mei', pluang: 14252195, valasBca: 22570821, usdtBinance: 12343684, totalNetWorth: 49166700, netProfitMoM: 626700, pnlPercent: 1.29 },
-  { bulan: 'Juni', pluang: 14821204, valasBca: 22787237, usdtBinance: 12420431, totalNetWorth: 50028872, netProfitMoM: 862172, pnlPercent: 1.75 },
-  { bulan: 'Juli', pluang: 13427751, valasBca: 22901809, usdtBinance: 12528992, totalNetWorth: 48858552, netProfitMoM: -1170320, pnlPercent: -2.34 },
-  { bulan: 'Agustus', pluang: 16860459, valasBca: 22507000, usdtBinance: 12337617, totalNetWorth: 51705076, netProfitMoM: 830238, pnlPercent: 1.63 },
-  { bulan: 'September (Est)', pluang: 18876745, valasBca: 22507000, usdtBinance: 12337617, totalNetWorth: 53721362, netProfitMoM: 0, pnlPercent: 0 }
+  { bulan: 'April', pluang: 13800000, valasBca: 22400000, usdtBinance: 12340000, totalNetWorth: 48540000, netProfitMoM: 0, pnlPercent: 0, dca: 0, isClosed: true },
+  { bulan: 'Mei', pluang: 14252195, valasBca: 22570821, usdtBinance: 12343684, totalNetWorth: 49166700, netProfitMoM: 626700, pnlPercent: 1.29, dca: 0, isClosed: true },
+  { bulan: 'Juni', pluang: 14821204, valasBca: 22787237, usdtBinance: 12420431, totalNetWorth: 50028872, netProfitMoM: 862172, pnlPercent: 1.75, dca: 0, isClosed: true },
+  { bulan: 'Juli', pluang: 13427751, valasBca: 22901809, usdtBinance: 12528992, totalNetWorth: 48858552, netProfitMoM: -1170320, pnlPercent: -2.34, dca: 3000000, isClosed: true },
+  { bulan: 'Agustus', pluang: 16860459, valasBca: 22507000, usdtBinance: 12337617, totalNetWorth: 51705076, netProfitMoM: 830238, pnlPercent: 1.63, dca: 2000000, isClosed: true },
+  { bulan: 'September', pluang: 16860459, valasBca: 22507000, usdtBinance: 12337617, totalNetWorth: 51705076, netProfitMoM: 0, pnlPercent: 0, dca: 2016286, isClosed: false }
 ];
+
+/**
+ * Calculates investment DCA (Dollar Cost Averaging / top up deposit)
+ * from monthly transaction records dynamically.
+ */
+export function calculateMonthlyDCA(transactions: Transaction[] = [], monthName = ''): number {
+  const cleanMonth = (monthName || '').trim().toLowerCase();
+
+  // Filter transactions for this month if specified
+  const filtered = cleanMonth
+    ? transactions.filter((t) => {
+        const txMonth = (t.bulan || '').toLowerCase().trim();
+        return txMonth.includes(cleanMonth) || cleanMonth.includes(txMonth);
+      })
+    : transactions;
+
+  if (!filtered || filtered.length === 0) {
+    const key = (monthName || '').toUpperCase().replace(/[^A-Z]/g, '');
+    const preset = INITIAL_INVESTMENT_ASSETS_BY_MONTH[key];
+    if (preset) {
+      return preset.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
+    }
+    return 0;
+  }
+
+  // Sum transactions that deposit / transfer funds into investments
+  // CRITICAL RULE: In double-entry internal transfers (e.g., Bank BCA -> Investasi),
+  // NEVER count 'Transfer Keluar' to avoid double-counting the same deposit amount!
+  // Only count inbound capital allocation ('Transfer Masuk' into Investasi / broker accounts,
+  // or explicit 'Expense' targeting investment).
+  const dcaTotal = filtered
+    .filter((t) => {
+      const acc = (t.akun || '').toLowerCase();
+      const kat = (t.kategori || '').toLowerCase();
+      const cat = (t.catatan || '').toLowerCase();
+      const tipe = t.tipe;
+
+      // Ignore baseline initial balance records
+      if (tipe === 'Saldo Bulan Lalu') return false;
+
+      // STRICT CHECK: Never count Transfer Keluar as DCA (it represents money exiting a bank account)
+      if (tipe === 'Transfer Keluar') return false;
+
+      const isInvestTarget =
+        acc.includes('investasi') ||
+        acc.includes('pluang') ||
+        acc.includes('bibit') ||
+        acc.includes('ajaib') ||
+        acc.includes('binance') ||
+        acc.includes('crypto') ||
+        kat.includes('investasi') ||
+        cat.includes('investasi') ||
+        cat.includes('pluang') ||
+        cat.includes('bibit') ||
+        cat.includes('binance');
+
+      const isTopUpOrDeposit =
+        tipe === 'Transfer Masuk' ||
+        tipe === 'Expense' ||
+        cat.includes('top up') ||
+        cat.includes('dca') ||
+        cat.includes('setoran');
+
+      return isInvestTarget && isTopUpOrDeposit;
+    })
+    .reduce((sum, t) => sum + (Number(t.jumlah) || 0), 0);
+
+  // If filtered transactions returned 0, check if there is a preset defined for this month
+  if (dcaTotal === 0 && cleanMonth) {
+    const key = cleanMonth.toUpperCase().replace(/[^A-Z]/g, '');
+    const preset = INITIAL_INVESTMENT_ASSETS_BY_MONTH[key];
+    if (preset) {
+      return preset.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
+    }
+  }
+
+  return dcaTotal;
+}
 
 export const DEFAULT_GLASS_SETTINGS: GlassSettings = {
   blur: 24,
