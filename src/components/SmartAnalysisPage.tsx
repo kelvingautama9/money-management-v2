@@ -65,6 +65,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
   transactions = []
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [autoExportPdf, setAutoExportPdf] = useState(false);
 
   const isDark = settings?.themeMode !== 'light' && settings?.themeMode !== 'beige';
   const isLight = !isDark;
@@ -327,6 +328,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
             <button
               onClick={() => {
                 triggerHaptic('light');
+                setAutoExportPdf(false);
                 setIsPreviewOpen(true);
               }}
               className={`px-3.5 py-2 rounded-2xl font-bold text-xs inline-flex items-center gap-1.5 transition active:scale-95 border cursor-pointer ${
@@ -344,6 +346,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
             <button
               onClick={() => {
                 triggerHaptic('medium');
+                setAutoExportPdf(true);
                 setIsPreviewOpen(true);
               }}
               className="px-4 py-2 rounded-2xl font-bold text-xs inline-flex items-center gap-2 transition active:scale-95 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 cursor-pointer"
@@ -1280,13 +1283,18 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
       {/* Modal Preview for PDF Export & Printing */}
       <InvestmentAuditReportPreviewModal
         isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setAutoExportPdf(false);
+        }}
         currentSheetName={currentSheetName}
         assets={safeAssets}
         history={safeHistory}
         cashStandby={cashStandby}
         settings={settings}
         transactions={transactions}
+        aiData={aiData}
+        autoDownload={autoExportPdf}
       />
     </div>
   );
