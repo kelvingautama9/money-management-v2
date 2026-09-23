@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GlassSettings, Transaction, BudgetCategory, EmergencyFund } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import {
+  FinancialAnalysisData,
+  getCachedMonthAnalysis,
+  buildDeterministicMetricsPayload,
+  requestGeminiFinancialAnalysis,
+  getStoredModelPreference
+} from '../lib/geminiFinancialService';
+import { AiAnalysisModelBar } from './AiAnalysisModelBar';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -48,7 +56,12 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
 
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
   const safeBudgets = Array.isArray(budgets) ? budgets : [];
-  const safeEmergency = emergencyFund || { current: 436550, target: 12000000 };
+  const safeEmergency: EmergencyFund = emergencyFund || {
+    current: 436550,
+    target: 12000000,
+    kekurangan: 11563450,
+    persentase: 3.6
+  };
 
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? ((netSavings / totalIncome) * 100).toFixed(1) : '0';
@@ -65,6 +78,48 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
   const budgetAbsorptionPct = totalBudgetPlafon > 0 ? ((totalBudgetSpend / totalBudgetPlafon) * 100).toFixed(1) : '0';
 
   const emergencyPct = safeEmergency.target > 0 ? ((safeEmergency.current / safeEmergency.target) * 100).toFixed(1) : '0';
+
+  // AI Analysis State
+  const [aiData, setAiData] = useState<FinancialAnalysisData | null>(() => {
+    return getCachedMonthAnalysis(currentSheetName);
+  });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const runAiAnalysis = useCallback(
+    async (overrideModel?: string) => {
+      setIsAnalyzing(true);
+      try {
+        const payload = buildDeterministicMetricsPayload(
+          currentSheetName,
+          totalAset,
+          totalIncome,
+          totalExpense,
+          safeTransactions,
+          safeBudgets,
+          [],
+          [],
+          safeEmergency
+        );
+        const result = await requestGeminiFinancialAnalysis(currentSheetName, payload, overrideModel);
+        setAiData(result);
+      } catch (err) {
+        console.error('Failed to run AI analysis:', err);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    },
+    [currentSheetName, totalAset, totalIncome, totalExpense, safeTransactions, safeBudgets, safeEmergency]
+  );
+
+  // Auto-fetch if not cached or sheet changes
+  useEffect(() => {
+    const cached = getCachedMonthAnalysis(currentSheetName);
+    if (cached) {
+      setAiData(cached);
+    } else {
+      runAiAnalysis();
+    }
+  }, [currentSheetName, runAiAnalysis]);
 
   const handleExportPdf = async () => {
     const element = document.getElementById('audit-financial-printable-area');
@@ -633,6 +688,16 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
           </div>
         </div>
 
+        {/* AI Model Control Bar */}
+        <AiAnalysisModelBar
+          isDark={isDark}
+          modelUsed={aiData?.modelUsed}
+          fallbackOccurred={aiData?.fallbackOccurred}
+          analyzedAt={aiData?.timestamp}
+          isAnalyzing={isAnalyzing}
+          onTriggerAnalysis={runAiAnalysis}
+        />
+
         {/* Executive Verdict & Recommendations */}
         <div
           style={
@@ -649,34 +714,66 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
           }
           className="p-6 rounded-3xl print-card space-y-3 shadow-xs"
         >
-          <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-sky-300' : 'text-blue-900'}`}>
-            <ShieldCheck className="w-4 h-4 text-blue-500" />
-            Kesimpulan Eksekutif & Rekomendasi Audit
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-sky-300' : 'text-blue-900'}`}>
+              <ShieldCheck className="w-4 h-4 text-blue-500" />
+              Kesimpulan Eksekutif & Rekomendasi Audit
+            </h3>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+              {aiData?.modelUsed ? `AI Powered (${aiData.modelUsed})` : 'AI Grounded Analysis'}
+            </span>
+          </div>
+
+          {aiData?.executiveSummaryNarrative && (
+            <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-sky-200 leading-relaxed font-medium">
+              💡 {aiData.executiveSummaryNarrative}
+            </div>
+          )}
 
           <ul className={`space-y-2 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <span>
-                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Efisiensi Tabungan:</strong> Rasio tabungan Anda tercatat{' '}
-                <span className="font-bold text-emerald-400">{savingsRate}%</span>, menghasilkan surplus bersih sebesar{' '}
-                <span className="font-mono font-bold">{formatRupiah(netSavings)}</span>.
+                <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+                  {aiData?.financialAudit?.savingsEfficiency?.title || 'Efisiensi Tabungan'}:
+                </strong>{' '}
+                {aiData?.financialAudit?.savingsEfficiency?.text ? (
+                  <span>{aiData.financialAudit.savingsEfficiency.text}</span>
+                ) : (
+                  <>
+                    Rasio tabungan Anda tercatat <span className="font-bold text-emerald-400">{savingsRate}%</span>, menghasilkan surplus bersih sebesar <span className="font-mono font-bold">{formatRupiah(netSavings)}</span>.
+                  </>
+                )}
               </span>
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
               <span>
-                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Kontrol Anggaran:</strong> Serapan total pos belanja tercatat{' '}
-                <span className="font-bold text-amber-400">{budgetAbsorptionPct}%</span> dengan sisa cadangan aman sebesar{' '}
-                <span className="font-mono font-bold">{formatRupiah(totalBudgetSisa)}</span>.
+                <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+                  {aiData?.financialAudit?.budgetControl?.title || 'Kontrol Anggaran'}:
+                </strong>{' '}
+                {aiData?.financialAudit?.budgetControl?.text ? (
+                  <span>{aiData.financialAudit.budgetControl.text}</span>
+                ) : (
+                  <>
+                    Serapan total pos belanja tercatat <span className="font-bold text-amber-400">{budgetAbsorptionPct}%</span> dengan sisa cadangan aman sebesar <span className="font-mono font-bold">{formatRupiah(totalBudgetSisa)}</span>.
+                  </>
+                )}
               </span>
             </li>
             <li className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>
-                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Prioritas Dana Darurat:</strong> Posisi dana darurat saat ini mencapai{' '}
-                <span className="font-bold text-purple-400">{emergencyPct}%</span> ({formatRupiah(safeEmergency.current)} dari target{' '}
-                {formatRupiah(safeEmergency.target)}).
+                <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+                  {aiData?.financialAudit?.emergencyFundPriority?.title || 'Prioritas Dana Darurat'}:
+                </strong>{' '}
+                {aiData?.financialAudit?.emergencyFundPriority?.text ? (
+                  <span>{aiData.financialAudit.emergencyFundPriority.text}</span>
+                ) : (
+                  <>
+                    Posisi dana darurat saat ini mencapai <span className="font-bold text-purple-400">{emergencyPct}%</span> ({formatRupiah(safeEmergency.current)} dari target {formatRupiah(safeEmergency.target)}).
+                  </>
+                )}
               </span>
             </li>
           </ul>

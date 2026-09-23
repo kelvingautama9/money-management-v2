@@ -1,0 +1,263 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Sparkles,
+  RefreshCw,
+  ChevronDown,
+  ShieldCheck,
+  Check,
+  Zap,
+  SlidersHorizontal,
+  Bot
+} from 'lucide-react';
+import { triggerHaptic } from '../lib/haptics';
+import {
+  GeminiModelOption,
+  getAvailableGeminiModels,
+  getStoredModelPreference,
+  setStoredModelPreference,
+  getStoredAutoFallbackPreference,
+  setStoredAutoFallbackPreference
+} from '../lib/geminiFinancialService';
+
+interface AiAnalysisModelBarProps {
+  isDark: boolean;
+  modelUsed?: string;
+  fallbackOccurred?: boolean;
+  analyzedAt?: string;
+  isAnalyzing: boolean;
+  onTriggerAnalysis: (selectedModelId?: string) => void;
+  className?: string;
+}
+
+export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
+  isDark,
+  modelUsed = 'Gemini 3.5 Flash',
+  fallbackOccurred = false,
+  analyzedAt,
+  isAnalyzing,
+  onTriggerAnalysis,
+  className = ''
+}) => {
+  const [models, setModels] = useState<GeminiModelOption[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>(getStoredModelPreference());
+  const [autoFallback, setAutoFallback] = useState<boolean>(getStoredAutoFallbackPreference());
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAvailableGeminiModels().then((res) => {
+      if (isMounted && res.length > 0) {
+        setModels(res);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSelectModel = (modelId: string) => {
+    triggerHaptic('selection');
+    setSelectedModel(modelId);
+    setStoredModelPreference(modelId);
+  };
+
+  const handleToggleAutoFallback = () => {
+    triggerHaptic('light');
+    const next = !autoFallback;
+    setAutoFallback(next);
+    setStoredAutoFallbackPreference(next);
+  };
+
+  const handleRunAnalysis = () => {
+    triggerHaptic('medium');
+    setIsDropdownOpen(false);
+    onTriggerAnalysis(selectedModel);
+  };
+
+  // Format time relative or concise
+  const formatTime = (isoString?: string) => {
+    if (!isoString) return 'Baru saja';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'Terkini';
+    }
+  };
+
+  const activeModelObj = models.find((m) => m.id === selectedModel) || {
+    id: selectedModel,
+    displayName: selectedModel.replace(/^models\//, '').replace(/-/g, ' ').toUpperCase(),
+    description: 'Model Gemini Flash'
+  };
+
+  return (
+    <div
+      className={`p-3 sm:p-3.5 rounded-2xl border transition-all ${
+        isDark
+          ? 'bg-gradient-to-r from-purple-950/30 via-slate-900/60 to-blue-950/30 border-purple-500/20 text-slate-200'
+          : 'bg-gradient-to-r from-purple-50 via-white to-blue-50 border-purple-200 text-slate-800'
+      } ${className}`}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        {/* Left info: Model badge & auto-sync info */}
+        <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 font-bold text-xs shrink-0">
+            <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+            <span>AI Copilot: {modelUsed || activeModelObj.displayName}</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-[11px] text-slate-400 truncate">
+            <span>•</span>
+            <span className="truncate">Auto-Generated Singkron Google Sheets</span>
+            <span>•</span>
+            <span className="text-slate-300 font-medium shrink-0">Pukul {formatTime(analyzedAt)}</span>
+            {fallbackOccurred && (
+              <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 text-[10px] font-bold border border-amber-500/25">
+                Fallback Aktif
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right actions: Model selector dropdown trigger & Regenerate button */}
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          {/* Settings / Model selector toggle */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                triggerHaptic('light');
+                setIsDropdownOpen(!isDropdownOpen);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 cursor-pointer ${
+                isDark
+                  ? 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-200'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-xs'
+              }`}
+              title="Pilih Model Gemini Flash & Pengaturan Fallback Otomatis"
+            >
+              <Bot className="w-3.5 h-3.5 text-purple-400" />
+              <span className="truncate max-w-[120px]">{activeModelObj.displayName}</span>
+              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                <div
+                  className={`absolute right-0 top-full mt-2 w-72 sm:w-80 p-3 rounded-2xl border shadow-2xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 ${
+                    isDark
+                      ? 'bg-slate-900/95 border-purple-500/30 text-white'
+                      : 'bg-white/95 border-purple-200 text-slate-900 shadow-purple-500/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                    <span className="text-xs font-bold flex items-center gap-1.5 text-purple-400">
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      Pilih Versi Gemini Flash
+                    </span>
+                    <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      100% Free Tier
+                    </span>
+                  </div>
+
+                  {/* Model List */}
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto no-scrollbar py-1">
+                    {models.map((m) => {
+                      const isSelected = m.id === selectedModel;
+                      return (
+                        <div
+                          key={m.id}
+                          onClick={() => handleSelectModel(m.id)}
+                          className={`p-2.5 rounded-xl border text-left cursor-pointer transition flex items-start justify-between gap-2 ${
+                            isSelected
+                              ? 'bg-purple-500/20 border-purple-500/40 text-purple-200'
+                              : isDark
+                              ? 'bg-white/[0.02] hover:bg-white/[0.06] border-white/5 text-slate-300'
+                              : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-white block">
+                                {m.displayName}
+                              </span>
+                              {m.isDefault && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                  Default Cerdas
+                                </span>
+                              )}
+                              {m.isNewest && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  Terbaru
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                              {m.description}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Auto Fallback Toggle */}
+                  <div className="pt-2.5 mt-2 border-t border-white/10 space-y-2">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="text-left pr-2">
+                        <span className="text-xs font-semibold block text-slate-200">
+                          Auto-Fallback Cerdas
+                        </span>
+                        <span className="text-[10px] text-slate-400 block leading-tight">
+                          Otomatis beralih ke Flash lain jika batas rate limit (429/503) tercapai.
+                        </span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={autoFallback}
+                        onChange={handleToggleAutoFallback}
+                        className="rounded accent-purple-500 w-4 h-4 cursor-pointer"
+                      />
+                    </label>
+
+                    <button
+                      onClick={handleRunAnalysis}
+                      disabled={isAnalyzing}
+                      className="w-full py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-purple-500/20 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                      <span>{isAnalyzing ? 'Menganalisis...' : 'Terapkan & Analisis Ulang'}</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Quick Regenerate Button */}
+          <button
+            onClick={handleRunAnalysis}
+            disabled={isAnalyzing}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition active:scale-95 cursor-pointer disabled:opacity-50 ${
+              isDark
+                ? 'bg-purple-600/30 hover:bg-purple-600/40 border-purple-500/40 text-purple-200'
+                : 'bg-purple-100 hover:bg-purple-200 border-purple-300 text-purple-900 font-bold'
+            }`}
+            title="Analisis Ulang Finansial Bulan Ini dengan Gemini"
+          >
+            <RefreshCw className={`w-3 h-3 text-purple-400 ${isAnalyzing ? 'animate-spin' : ''}`} />
+            <span>{isAnalyzing ? 'Menganalisis...' : 'Analisis Ulang'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

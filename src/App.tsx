@@ -80,6 +80,10 @@ import {
   INITIAL_TRANSACTIONS_AGUSTUS,
   INITIAL_SUMMARY_BY_MONTH
 } from './data/initialData';
+import {
+  buildDeterministicMetricsPayload,
+  requestGeminiFinancialAnalysis
+} from './lib/geminiFinancialService';
 
 // Icons
 import {
@@ -1284,10 +1288,34 @@ export default function App() {
         }
 
         if (parsedRows.length > 0) {
-          setSyncNotice(`Berhasil menarik ${parsedRows.length} baris transaksi dari sheet ${activeSheetName}!`);
+          setSyncNotice(`Berhasil menarik ${parsedRows.length} baris transaksi dari sheet ${activeSheetName}! AI Gemini auto-analisis...`);
         } else {
           setSyncNotice(`Sheet ${activeSheetName} berhasil terhubung.`);
         }
+
+        // Auto-generate AI analysis in background for current active month tab
+        setTimeout(() => {
+          try {
+            const payload = buildDeterministicMetricsPayload(
+              activeSheetName,
+              totalAset,
+              totalPemasukan,
+              totalPengeluaran,
+              parsedRows,
+              customBudgets,
+              accounts,
+              assets,
+              emergencyFund
+            );
+            requestGeminiFinancialAnalysis(activeSheetName, payload).then(() => {
+              setSyncNotice(`Sheet ${activeSheetName} & Analisis AI Gemini berhasil diperbarui!`);
+            }).catch((err) => {
+              console.warn('Background AI analysis failed:', err);
+            });
+          } catch (e) {
+            console.warn('Error initiating auto AI analysis:', e);
+          }
+        }, 300);
       } else {
         setSyncNotice(`Lembar Google Sheet tab ${activeSheetName} belum memiliki data.`);
       }

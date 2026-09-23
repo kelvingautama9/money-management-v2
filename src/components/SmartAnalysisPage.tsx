@@ -1,8 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { GlassSettings, InvestmentAsset, InvestmentHistory, Transaction } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
 import { getMonthlyInvestmentMetrics } from '../lib/investmentUtils';
+import {
+  FinancialAnalysisData,
+  getCachedMonthAnalysis,
+  buildDeterministicMetricsPayload,
+  requestGeminiFinancialAnalysis
+} from '../lib/geminiFinancialService';
+import { AiAnalysisModelBar } from './AiAnalysisModelBar';
 import {
   Sparkles,
   TrendingUp,
@@ -19,7 +26,16 @@ import {
   Lightbulb,
   FileText,
   Info,
-  Eye
+  Eye,
+  Globe,
+  Building2,
+  Zap,
+  BarChart3,
+  Compass,
+  Target,
+  Newspaper,
+  Flame,
+  ExternalLink
 } from 'lucide-react';
 import { InvestmentAuditReportPreviewModal } from './InvestmentAuditReportPreviewModal';
 
@@ -78,6 +94,54 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
   const usdHedgePct = totalInvestment > 0 ? Number(((usdHedgeValue / totalInvestment) * 100).toFixed(1)) : 0;
 
   const cashDragPct = totalWealth > 0 ? Number(((cashStandby / totalWealth) * 100).toFixed(1)) : 0;
+
+  // AI Analysis State
+  const [aiData, setAiData] = useState<FinancialAnalysisData | null>(() => {
+    return getCachedMonthAnalysis(currentSheetName);
+  });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [activeAiTab, setActiveAiTab] = useState<'all' | 'macro' | 'stocks' | 'performance' | 'rebalance'>('all');
+  const [selectedStockTicker, setSelectedStockTicker] = useState<string | null>(null);
+
+  const runAiAnalysis = useCallback(
+    async (overrideModel?: string) => {
+      setIsAnalyzing(true);
+      try {
+        const payload = buildDeterministicMetricsPayload(
+          currentSheetName,
+          totalWealth,
+          0,
+          0,
+          transactions,
+          [],
+          [],
+          safeAssets
+        );
+        payload.pureProfitFormatted = (pureProfit >= 0 ? `+` : ``) + formatRupiah(pureProfit);
+        payload.purePnlFormatted = (purePnl >= 0 ? `+` : ``) + `${purePnl}%`;
+        payload.dcaFormatted = formatRupiah(totalDCA);
+        payload.usdHedgePct = String(usdHedgePct);
+
+        const result = await requestGeminiFinancialAnalysis(currentSheetName, payload, overrideModel);
+        setAiData(result);
+      } catch (err) {
+        console.error('Failed to run AI investment analysis:', err);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    },
+    [currentSheetName, totalWealth, transactions, safeAssets, pureProfit, purePnl, totalDCA, usdHedgePct]
+  );
+
+  // Auto-fetch if not cached or sheet changes
+  useEffect(() => {
+    const cached = getCachedMonthAnalysis(currentSheetName);
+    if (cached) {
+      setAiData(cached);
+    } else {
+      runAiAnalysis();
+    }
+  }, [currentSheetName, runAiAnalysis]);
 
   // Helper to categorize any dynamic asset name
   const getAssetMeta = (name: string, pct: number) => {
@@ -244,12 +308,6 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                 <h2 className={`text-lg sm:text-xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   Audit Investasi
                 </h2>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                  Audit Institusional
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  DCA Terpisah
-                </span>
               </div>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Diagnosa kesehatan portofolio, audit diversifikasi makro, rasio lindung nilai USD, dan pemisahan setoran DCA dari imbal hasil murni.
@@ -578,57 +636,451 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
           </div>
         </div>
 
-        {/* Smart Recommendations Box */}
+        {/* AI Model Control Bar */}
+        <AiAnalysisModelBar
+          isDark={isDark}
+          modelUsed={aiData?.modelUsed}
+          fallbackOccurred={aiData?.fallbackOccurred}
+          analyzedAt={aiData?.timestamp}
+          isAnalyzing={isAnalyzing}
+          onTriggerAnalysis={runAiAnalysis}
+        />
+
+        {/* Interactive AI Market & Investment Intelligence Suite */}
         <div
           style={
             isDark
               ? {
-                  backgroundColor: 'rgba(168, 85, 247, 0.08)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(168, 85, 247, 0.25)'
+                  backgroundColor: 'rgba(168, 85, 247, 0.06)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(168, 85, 247, 0.22)',
+                  boxShadow: '0 16px 40px -12px rgba(0, 0, 0, 0.5)'
                 }
               : {
-                  backgroundColor: '#faf5ff',
-                  border: '1px solid #e9d5ff'
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e9d5ff',
+                  boxShadow: '0 12px 30px -8px rgba(168, 85, 247, 0.12)'
                 }
           }
-          className="p-6 rounded-3xl shadow-xs space-y-3"
+          className="p-5 sm:p-7 rounded-3xl space-y-6"
         >
-          <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-purple-300' : 'text-purple-900'}`}>
-            <Lightbulb className="w-4 h-4 text-purple-400" />
-            Rekomendasi Strategis Audit & Rebalancing
-          </h3>
-
-          <div className={`space-y-2.5 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-            {overweightAssets.length > 0 && (
-              <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <strong>Peringatan Rebalancing:</strong> Aset{' '}
-                  <span className="font-bold">{overweightAssets.map((a) => a.nama).join(', ')}</span> berada di atas batas ideal.
-                  Tidak perlu melakukan cut-profit jika ada biaya transaksi, cukup <strong>alihkan setoran DCA bulanan berikutnya</strong> ke pos aset yang masih underweight.
+          {/* Header & Tab Navigation */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-purple-500/20">
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
                 </div>
+                <h3 className={`text-base sm:text-lg font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Intelijen Portofolio & Riset Pasar AI
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 inline-flex items-center gap-1.5">
+                  <Globe className="w-3 h-3 text-purple-400 animate-pulse" />
+                  Live Market Grounding
+                </span>
               </div>
-            )}
+              <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Diagnosa performa return murni, dinamika suku bunga The Fed & inflasi, serta seleksi saham/indeks unggulan untuk DCA berikutnya.
+              </p>
+            </div>
 
-            {underweightAssets.length > 0 && (
-              <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-200">
-                <TrendingUp className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                <div>
-                  <strong>Prioritas Alokasi Baru:</strong> Pos{' '}
-                  <span className="font-bold">{underweightAssets.map((a) => a.nama).join(', ')}</span> masih di bawah bobot ideal.
-                  Prioritaskan penambahan dana pada aset ini untuk memaksimalkan potensi imbal hasil jangka panjang.
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <strong>Ketahanan Valas & Hedge Global ({usdHedgePct}%):</strong> Porsi aset berdenominasi mata uang kuat (USD/USDT) terbukti melindungi kekayaan bersih Anda dari depresiasi nilai tukar lokal.
-              </div>
+            {/* Interactive Tab Switcher */}
+            <div className={`flex items-center gap-1 p-1 rounded-2xl border self-start md:self-auto overflow-x-auto max-w-full ${
+              isDark ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'
+            }`}>
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveAiTab('all');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                  activeAiTab === 'all'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Semua Riset
+              </button>
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveAiTab('stocks');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 ${
+                  activeAiTab === 'stocks'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Target className="w-3.5 h-3.5" />
+                Pilihan Saham / Indeks
+              </button>
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveAiTab('macro');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 ${
+                  activeAiTab === 'macro'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                The Fed & Makro
+              </button>
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveAiTab('performance');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 ${
+                  activeAiTab === 'performance'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Performa Return
+              </button>
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveAiTab('rebalance');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 ${
+                  activeAiTab === 'rebalance'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                Rebalancing
+              </button>
             </div>
           </div>
+
+          {/* SECTION 1: PERFORMA INVESTASI MURNI VS SETORAN DCA */}
+          {(activeAiTab === 'all' || activeAiTab === 'performance') && (
+            <div className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 transition ${
+              isDark ? 'bg-white/[0.02] border-white/10' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-emerald-400" />
+                  <h4 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Diagnosa Performa & Kualitas Pertumbuhan Investasi
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                    DCA: +{formatRupiah(totalDCA)}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    pureProfit >= 0 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                  }`}>
+                    Return Murni: {pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`})
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className={`p-3.5 rounded-xl border leading-relaxed ${
+                  isDark ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-200' : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                }`}>
+                  <div className="font-bold flex items-center gap-1.5 mb-1.5 text-xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    Evaluasi Pertumbuhan Organik
+                  </div>
+                  <p>
+                    {aiData?.portfolioPerformance?.performanceVerdict || (
+                      `Pertumbuhan portofolio investasi pada periode ${currentSheetName} membukukan performa positif dengan imbal hasil murni pasar mencapai ${pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}). Aset berkembang secara organik tanpa tercampur baur dengan setoran kas baru.`
+                    )}
+                  </p>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border leading-relaxed ${
+                  isDark ? 'bg-purple-500/5 border-purple-500/20 text-purple-200' : 'bg-purple-50 border-purple-200 text-purple-900'
+                }`}>
+                  <div className="font-bold flex items-center gap-1.5 mb-1.5 text-xs">
+                    <TrendingUp className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    Pemisahan Setoran Mandiri & Prospek
+                  </div>
+                  <p>
+                    {aiData?.portfolioPerformance?.pureVsDcaAnalysis || (
+                      `Setoran modal mandiri (DCA) bulan ini sebesar ${formatRupiah(totalDCA)} tercatat murni sebagai injeksi modal baru (new money). Disiplin pemisahan ini menjaga akurasi evaluasi return pasar sesungguhnya.`
+                    )}
+                  </p>
+                  {aiData?.portfolioPerformance?.growthOutlook && (
+                    <p className="mt-2 pt-2 border-t border-purple-500/20 text-[11px] opacity-90">
+                      <strong>Outlook:</strong> {aiData.portfolioPerformance.growthOutlook}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 2: INTELIJEN MAKRO THE FED, SUKU BUNGA & DAMPAK INFLASI */}
+          {(activeAiTab === 'all' || activeAiTab === 'macro') && (
+            <div className={`p-4 sm:p-5 rounded-2xl border space-y-4 transition ${
+              isDark ? 'bg-sky-500/5 border-sky-500/20' : 'bg-sky-50/60 border-sky-200'
+            }`}>
+              <div className="flex items-start justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-sky-400" />
+                  <div>
+                    <h4 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider ${isDark ? 'text-sky-300' : 'text-sky-950'}`}>
+                      {aiData?.macroFedIntelligence?.title || 'Analisis Sentimen Makro & Kebijakan The Fed Terkini'}
+                    </h4>
+                    <span className="text-[10px] text-sky-400/80">
+                      Dampak rilis data inflasi (CPI/PCE), suku bunga Fed Funds Rate, dan yield obligasi global terhadap aset Anda
+                    </span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                  Macro Intelligence Feed
+                </span>
+              </div>
+
+              <div className="space-y-3 text-xs leading-relaxed">
+                {/* Kebijakan Suku Bunga & Inflasi */}
+                <div className={`p-3.5 rounded-xl border ${
+                  isDark ? 'bg-white/[0.02] border-sky-500/30 text-slate-200' : 'bg-white border-sky-200 text-slate-800'
+                }`}>
+                  <strong className="block mb-1 text-sky-400 font-bold uppercase tracking-wider text-[11px]">
+                    Status Kebijakan The Fed & Dinamika Inflasi:
+                  </strong>
+                  {aiData?.macroFedIntelligence?.policyStatus || (
+                    'The Federal Reserve mempertahankan fokus cermat pada jalur normalisasi suku bunga dan penjinakan inflasi. Data ketenagakerjaan dan inflasi AS yang moderat memperkuat peluang pelonggaran moneter bertahap, memberikan angin segar bagi pasar saham global dan aset likuid berbasis USD.'
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Pengaruh Langsung ke Aset User */}
+                  <div className={`p-3.5 rounded-xl border ${
+                    isDark ? 'bg-white/[0.02] border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-800'
+                  }`}>
+                    <strong className="block mb-1 text-amber-400 font-bold uppercase tracking-wider text-[11px]">
+                      Pengaruh ke Aset Portofolio Anda:
+                    </strong>
+                    {aiData?.macroFedIntelligence?.impactOnUserAssets || (
+                      `Porsi aset valas Anda (${usdHedgePct}% dalam USD Valas BCA & Crypto USDT) menjadi benteng protektif yang tangguh terhadap depresiasi rupiah. Sementara itu, instrumen saham global/reksadana di Pluang mendapatkan momentum pemulihan valuasi seiring melandainya tekanan yield obligasi AS.`
+                    )}
+                  </div>
+
+                  {/* Saran Antisipasi Taktis */}
+                  <div className={`p-3.5 rounded-xl border ${
+                    isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                  }`}>
+                    <strong className="block mb-1 text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
+                      Saran Langkah Antisipasi:
+                    </strong>
+                    {aiData?.macroFedIntelligence?.strategicAction || (
+                      'Manfaatkan stabilitas nilai tukar valas untuk terus mengalirkan setoran modal DCA ke aset-aset ekuitas yang valuasinya terdiskon sebelum The Fed memulai siklus pelonggaran penuh.'
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 3: REKOMENDASI SAHAM / INDEKS / ETF PILIHAN UNTUK DIKOLEKSI */}
+          {(activeAiTab === 'all' || activeAiTab === 'stocks') && (
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-purple-400" />
+                  <div>
+                    <h4 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Rekomendasi Koleksi Saham & Indeks Unggulan (Market Picks)
+                    </h4>
+                    <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Analisis berbasis laporan kinerja earnings/revenue terbaru, katalis bisnis, dan rasio valuasi fundamental
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                  DCA Target Allocation
+                </span>
+              </div>
+
+              {/* Grid of Stock/ETF Picks */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                {(aiData?.recommendedStockPicks && aiData.recommendedStockPicks.length > 0
+                  ? aiData.recommendedStockPicks
+                  : [
+                      {
+                        ticker: 'GOOGL',
+                        name: 'Alphabet Inc.',
+                        category: 'Saham Teknologi / AI',
+                        action: 'Akumulasi DCA',
+                        catalyst: 'Pertumbuhan pendapatan impresif pada segmen Google Cloud (+29% YoY) dan adopsi Gemini AI enterprise. Valuasi forward P/E (~21x) dinilai sangat menarik di antara raksasa Magnificent 7 dengan neraca kas kas berlimpah.',
+                        riskLevel: 'Moderat'
+                      },
+                      {
+                        ticker: 'VOO / SPY',
+                        name: 'Vanguard S&P 500 ETF',
+                        category: 'Indeks Pasar Luas AS',
+                        action: 'Koleksi Bertahap',
+                        catalyst: 'Diversifikasi instan ke 500 emiten blue-chip terkuat di dunia dengan rekam jejak return majemuk historis ~10% per tahun. Pilihan terbaik untuk fondasi inti portofolio jangka panjang.',
+                        riskLevel: 'Rendah'
+                      },
+                      {
+                        ticker: 'QQQ',
+                        name: 'Invesco QQQ Trust (Nasdaq-100)',
+                        category: 'Pertumbuhan & Inovasi',
+                        action: 'Koleksi Bertahap',
+                        catalyst: 'Fokus pada 100 perusahaan inovasi terbesar di luar finansial. Menikmati dorongan sekuler dari revolusi infrastruktur komputasi kecerdasan buatan, semikonduktor, dan produktivitas cloud.',
+                        riskLevel: 'Moderat'
+                      }
+                    ]
+                ).map((pick, idx) => {
+                  const isSelected = selectedStockTicker === pick.ticker;
+                  const isAccumulate = pick.action.toLowerCase().includes('akumulasi');
+                  const isGradual = pick.action.toLowerCase().includes('koleksi') || pick.action.toLowerCase().includes('bertahap');
+
+                  return (
+                    <div
+                      key={pick.ticker + idx}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setSelectedStockTicker(isSelected ? null : pick.ticker);
+                      }}
+                      className={`p-4 rounded-2xl border transition cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+                        isSelected
+                          ? isDark
+                            ? 'bg-purple-950/40 border-purple-500 shadow-md ring-1 ring-purple-500/50'
+                            : 'bg-purple-50 border-purple-400 shadow-md ring-1 ring-purple-300'
+                          : isDark
+                          ? 'bg-white/[0.02] hover:bg-white/[0.04] border-white/10'
+                          : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs'
+                      }`}
+                    >
+                      <div>
+                        {/* Ticker & Action Badge */}
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-base font-black font-mono tracking-tight text-purple-400 flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                            {pick.ticker}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                              isAccumulate
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : isGradual
+                                ? 'bg-sky-500/20 text-sky-400 border-sky-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                            }`}
+                          >
+                            {pick.action}
+                          </span>
+                        </div>
+
+                        {/* Name & Category */}
+                        <div className="mb-2.5">
+                          <h5 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {pick.name}
+                          </h5>
+                          <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {pick.category} • Profil Risiko: <strong className="text-purple-300">{pick.riskLevel}</strong>
+                          </span>
+                        </div>
+
+                        {/* Catalyst Description */}
+                        <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          {pick.catalyst}
+                        </p>
+                      </div>
+
+                      {/* Interactive Footer Callout */}
+                      <div className="mt-3.5 pt-2.5 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[10px]">
+                        <span className="text-purple-400 font-semibold flex items-center gap-1">
+                          <Compass className="w-3 h-3" />
+                          {isSelected ? 'Tutup Rincian' : 'Klik untuk Rincian DCA'}
+                        </span>
+                        <span className={`font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {isAccumulate ? 'Top Pick DCA' : 'Diversifikasi'}
+                        </span>
+                      </div>
+
+                      {/* Expanded simulation when selected */}
+                      {isSelected && (
+                        <div className="mt-2.5 p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-200 space-y-1">
+                          <strong>Saran Eksekusi:</strong> Alokasikan 20% - 30% dari setoran DCA bulan depan ({formatRupiah(totalDCA * 0.25)}) secara bertahap pada aset ini untuk memperkokoh eksposur pertumbuhan modal global.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 4: REBALANCING & HEDGE GLOBAL RESILIENCE */}
+          {(activeAiTab === 'all' || activeAiTab === 'rebalance') && (
+            <div className="space-y-2.5">
+              <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <Activity className="w-3.5 h-3.5 text-purple-400" />
+                Peringatan Rebalancing Taktis & Proteksi Valas
+              </h4>
+
+              <div className={`space-y-2.5 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                {/* Rebalancing Alert */}
+                <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>{aiData?.investmentAudit?.rebalancingAlert?.title || 'Peringatan Rebalancing'}:</strong>{' '}
+                    {aiData?.investmentAudit?.rebalancingAlert?.text || (
+                      <>
+                        Aset <span className="font-bold">{overweightAssets.map((a) => a.nama).join(', ')}</span> saat ini berada pada status overweight.
+                        Tidak perlu melakukan cut-profit atau likuidasi yang memicu pajak/biaya transaksi; cukup <strong>arahkan setoran DCA bulan depan</strong> ke pos aset yang masih underweight (seperti Pluang atau instrumen ekuitas).
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* New Allocation Priority */}
+                <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-200">
+                  <TrendingUp className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>{aiData?.investmentAudit?.newAllocationPriority?.title || 'Prioritas Alokasi Baru'}:</strong>{' '}
+                    {aiData?.investmentAudit?.newAllocationPriority?.text || (
+                      <>
+                        Pos aset yang masih berada di bawah target bobot (underweight) merupakan kandidat utama untuk penyerapan setoran modal DCA berikutnya guna mengoptimalkan potensi imbal hasil majemuk tanpa merusak rasio risiko.
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Global Hedge Resilience */}
+                <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>{aiData?.investmentAudit?.globalHedgeResilience?.title || `Ketahanan Valas & Hedge Global (${usdHedgePct}%)`}:</strong>{' '}
+                    {aiData?.investmentAudit?.globalHedgeResilience?.text || (
+                      `Porsi aset berdenominasi mata uang kuat (USD/USDT) sebesar ${usdHedgePct}% terbukti melindungi kekayaan bersih Anda dari depresiasi nilai tukar rupiah dan inflasi impor.`
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Executive Summary Footer */}
+          {aiData?.executiveSummaryNarrative && (
+            <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed flex items-start gap-2.5 ${
+              isDark ? 'bg-purple-950/20 border-purple-500/20 text-purple-200' : 'bg-purple-50 border-purple-200 text-purple-950'
+            }`}>
+              <Info className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block text-[11px] uppercase tracking-wider text-purple-400 mb-0.5">
+                  Rangkuman Eksekutif Periode {currentSheetName}:
+                </strong>
+                {aiData.executiveSummaryNarrative}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

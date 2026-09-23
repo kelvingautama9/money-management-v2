@@ -8,6 +8,7 @@ import {
 } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
+import { getCachedMonthAnalysis } from '../lib/geminiFinancialService';
 import {
   FileDown,
   Printer,
@@ -595,23 +596,47 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
             </div>
 
             {/* 5. CATATAN & REKOMENDASI AUDIT FINANSIAL */}
-            <div className="p-4 rounded-xl border border-slate-300 bg-slate-50 text-xs space-y-1.5">
-              <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                Catatan Evaluasi & Kesimpulan Audit Finansial
-              </div>
-              <ul className="list-disc pl-4 space-y-1 text-slate-700">
-                <li>
-                  Tingkat tabungan (Savings Rate) tercatat <strong>{savingsRate}%</strong> dari total penerimaan kas bulanan.
-                </li>
-                <li>
-                  Total serapan kuota budgeting bulanan sebesar <strong>{formatRupiah(totalActualSpend)}</strong> dari pagu <strong>{formatRupiah(totalMonthlyBudget)}</strong>.
-                </li>
-                <li>
-                  Cadangan dana darurat sebesar <strong>{formatRupiah(safeEmergency.current)}</strong> ({safeEmergency.persentase}% dari target {formatRupiah(safeEmergency.target)}).
-                </li>
-              </ul>
-            </div>
+            {(() => {
+              const aiAnalysis = getCachedMonthAnalysis(currentSheetName);
+              return (
+                <div className="p-4 rounded-xl border border-slate-300 bg-slate-50 text-xs space-y-2">
+                  <div className="flex items-center justify-between font-bold text-slate-900">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                      Catatan Evaluasi & Kesimpulan Audit Finansial
+                    </span>
+                    {aiAnalysis?.modelUsed && (
+                      <span className="text-[10px] font-mono text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                        AI: {aiAnalysis.modelUsed}
+                      </span>
+                    )}
+                  </div>
+
+                  {aiAnalysis?.executiveSummaryNarrative && (
+                    <div className="p-2.5 rounded-lg bg-blue-50/80 border border-blue-200 text-blue-900 font-medium text-[11px] leading-relaxed">
+                      💡 {aiAnalysis.executiveSummaryNarrative}
+                    </div>
+                  )}
+
+                  <ul className="list-disc pl-4 space-y-1 text-slate-700">
+                    <li>
+                      Tingkat tabungan (Savings Rate) tercatat <strong>{savingsRate}%</strong> dari total penerimaan kas bulanan.
+                    </li>
+                    <li>
+                      Total serapan kuota budgeting bulanan sebesar <strong>{formatRupiah(totalActualSpend)}</strong> dari pagu <strong>{formatRupiah(totalMonthlyBudget)}</strong>.
+                    </li>
+                    <li>
+                      Cadangan dana darurat sebesar <strong>{formatRupiah(safeEmergency.current)}</strong> ({safeEmergency.persentase}% dari target {formatRupiah(safeEmergency.target)}).
+                    </li>
+                    {aiAnalysis?.financialAudit?.budgetControl?.text && (
+                      <li className="text-slate-800">
+                        <strong>Rekomendasi Kontrol:</strong> {aiAnalysis.financialAudit.budgetControl.text}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              );
+            })()}
 
             {/* 6. DOCUMENT FOOTER / SIGNATURE */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
