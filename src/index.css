@@ -439,30 +439,30 @@
 
 /* --- HIGH-CONTRAST DARK MODE TYPOGRAPHY --- */
 /* User request: "ganti warna font pada dark modenya mnjadi putih agar kontras dengan background" */
-html.dark,
-body.dark,
-.dark {
+html.dark:not(#audit-investasi-printable-document),
+body.dark:not(#audit-investasi-printable-document),
+.dark:not(#audit-investasi-printable-document) {
   color: #ffffff !important;
 }
 
-.dark h1,
-.dark h2,
-.dark h3,
-.dark h4,
-.dark h5,
-.dark h6 {
+.dark:not(#audit-investasi-printable-document) h1:not(#audit-investasi-printable-document *),
+.dark:not(#audit-investasi-printable-document) h2:not(#audit-investasi-printable-document *),
+.dark:not(#audit-investasi-printable-document) h3:not(#audit-investasi-printable-document *),
+.dark:not(#audit-investasi-printable-document) h4:not(#audit-investasi-printable-document *),
+.dark:not(#audit-investasi-printable-document) h5:not(#audit-investasi-printable-document *),
+.dark:not(#audit-investasi-printable-document) h6:not(#audit-investasi-printable-document *) {
   color: #ffffff !important;
 }
 
-.dark .text-slate-300 {
+.dark:not(#audit-investasi-printable-document) .text-slate-300:not(#audit-investasi-printable-document *) {
   color: #e2e8f0 !important;
 }
 
-.dark .text-slate-400 {
+.dark:not(#audit-investasi-printable-document) .text-slate-400:not(#audit-investasi-printable-document *) {
   color: #cbd5e1 !important;
 }
 
-.dark .text-slate-500 {
+.dark:not(#audit-investasi-printable-document) .text-slate-500:not(#audit-investasi-printable-document *) {
   color: #94a3b8 !important;
 }
 
@@ -527,4 +527,92 @@ body.dark,
   animation: liquidClockwiseLoop 4.5s linear infinite;
   will-change: transform;
 }
+
+/* --- AUDIT INVESTASI PRINTABLE DOCUMENT: STRICT HIGH CONTRAST PALETTE --- */
+#audit-investasi-printable-document {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+#audit-investasi-printable-document h1,
+#audit-investasi-printable-document h2,
+#audit-investasi-printable-document h3,
+#audit-investasi-printable-document h4,
+#audit-investasi-printable-document h5,
+#audit-investasi-printable-document h6 {
+  color: #0f172a !important;
+}
+
+#audit-investasi-printable-document .text-slate-950 {
+  color: #020617 !important;
+}
+
+#audit-investasi-printable-document .text-slate-900 {
+  color: #0f172a !important;
+}
+
+#audit-investasi-printable-document .text-slate-800 {
+  color: #1e293b !important;
+}
+
+#audit-investasi-printable-document .text-slate-700 {
+  color: #334155 !important;
+}
+
+#audit-investasi-printable-document .text-slate-600 {
+  color: #475569 !important;
+}
+
+#audit-investasi-printable-document .text-slate-500 {
+  color: #64748b !important;
+}
+
+#audit-investasi-printable-document .text-slate-400 {
+  color: #64748b !important;
+}
+
+#audit-investasi-printable-document .text-purple-950 {
+  color: #3b0764 !important;
+}
+
+#audit-investasi-printable-document .text-purple-900 {
+  color: #581c87 !important;
+}
+
+#audit-investasi-printable-document .text-purple-800 {
+  color: #6b21a8 !important;
+}
+
+#audit-investasi-printable-document .text-purple-700 {
+  color: #7e22ce !important;
+}
+
+#audit-investasi-printable-document .text-sky-950 {
+  color: #082f49 !important;
+}
+
+#audit-investasi-printable-document .text-sky-900 {
+  color: #0c4a6e !important;
+}
+
+#audit-investasi-printable-document .text-sky-800 {
+  color: #075985 !important;
+}
+
+#audit-investasi-printable-document .text-emerald-800 {
+  color: #065f46 !important;
+}
+
+#audit-investasi-printable-document .text-emerald-700 {
+  color: #047857 !important;
+}
+
+#audit-investasi-printable-document .text-rose-800 {
+  color: #9f1239 !important;
+}
+
+#audit-investasi-printable-document .text-rose-700 {
+  color: #be123c !important;
+}
+
 

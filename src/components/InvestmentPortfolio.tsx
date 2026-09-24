@@ -274,9 +274,6 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                 <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-300">
                   Total Valuasi Portofolio • {currentSheetName}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                  DCA Terpisah (Non-Return)
-                </span>
                 {isClosed ? (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 inline-flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" />

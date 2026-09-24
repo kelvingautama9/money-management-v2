@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlassContainer } from './GlassContainer';
 import { GlassSettings, BudgetCategory } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
@@ -22,12 +22,24 @@ import {
   ShieldCheck,
   Calendar,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Bot,
+  RefreshCw,
+  Cpu,
+  Shield
 } from 'lucide-react';
+import {
+  BudgetEnvelopesAiResult,
+  BudgetPosEvaluation,
+  requestBudgetEnvelopesAnalysis,
+  requestBudgetEnvelopesAnalysisStream,
+  getCachedBudgetAi
+} from '../lib/geminiFinancialService';
 
 interface BudgetingTrackerProps {
   budgets: BudgetCategory[];
   settings: GlassSettings;
+  currentSheetName?: string;
   onEditBudget?: (id: string, updated: Partial<BudgetCategory>) => void;
   onAddBudget?: (newBudget: BudgetCategory) => void;
   onDeleteBudget?: (id: string) => void;
@@ -37,6 +49,7 @@ interface BudgetingTrackerProps {
 export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
   budgets,
   settings,
+  currentSheetName = 'SEPTEMBER',
   onEditBudget,
   onAddBudget,
   onDeleteBudget
@@ -49,6 +62,16 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
   const [formPlafon, setFormPlafon] = useState('');
   const [formAkun, setFormAkun] = useState('');
   const [formSaldoAwal, setFormSaldoAwal] = useState('');
+
+  // AI Audit State (Budgeting Amplop)
+  const currentMonth = currentSheetName || 'SEPTEMBER';
+  const [aiResult, setAiResult] = useState<BudgetEnvelopesAiResult | null>(() => {
+    return getCachedBudgetAi(currentMonth);
+  });
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [streamStatus, setStreamStatus] = useState<string | null>(null);
+  const [liveTtft, setLiveTtft] = useState<number | null>(null);
+  const [modelUsedName, setModelUsedName] = useState<string>('Gemini 3.5 Flash');
 
   const getIcon = (nama: string) => {
     const n = nama.toLowerCase();
@@ -78,6 +101,67 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
     totalBudgetingBulanan > 0 ? Number(((totalActualSpend / totalBudgetingBulanan) * 100).toFixed(1)) : 0;
   const overallTotalPct =
     totalKapasitasSaldo > 0 ? Number(((totalActualSpend / totalKapasitasSaldo) * 100).toFixed(1)) : 0;
+
+  // Run AI Audit on Envelopes (Strictly concise, objective, rational, fact-based)
+  const handleRunAiAudit = async (forceRefresh = true) => {
+    if (budgets.length === 0) return;
+    triggerHaptic('medium');
+    setIsAiLoading(true);
+    setStreamStatus('Menghubungkan ke Gemini Flash...');
+    setLiveTtft(null);
+
+    const summaryMetrics = {
+      totalBudgetingBulanan,
+      totalSaldoAwal,
+      totalActualSpend,
+      totalSisaSaldo,
+      totalKapasitasSaldo
+    };
+
+    try {
+      const res = await requestBudgetEnvelopesAnalysisStream(
+        currentMonth,
+        budgets,
+        summaryMetrics,
+        (ev) => {
+          if (ev.type === 'status' && ev.message) {
+            setStreamStatus(ev.message);
+          }
+          if (ev.type === 'ttft' && ev.ms) {
+            setLiveTtft(ev.ms);
+            setStreamStatus(`Menerima analisis AI (TTFT: ${ev.ms}ms)...`);
+          }
+          if (ev.type === 'complete' && ev.data) {
+            setAiResult(ev.data);
+            if (ev.modelUsed) setModelUsedName(ev.modelUsed);
+            setStreamStatus(null);
+          }
+        }
+      );
+
+      if (res) {
+        setAiResult(res);
+        if (res.modelUsed) setModelUsedName(res.modelUsed);
+      }
+    } catch (err) {
+      console.warn('[BudgetingTracker] AI stream error, requesting standard audit', err);
+      const fallback = await requestBudgetEnvelopesAnalysis(currentMonth, budgets, summaryMetrics, forceRefresh);
+      setAiResult(fallback);
+    } finally {
+      setIsAiLoading(false);
+      setStreamStatus(null);
+    }
+  };
+
+  // Auto-load cached AI analysis on month change, or generate if not exists
+  useEffect(() => {
+    const cached = getCachedBudgetAi(currentMonth);
+    if (cached) {
+      setAiResult(cached);
+    } else if (budgets.length > 0) {
+      handleRunAiAudit(false);
+    }
+  }, [currentMonth]);
 
   const handleOpenEdit = (b: BudgetCategory) => {
     triggerHaptic('light');
@@ -175,12 +259,68 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
 
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs self-start sm:self-auto transition-all active:scale-95 shadow-sm"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs self-start sm:self-auto transition-all active:scale-95 shadow-sm cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5 text-emerald-400" />
           <span>Tambah Pos Budget</span>
         </button>
       </div>
+
+      {/* AI Budgeting Amplop Action Bar (To-the-point, Objective, Data-backed, Token-compact) */}
+      <GlassContainer settings={settings} className="p-3.5 sm:p-4 border-indigo-500/20 bg-gradient-to-r from-indigo-950/40 via-slate-900/50 to-slate-900/30 backdrop-blur-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-blue-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0 text-indigo-400 shadow-sm">
+              <Bot className="w-5 h-5 text-indigo-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs sm:text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
+                  AI Financial Auditor: Budgeting Amplop
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold">
+                  Objektif & Rasional
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-semibold">
+                  Hemat Token
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300 text-[10px] font-mono">
+                  {modelUsedName}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Audit to-the-point berbasis data & fakta: membedakan disiplin budget bulanan dengan ketahanan sisa saldo amplop.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0">
+            {streamStatus && (
+              <span className="text-[11px] text-amber-300/90 flex items-center gap-1.5 font-mono">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                {streamStatus}
+              </span>
+            )}
+            <button
+              onClick={() => handleRunAiAudit(true)}
+              disabled={isAiLoading || budgets.length === 0}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition cursor-pointer"
+            >
+              {isAiLoading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Menganalisis...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>{aiResult ? 'Audit Ulang AI' : 'Audit AI Amplop'}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </GlassContainer>
 
       {/* Aggregate Overview Strip (Detail 1 vs Detail 2 at System Level) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -206,20 +346,20 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
             {formatRupiah(totalSaldoAwal)}
           </div>
           <span className="text-[10px] text-slate-400 mt-0.5 block">
-            Carry-over sisa saldo bulan lalu
+            Sisa saldo simpanan bulan lalu
           </span>
         </GlassContainer>
 
         <GlassContainer settings={settings} className="p-3.5 sm:p-4 border-white/10">
           <span className="text-[10px] sm:text-xs font-medium text-slate-400 block mb-1 flex items-center gap-1.5">
             <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
-            Total Actual Spend
+            Total Pengeluaran
           </span>
           <div className="text-base sm:text-lg font-bold font-mono text-rose-400">
             {formatRupiah(totalActualSpend)}
           </div>
           <span className="text-[10px] text-slate-400 mt-0.5 block">
-            {overallMonthlyPct}% dari total kuota bulanan
+            {overallMonthlyPct}% dari total budget bulanan
           </span>
         </GlassContainer>
 
@@ -232,12 +372,34 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
             {formatRupiah(totalSisaSaldo)}
           </div>
           <span className="text-[10px] text-slate-400 mt-0.5 block">
-            Kapasitas kantong: {formatRupiah(totalKapasitasSaldo)}
+            Total kapasitas kas: {formatRupiah(totalKapasitasSaldo)}
           </span>
         </GlassContainer>
       </div>
 
-      {/* Grid of Budget Cards with 2 Dedicated Details */}
+      {/* Aggregate AI Verdict Summary */}
+      {aiResult?.overallVerdict && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-blue-500/5 to-transparent border border-indigo-500/20 text-xs text-slate-200 flex items-start gap-3 shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0 text-indigo-300 mt-0.5">
+            <Sparkles className="w-4 h-4 text-indigo-400" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+              <span className="font-extrabold text-xs text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                Rangkuman AI Finansial ({currentMonth})
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {aiResult.modelUsed || modelUsedName} • Objektif & To-The-Point
+              </span>
+            </div>
+            <p className="leading-relaxed text-slate-300">
+              {aiResult.overallVerdict}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Grid of Budget Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {budgets.map((b) => {
           const monthlyBudget = b.budgeting || b.targetBulanan || 0;
@@ -246,13 +408,13 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
           const actualSpend = b.actualSpend || 0;
           const sisa = b.sisa !== undefined ? b.sisa : totalSaldo - actualSpend;
 
-          // 1. DETAIL KUOTA BULANAN (Actual Spend vs Budgeting Bulanan)
+          // 1. BUDGETING BULANAN (Actual Spend vs Budgeting Bulanan)
           const monthlySpendPct =
             monthlyBudget > 0 ? Number(((actualSpend / monthlyBudget) * 100).toFixed(1)) : 0;
           const isOverMonthly = actualSpend > monthlyBudget && monthlyBudget > 0;
-          const monthlyDiff = actualSpend - monthlyBudget; // > 0 = over-spending kuota bulanan
+          const monthlyDiff = actualSpend - monthlyBudget; // > 0 = over budget bulanan
 
-          // 2. DETAIL TOTAL SALDO KANTONG (Actual Spend vs Total Saldo Akumulasi)
+          // 2. TOTAL SALDO KANTONG (Actual Spend vs Total Saldo)
           const totalSpendPct =
             totalSaldo > 0 ? Number(((actualSpend / totalSaldo) * 100).toFixed(1)) : 0;
           const isDepleted = sisa <= 0;
@@ -283,7 +445,7 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => handleOpenEdit(b)}
-                      className="p-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition"
+                      className="p-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition cursor-pointer"
                       title="Edit Pos Budgeting"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -295,14 +457,14 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                 <div className="flex flex-wrap items-center gap-2 my-3">
                   {/* Status 1: Kuota Bulanan */}
                   {isOverMonthly ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                      <AlertTriangle className="w-3 h-3 text-rose-400" />
-                      Over Kuota Bulanan (+{formatRupiah(monthlyDiff)})
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      <AlertTriangle className="w-3 h-3 text-amber-400" />
+                      Over Budget (+{formatRupiah(monthlyDiff)})
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                      Dalam Kuota Bulanan ({monthlySpendPct}%)
+                      Budget Aman ({monthlySpendPct}%)
                     </span>
                   )}
 
@@ -310,27 +472,27 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   {isDepleted ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-600/20 text-rose-300 border border-rose-600/30">
                       <AlertCircle className="w-3 h-3 text-rose-400" />
-                      Saldo Kantong Habis
+                      Saldo Habis
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30">
                       <ShieldCheck className="w-3 h-3 text-blue-400" />
-                      Saldo Kantong Aman
+                      Saldo Aman
                     </span>
                   )}
                 </div>
 
-                {/* DUA DETAIL KHUSUS BUDGETING AMPLOP */}
+                {/* DETAIL RINGKAS BUDGETING AMPLOP */}
                 <div className="space-y-3 my-3">
-                  {/* DETAIL 1: JATAH BUDGETING BULANAN */}
+                  {/* DETAIL 1: BUDGETING BULANAN */}
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-200 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
-                        Detail 1: Jatah Budgeting Bulanan
+                        Budgeting Bulanan
                       </span>
                       <span className="font-mono text-slate-300 text-xs">
-                        <strong className={isOverMonthly ? 'text-rose-400' : 'text-white'}>
+                        <strong className={isOverMonthly ? 'text-amber-400' : 'text-white'}>
                           {formatRupiah(actualSpend)}
                         </strong>{' '}
                         / {formatRupiah(monthlyBudget)}
@@ -342,7 +504,7 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           isOverMonthly
-                            ? 'bg-rose-500'
+                            ? 'bg-amber-400'
                             : monthlySpendPct > 80
                             ? 'bg-amber-400'
                             : 'bg-gradient-to-r from-blue-500 to-sky-400'
@@ -356,23 +518,23 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                         Terpakai: <strong className="text-slate-200">{monthlySpendPct}%</strong>
                       </span>
                       {isOverMonthly ? (
-                        <span className="text-rose-400 font-bold">
-                          Defisit Jatah Bulan Ini: -{formatRupiah(monthlyDiff)}
+                        <span className="text-amber-400 font-bold">
+                          Over Budget: +{formatRupiah(monthlyDiff)}
                         </span>
                       ) : (
                         <span className="text-emerald-400 font-medium">
-                          Sisa Jatah: +{formatRupiah(monthlyBudget - actualSpend)}
+                          Sisa Budget: +{formatRupiah(monthlyBudget - actualSpend)}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* DETAIL 2: TOTAL SALDO KANTONG AMPLOP */}
+                  {/* DETAIL 2: TOTAL SALDO AMPLOP */}
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-200 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                        Detail 2: Kapasitas Total Saldo Amplop
+                        Total Saldo Amplop
                       </span>
                       <span className="font-mono text-xs text-slate-300">
                         Total Saldo: <strong className="text-white">{formatRupiah(totalSaldo)}</strong>
@@ -381,7 +543,7 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
 
                     {/* Breakdown Math: Saldo Awal + Budgeting */}
                     <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 font-mono">
-                      <span>Saldo Awal: {formatRupiah(saldoAwal)}</span>
+                      <span>S. Awal: {formatRupiah(saldoAwal)}</span>
                       <span>+</span>
                       <span>Budget: {formatRupiah(monthlyBudget)}</span>
                       <span>=</span>
@@ -404,10 +566,10 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
 
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-slate-400">
-                        Kapasitas Terpakai: <strong className="text-slate-200">{totalSpendPct}%</strong>
+                        Terpakai: <strong className="text-slate-200">{totalSpendPct}%</strong>
                       </span>
                       <div className="flex items-center gap-1">
-                        <span className="text-slate-400">Sisa Tersedia:</span>
+                        <span className="text-slate-400">Sisa Saldo:</span>
                         <span
                           className={`font-mono font-bold ${
                             isDepleted ? 'text-rose-400' : 'text-emerald-400'
@@ -420,45 +582,98 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   </div>
                 </div>
 
-                {/* SMART EXPLANATORY CALLOUT (Penjelasan Finansial Akurat Sesuai Permintaan User) */}
-                <div
-                  className={`p-3 rounded-2xl border text-[11px] leading-relaxed mt-3 flex items-start gap-2 ${
-                    isOverMonthly && !isDepleted
-                      ? 'bg-amber-500/10 border-amber-500/25 text-amber-200/90'
-                      : isDepleted
-                      ? 'bg-rose-500/10 border-rose-500/25 text-rose-200/90'
-                      : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200/90'
-                  }`}
-                >
-                  {isOverMonthly && !isDepleted ? (
-                    <>
-                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong>Evaluasi Anggaran & Likuiditas:</strong> Realisasi pengeluaran ({formatRupiah(actualSpend)}) mencatat deviasi <strong>+{formatRupiah(monthlyDiff)}</strong> ({((monthlyDiff / (monthlyBudget || 1)) * 100).toFixed(1)}%) di atas pagu bulanan ({formatRupiah(monthlyBudget)}). Namun, bantalan kas <em>carry-over</em> periode lalu ({formatRupiah(saldoAwal)}) berhasil mengabsorpsi volatilitas ini secara mandiri sehingga struktur kas tetap solven. Sisa likuiditas kantong tersedia: <strong className="text-white">{formatRupiah(sisa)}</strong>.
-                        <span className="block mt-1 text-amber-300/95 font-medium">
-                          <strong>Rekomendasi:</strong> Pertahankan pagu alokasi dasar dan normalisasikan laju serapan pada siklus berikutnya guna menjaga ketahanan <em>cash buffer</em> tetap optimal tanpa perlu injeksi modal tambahan.
-                        </span>
+                {/* SMART EXPLANATORY CALLOUT (Evaluasi AI Objektif & Fakta Akurat Sesuai Permintaan User) */}
+                {(() => {
+                  const posAi = aiResult?.posEvaluations?.[b.id] || aiResult?.posEvaluations?.[b.nama];
+                  // WAJIB Berikan peringatan jika belanja melebihi budget bulanan, walaupun total saldo masih mencover
+                  const cardStatus: 'safe' | 'warning' | 'danger' = isDepleted
+                    ? 'danger'
+                    : isOverMonthly
+                    ? 'warning'
+                    : posAi
+                    ? posAi.status
+                    : 'safe';
+
+                  return (
+                    <div
+                      className={`p-3.5 rounded-2xl border text-[11px] leading-relaxed mt-3 flex items-start gap-2.5 transition-all shadow-sm ${
+                        cardStatus === 'warning'
+                          ? 'bg-amber-500/10 border-amber-500/25 text-amber-200/90'
+                          : cardStatus === 'danger'
+                          ? 'bg-rose-500/10 border-rose-500/25 text-rose-200/90'
+                          : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200/90'
+                      }`}
+                    >
+                      {cardStatus === 'danger' ? (
+                        <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      ) : cardStatus === 'warning' ? (
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      )}
+
+                      <div className="space-y-1.5 w-full">
+                        <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                          <span className="font-extrabold uppercase tracking-wider text-[10px] flex items-center gap-1 opacity-90">
+                            <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                            AI Financial Diagnosis
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 font-mono">
+                            {cardStatus === 'danger'
+                              ? 'Saldo Habis'
+                              : cardStatus === 'warning'
+                              ? `⚠️ Peringatan: Over Budget (+${formatRupiah(monthlyDiff)})`
+                              : 'Budget & Saldo Aman'}
+                          </span>
+                        </div>
+
+                        {posAi ? (
+                          <>
+                            <p className="text-slate-200">
+                              <strong className="text-white">Diagnosis:</strong>{' '}
+                              {isOverMonthly && !posAi.diagnosis.toLowerCase().includes('peringatan') ? (
+                                <span>
+                                  <strong className="text-amber-300">Peringatan:</strong> Pengeluaran {formatRupiah(actualSpend)} melebihi budget bulanan {formatRupiah(monthlyBudget)} sebesar +{formatRupiah(monthlyDiff)}. Walaupun saldo dari bulan lalu masih menutup dengan sisa saldo {formatRupiah(sisa)}, belanja perlu dikontrol agar cadangan saldo tidak terus tergerus.
+                                </span>
+                              ) : (
+                                posAi.diagnosis
+                              )}
+                            </p>
+                            {posAi.rekomendasi && (
+                              <p className="pt-1.5 border-t border-white/10 text-slate-200 font-medium">
+                                <strong className="text-white">Rekomendasi:</strong> {posAi.rekomendasi}
+                              </p>
+                            )}
+                          </>
+                        ) : isOverMonthly && !isDepleted ? (
+                          <>
+                            <p className="text-slate-200">
+                              <strong className="text-amber-300">Peringatan:</strong> Pengeluaran ({formatRupiah(actualSpend)}) melebihi budget bulanan ({formatRupiah(monthlyBudget)}) sebesar +{formatRupiah(monthlyDiff)} ({((monthlyDiff / (monthlyBudget || 1)) * 100).toFixed(1)}%). Walaupun sisa saldo bulan lalu ({formatRupiah(saldoAwal)}) masih mencukupi dengan sisa saldo {formatRupiah(sisa)}, pengeluaran harus dikontrol agar cadangan saldo tidak terus tergerus.
+                            </p>
+                            <p className="pt-1.5 border-t border-white/10 text-amber-300/95 font-medium">
+                              <strong className="text-white">Rekomendasi:</strong> Batasi pengeluaran pos ini pada bulan berikutnya agar tidak menggerus akumulasi saldo amplop.
+                            </p>
+                          </>
+                        ) : isDepleted ? (
+                          <>
+                            <p className="text-slate-200">
+                              <strong className="text-rose-400">Peringatan:</strong> Seluruh kapasitas saldo dan alokasi periode ini telah terserap penuh (defisit). Sisa saldo: <strong className="text-white">{formatRupiah(sisa)}</strong>.
+                            </p>
+                            <p className="pt-1.5 border-t border-white/10 text-rose-300/95 font-medium">
+                              <strong className="text-white">Rekomendasi:</strong> Lakukan rebalancing darurat dari pos surplus lain atau tunda pengeluaran diskresioner hingga siklus alokasi berikutnya.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-slate-200">
+                              <strong className="text-emerald-400">Disiplin Anggaran:</strong> Penyerapan kas terkendali aman ({monthlySpendPct}% dari budget bulanan). Cadangan saldo terjaga stabil dengan sisa saldo: <strong className="text-white">{formatRupiah(sisa)}</strong>.
+                            </p>
+                          </>
+                        )}
                       </div>
-                    </>
-                  ) : isDepleted ? (
-                    <>
-                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong>Peringatan Likuiditas:</strong> Seluruh kapasitas saldo dan alokasi periode ini telah terserap penuh (defisit). Sisa likuiditas: <strong className="text-white">{formatRupiah(sisa)}</strong>.
-                        <span className="block mt-1 text-rose-300/95 font-medium">
-                          <strong>Rekomendasi:</strong> Lakukan rebalancing darurat dari pos surplus lain atau tunda pengeluaran diskresioner hingga siklus alokasi berikutnya.
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong>Disiplin Anggaran:</strong> Penyerapan kas berada dalam batas terkendali ({monthlySpendPct}% dari pagu). Cadangan likuiditas terjaga stabil dengan surplus kas tersedia: <strong className="text-white">{formatRupiah(sisa)}</strong>.
-                      </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  );
+                })()}
               </div>
             </GlassContainer>
           );

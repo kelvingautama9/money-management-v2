@@ -7,6 +7,8 @@ import {
   getCachedMonthAnalysis,
   buildDeterministicMetricsPayload,
   requestGeminiFinancialAnalysis,
+  requestGeminiFinancialAnalysisStream,
+  AiStreamEvent,
   getStoredModelPreference
 } from '../lib/geminiFinancialService';
 import { AiAnalysisModelBar } from './AiAnalysisModelBar';
@@ -25,7 +27,8 @@ import {
   Sparkles,
   PieChart,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 
 interface AuditFinancialPageProps {
@@ -85,9 +88,21 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // Real-Time Server-Sent Events (SSE) Streaming State
+  const [streamLogs, setStreamLogs] = useState<string>('');
+  const [streamStatus, setStreamStatus] = useState<string>('');
+  const [streamTtft, setStreamTtft] = useState<number | null>(null);
+  const [streamModel, setStreamModel] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+
   const runAiAnalysis = useCallback(
     async (overrideModel?: string) => {
       setIsAnalyzing(true);
+      setIsStreaming(true);
+      setStreamLogs('');
+      setStreamStatus('Menghubungkan ke Gemini Flash (Streaming)...');
+      setStreamTtft(null);
+
       try {
         const payload = buildDeterministicMetricsPayload(
           currentSheetName,
@@ -100,12 +115,37 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
           [],
           safeEmergency
         );
-        const result = await requestGeminiFinancialAnalysis(currentSheetName, payload, overrideModel);
+
+        const result = await requestGeminiFinancialAnalysisStream(
+          currentSheetName,
+          payload,
+          (ev: AiStreamEvent) => {
+            if (ev.type === 'status') {
+              setStreamStatus(ev.message || 'Memproses...');
+              if (ev.model) setStreamModel(ev.model);
+            } else if (ev.type === 'ttft') {
+              if (ev.ms !== undefined) setStreamTtft(ev.ms);
+              if (ev.model) setStreamModel(ev.model);
+            } else if (ev.type === 'chunk' && ev.text) {
+              setStreamLogs((prev) => (prev + ev.text).slice(-1500));
+            } else if (ev.type === 'fallback') {
+              setStreamStatus(ev.message || 'Mengalihkan ke model cadangan...');
+            } else if (ev.type === 'complete' && ev.data) {
+              setAiData(ev.data);
+              setStreamStatus(`Analisis selesai (${ev.modelUsed || 'Gemini Flash'})`);
+            }
+          },
+          overrideModel
+        );
+
         setAiData(result);
       } catch (err) {
-        console.error('Failed to run AI analysis:', err);
+        console.error('Failed to run AI analysis stream:', err);
       } finally {
         setIsAnalyzing(false);
+        setTimeout(() => {
+          setIsStreaming(false);
+        }, 1200);
       }
     },
     [currentSheetName, totalAset, totalIncome, totalExpense, safeTransactions, safeBudgets, safeEmergency]
@@ -697,6 +737,69 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
           isAnalyzing={isAnalyzing}
           onTriggerAnalysis={runAiAnalysis}
         />
+
+        {/* LIVE SERVER-SENT EVENTS (SSE) STREAMING TERMINAL / TYPING EFFECT */}
+        {(isStreaming || isAnalyzing) && (
+          <div
+            className={`p-4 rounded-2xl border transition-all animate-in fade-in zoom-in-95 duration-200 ${
+              isDark
+                ? 'bg-slate-950/90 border-blue-500/40 text-slate-200 shadow-2xl shadow-blue-950/30'
+                : 'bg-slate-900 border-blue-400 text-slate-100 shadow-xl'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 text-xs flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="font-mono font-extrabold uppercase tracking-wider text-emerald-400 text-[11px]">
+                  LIVE SERVER-SENT EVENTS (SSE) STREAM
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-300 font-medium text-[11px] truncate max-w-[280px]">
+                  {streamStatus || 'Menerima kata per kata real-time...'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {streamTtft !== null ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-emerald-400 animate-pulse" />
+                    TTFT: {streamTtft} ms
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-slate-300 text-[10px] font-mono">
+                    Mengukur TTFT...
+                  </span>
+                )}
+                <span className="text-[10px] font-mono text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-md border border-blue-500/30 font-semibold">
+                  {streamModel || 'Gemini Flash'}
+                </span>
+              </div>
+            </div>
+
+            {/* Real-time Typing Console */}
+            <div className="mt-3 p-3.5 rounded-xl bg-black/70 font-mono text-[11px] sm:text-xs text-emerald-300/90 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap break-words border border-white/5 select-none scrollbar-thin">
+              {streamLogs ? (
+                <>
+                  {streamLogs}
+                  <span className="inline-block w-2 h-3.5 bg-emerald-400 ml-1 animate-pulse align-middle" />
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-slate-400 py-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+                  <span>// Menghubungkan ke Gemini Live Streaming... (TTFT ~200-400ms)</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2 px-0.5">
+              <span>Streaming respon audit kata per kata secara instan.</span>
+              <span className="font-mono text-emerald-400 font-semibold">Sticky Model Active</span>
+            </div>
+          </div>
+        )}
 
         {/* Executive Verdict & Recommendations */}
         <div

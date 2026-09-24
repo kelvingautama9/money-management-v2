@@ -623,7 +623,7 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
                       Tingkat tabungan (Savings Rate) tercatat <strong>{savingsRate}%</strong> dari total penerimaan kas bulanan.
                     </li>
                     <li>
-                      Total serapan kuota budgeting bulanan sebesar <strong>{formatRupiah(totalActualSpend)}</strong> dari pagu <strong>{formatRupiah(totalMonthlyBudget)}</strong>.
+                      Total serapan kuota budgeting bulanan sebesar <strong>{formatRupiah(totalActualSpend)}</strong> dari budget <strong>{formatRupiah(totalMonthlyBudget)}</strong>.
                     </li>
                     <li>
                       Cadangan dana darurat sebesar <strong>{formatRupiah(safeEmergency.current)}</strong> ({safeEmergency.persentase}% dari target {formatRupiah(safeEmergency.target)}).

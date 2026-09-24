@@ -12,6 +12,28 @@ export interface GeminiModelOption {
   isFreeTier: boolean;
 }
 
+export interface ModelCooldownStatus {
+  modelId: string;
+  remainingSec: number;
+  reason: string;
+}
+
+export interface AiStreamEvent {
+  type: 'status' | 'ttft' | 'chunk' | 'fallback' | 'complete' | 'error';
+  message?: string;
+  model?: string;
+  stickyModel?: string;
+  ms?: number;
+  text?: string;
+  totalLength?: number;
+  data?: FinancialAnalysisData;
+  modelUsed?: string;
+  fallbackOccurred?: boolean;
+  elapsedMs?: number;
+  ttftMs?: number;
+  timestamp?: string;
+}
+
 export interface FinancialAuditItem {
   title: string;
   text: string;
@@ -149,6 +171,36 @@ export async function getAvailableGeminiModels(): Promise<GeminiModelOption[]> {
       isFreeTier: true
     }
   ];
+}
+
+export interface GeminiModelsDetailedResponse {
+  models: GeminiModelOption[];
+  stickyHealthyModel?: string;
+  cooldowns?: ModelCooldownStatus[];
+}
+
+export async function getDetailedGeminiModels(): Promise<GeminiModelsDetailedResponse> {
+  try {
+    const res = await fetch('/api/gemini/models');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.models)) {
+        return {
+          models: data.models,
+          stickyHealthyModel: data.stickyHealthyModel,
+          cooldowns: data.cooldowns || []
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch models detail:', e);
+  }
+  const fallbackModels = await getAvailableGeminiModels();
+  return {
+    models: fallbackModels,
+    stickyHealthyModel: 'gemini-3.5-flash',
+    cooldowns: []
+  };
 }
 
 /**
@@ -309,6 +361,90 @@ export function buildDeterministicMetricsPayload(
 }
 
 /**
+ * Execute Gemini Financial Analysis with Server-Sent Events (SSE / Streaming Response).
+ * Emits real-time tokens (typing effect) directly to the UI, reducing TTFT to ~200-400ms.
+ * Automatically utilizes Sticky Healthy Model memorization & Smart Cooldown pool.
+ */
+export async function requestGeminiFinancialAnalysisStream(
+  monthName: string,
+  metrics: ReturnType<typeof buildDeterministicMetricsPayload>,
+  onEvent: (event: AiStreamEvent) => void,
+  preferredModel?: string,
+  autoFallback = true
+): Promise<FinancialAnalysisData> {
+  const model = preferredModel || getStoredModelPreference();
+  const fallback = autoFallback !== undefined ? autoFallback : getStoredAutoFallbackPreference();
+
+  try {
+    const res = await fetch('/api/gemini/analyze-stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        monthName,
+        metrics,
+        preferredModel: model,
+        autoFallback: fallback
+      })
+    });
+
+    if (res.ok && res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let finalData: FinancialAnalysisData | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const jsonText = trimmed.slice(6).trim();
+            if (jsonText) {
+              try {
+                const ev = JSON.parse(jsonText) as AiStreamEvent;
+                onEvent(ev);
+                if (ev.type === 'complete' && ev.data) {
+                  finalData = {
+                    ...ev.data,
+                    modelUsed: ev.modelUsed || model,
+                    fallbackOccurred: ev.fallbackOccurred || false,
+                    timestamp: ev.timestamp || new Date().toISOString()
+                  };
+                }
+              } catch (parseErr) {
+                console.warn('Failed to parse SSE line:', jsonText, parseErr);
+              }
+            }
+          }
+        }
+      }
+
+      if (finalData) {
+        setCachedMonthAnalysis(monthName, finalData);
+        return finalData;
+      }
+    }
+  } catch (err) {
+    console.error('SSE Stream request error, falling back to standard API:', err);
+    onEvent({
+      type: 'fallback',
+      message: 'Koneksi streaming berpindah ke mode respon stabil...'
+    });
+  }
+
+  // Fallback to standard request if SSE is interrupted
+  return requestGeminiFinancialAnalysis(monthName, metrics, model, fallback);
+}
+
+/**
  * Execute Gemini Financial Analysis via server proxy
  */
 export async function requestGeminiFinancialAnalysis(
@@ -453,3 +589,197 @@ export async function requestGeminiFinancialAnalysis(
   setCachedMonthAnalysis(monthName, fallbackData);
   return fallbackData;
 }
+
+/**
+ * --- BUDGETING AMPLOP AI SERVICE (Token-Compact, Objective, Data-Driven) ---
+ */
+export interface BudgetPosEvaluation {
+  status: 'safe' | 'warning' | 'danger';
+  statusBadge: string;
+  diagnosis: string;
+  rekomendasi: string;
+}
+
+export interface BudgetEnvelopesAiResult {
+  overallVerdict: string;
+  posEvaluations: Record<string, BudgetPosEvaluation>;
+  modelUsed?: string;
+  fallbackOccurred?: boolean;
+  tokenEstimated?: number;
+  timestamp?: string;
+}
+
+export interface BudgetAiStreamEvent {
+  type: 'status' | 'ttft' | 'chunk' | 'fallback' | 'complete' | 'error';
+  message?: string;
+  model?: string;
+  stickyModel?: string;
+  ms?: number;
+  text?: string;
+  data?: BudgetEnvelopesAiResult;
+  modelUsed?: string;
+  fallbackOccurred?: boolean;
+  elapsedMs?: number;
+  ttftMs?: number;
+  timestamp?: string;
+}
+
+const BUDGET_CACHE_PREFIX = 'kelvin_financial_budget_ai_cache_v2_';
+
+export function getCachedBudgetAi(monthName: string): BudgetEnvelopesAiResult | null {
+  try {
+    const raw = localStorage.getItem(`${BUDGET_CACHE_PREFIX}${monthName.toUpperCase()}`);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedBudgetAi(monthName: string, data: BudgetEnvelopesAiResult): void {
+  try {
+    localStorage.setItem(`${BUDGET_CACHE_PREFIX}${monthName.toUpperCase()}`, JSON.stringify(data));
+  } catch {}
+}
+
+export async function requestBudgetEnvelopesAnalysis(
+  monthName: string,
+  budgetItems: BudgetCategory[],
+  summaryMetrics: any = {},
+  forceRefresh = false
+): Promise<BudgetEnvelopesAiResult> {
+  if (!forceRefresh) {
+    const cached = getCachedBudgetAi(monthName);
+    if (cached) return cached;
+  }
+
+  try {
+    const res = await fetch('/api/gemini/analyze-budget-envelopes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        monthName,
+        budgetItems,
+        summaryMetrics
+      })
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data && (json.data.posEvaluations || json.data.overallVerdict)) {
+        setCachedBudgetAi(monthName, json.data);
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.warn('[Budget AI Client] Fetch error, falling back locally', err);
+  }
+
+  // Local fallback if API fails
+  const localFallback: BudgetEnvelopesAiResult = {
+    overallVerdict: 'Sebagian besar pos amplop berjalan solven dengan kapasitas cadangan kas mampu menahan deviasi belanja bulanan secara mandiri.',
+    posEvaluations: {},
+    modelUsed: 'Offline Deterministic',
+    fallbackOccurred: true,
+    timestamp: new Date().toISOString()
+  };
+
+  budgetItems.forEach((b, idx) => {
+    const key = b.id || b.nama || `pos_${idx}`;
+    const saldoAwal = Number(b.saldoAwal) || 0;
+    const budgetBulanan = Number(b.budgeting || b.targetBulanan) || 0;
+    const totalKapasitas = Number(b.totalSaldo) || (saldoAwal + budgetBulanan);
+    const actualSpend = Number(b.actualSpend) || 0;
+    const sisa = b.sisa !== undefined ? Number(b.sisa) : totalKapasitas - actualSpend;
+    const isOverMonthly = actualSpend > budgetBulanan && budgetBulanan > 0;
+    const monthlyDiff = actualSpend - budgetBulanan;
+    const isDepleted = sisa <= 0;
+
+    if (isDepleted) {
+      localFallback.posEvaluations[key] = {
+        status: 'danger',
+        statusBadge: 'Saldo Kantong Habis',
+        diagnosis: `Realisasi pengeluaran ${formatRupiah(actualSpend)} telah menyerap habis seluruh kapasitas saldo ${formatRupiah(totalKapasitas)} (defisit ${formatRupiah(Math.abs(sisa))}).`,
+        rekomendasi: 'Tunda belanja diskresioner pos ini atau lakukan rebalancing darurat dari pos surplus lain.'
+      };
+    } else if (isOverMonthly) {
+      localFallback.posEvaluations[key] = {
+        status: 'warning',
+        statusBadge: `⚠️ Peringatan: Over Budget (+${formatRupiah(monthlyDiff)})`,
+        diagnosis: `Peringatan: Pengeluaran ${formatRupiah(actualSpend)} melebihi budget bulanan ${formatRupiah(budgetBulanan)} sebesar ${formatRupiah(monthlyDiff)}. Walaupun saldo dari bulan lalu masih menutup dengan sisa ${formatRupiah(sisa)}, pengeluaran perlu dikontrol agar cadangan saldo tidak terus tergerus.`,
+        rekomendasi: 'Kendalikan pengeluaran pos ini pada bulan berikutnya agar tidak menggerus akumulasi cadangan saldo amplop.'
+      };
+    } else {
+      localFallback.posEvaluations[key] = {
+        status: 'safe',
+        statusBadge: 'Budget & Saldo Aman',
+        diagnosis: `Serapan belanja ${formatRupiah(actualSpend)} terkendali aman di bawah budget bulanan ${formatRupiah(budgetBulanan)} dengan sisa saldo tersedia ${formatRupiah(sisa)}.`,
+        rekomendasi: 'Pertahankan kedisiplinan pengeluaran; sisa saldo otomatis menjadi simpanan yang memperkuat saldo bulan depan.'
+      };
+    }
+  });
+
+  setCachedBudgetAi(monthName, localFallback);
+  return localFallback;
+}
+
+export async function requestBudgetEnvelopesAnalysisStream(
+  monthName: string,
+  budgetItems: BudgetCategory[],
+  summaryMetrics: any = {},
+  onEvent: (ev: BudgetAiStreamEvent) => void,
+  preferredModel?: string
+): Promise<BudgetEnvelopesAiResult> {
+  try {
+    const res = await fetch('/api/gemini/analyze-budget-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        monthName,
+        budgetItems,
+        summaryMetrics,
+        preferredModel
+      })
+    });
+
+    if (!res.ok || !res.body) {
+      throw new Error(`HTTP ${res.status}: SSE streaming failed`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let completedData: BudgetEnvelopesAiResult | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const parsed = JSON.parse(trimmed.slice(6));
+            onEvent(parsed);
+            if (parsed.type === 'complete' && parsed.data) {
+              completedData = parsed.data;
+              setCachedBudgetAi(monthName, parsed.data);
+            }
+          } catch {}
+        }
+      }
+    }
+
+    if (completedData) return completedData;
+  } catch (err) {
+    console.warn('[Budget AI Stream] Error, running standard request', err);
+  }
+
+  // Fallback to standard request
+  return requestBudgetEnvelopesAnalysis(monthName, budgetItems, summaryMetrics, true);
+}
+

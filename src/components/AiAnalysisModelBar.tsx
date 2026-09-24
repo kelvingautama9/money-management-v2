@@ -7,12 +7,15 @@ import {
   Check,
   Zap,
   SlidersHorizontal,
-  Bot
+  Bot,
+  Flame,
+  Clock
 } from 'lucide-react';
 import { triggerHaptic } from '../lib/haptics';
 import {
   GeminiModelOption,
-  getAvailableGeminiModels,
+  ModelCooldownStatus,
+  getDetailedGeminiModels,
   getStoredModelPreference,
   setStoredModelPreference,
   getStoredAutoFallbackPreference,
@@ -39,21 +42,25 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
   className = ''
 }) => {
   const [models, setModels] = useState<GeminiModelOption[]>([]);
+  const [stickyHealthy, setStickyHealthy] = useState<string>('gemini-3.5-flash');
+  const [cooldowns, setCooldowns] = useState<ModelCooldownStatus[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(getStoredModelPreference());
   const [autoFallback, setAutoFallback] = useState<boolean>(getStoredAutoFallbackPreference());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    getAvailableGeminiModels().then((res) => {
-      if (isMounted && res.length > 0) {
-        setModels(res);
+    getDetailedGeminiModels().then((res) => {
+      if (isMounted) {
+        if (res.models.length > 0) setModels(res.models);
+        if (res.stickyHealthyModel) setStickyHealthy(res.stickyHealthyModel);
+        if (res.cooldowns) setCooldowns(res.cooldowns);
       }
     });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAnalyzing]);
 
   const handleSelectModel = (modelId: string) => {
     triggerHaptic('selection');
@@ -107,6 +114,12 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
             <span>AI Copilot: {modelUsed || activeModelObj.displayName}</span>
           </div>
 
+          {/* Sticky Healthy indicator */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold shrink-0" title="Model memori sehat aktif tanpa overhead latency">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Sticky Sehat: {stickyHealthy.replace(/^gemini-/, '').replace(/-/g, ' ')}</span>
+          </div>
+
           <div className="flex items-center gap-2 text-[11px] text-slate-400 truncate">
             <span>•</span>
             <span className="truncate">Auto-Generated Singkron Google Sheets</span>
@@ -115,6 +128,12 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
             {fallbackOccurred && (
               <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 text-[10px] font-bold border border-amber-500/25">
                 Fallback Aktif
+              </span>
+            )}
+            {cooldowns.length > 0 && (
+              <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-300 text-[10px] font-bold border border-rose-500/25" title={`${cooldowns.map(c => `${c.modelId}: ${c.remainingSec}s (${c.reason})`).join(', ')}`}>
+                <Clock className="w-3 h-3 text-rose-400" />
+                <span>{cooldowns.length} Cooldown</span>
               </span>
             )}
           </div>
@@ -169,6 +188,8 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
                   <div className="space-y-1.5 max-h-56 overflow-y-auto no-scrollbar py-1">
                     {models.map((m) => {
                       const isSelected = m.id === selectedModel;
+                      const isSticky = m.id === stickyHealthy;
+                      const cdInfo = cooldowns.find((c) => c.modelId === m.id);
                       return (
                         <div
                           key={m.id}
@@ -186,9 +207,19 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
                               <span className="text-xs font-bold text-white block">
                                 {m.displayName}
                               </span>
+                              {isSticky && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  Sticky Sehat
+                                </span>
+                              )}
+                              {cdInfo && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                  Cooldown {cdInfo.remainingSec}s
+                                </span>
+                              )}
                               {m.isDefault && (
                                 <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                                  Default Cerdas
+                                  Default
                                 </span>
                               )}
                               {m.isNewest && (
@@ -214,10 +245,10 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
                     <label className="flex items-center justify-between cursor-pointer">
                       <div className="text-left pr-2">
                         <span className="text-xs font-semibold block text-slate-200">
-                          Auto-Fallback Cerdas
+                          Auto-Fallback Cerdas & Sticky Pool
                         </span>
                         <span className="text-[10px] text-slate-400 block leading-tight">
-                          Otomatis beralih ke Flash lain jika batas rate limit (429/503) tercapai.
+                          Otomatis beralih ke Flash lain jika batas rate limit (429/503) tercapai dengan Smart Cooldown timer.
                         </span>
                       </div>
                       <input
@@ -234,7 +265,7 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
                       className="w-full py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-purple-500/20 disabled:opacity-50"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                      <span>{isAnalyzing ? 'Menganalisis...' : 'Terapkan & Analisis Ulang'}</span>
+                      <span>{isAnalyzing ? 'Menganalisis Real-Time...' : 'Terapkan & Analisis Ulang'}</span>
                     </button>
                   </div>
                 </div>
@@ -251,7 +282,7 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
                 ? 'bg-purple-600/30 hover:bg-purple-600/40 border-purple-500/40 text-purple-200'
                 : 'bg-purple-100 hover:bg-purple-200 border-purple-300 text-purple-900 font-bold'
             }`}
-            title="Analisis Ulang Finansial Bulan Ini dengan Gemini"
+            title="Analisis Ulang Finansial Bulan Ini dengan Gemini SSE Stream"
           >
             <RefreshCw className={`w-3 h-3 text-purple-400 ${isAnalyzing ? 'animate-spin' : ''}`} />
             <span>{isAnalyzing ? 'Menganalisis...' : 'Analisis Ulang'}</span>

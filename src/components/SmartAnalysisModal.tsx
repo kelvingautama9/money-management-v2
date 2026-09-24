@@ -198,12 +198,6 @@ export const SmartAnalysisModal: React.FC<SmartAnalysisModalProps> = ({
                 <h3 className={`text-base sm:text-lg font-bold tracking-tight ${isLight ? 'text-slate-900' : '!text-white'}`}>
                   Audit Investasi & Portofolio
                 </h3>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${isLight ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-purple-500/20 text-purple-300 border border-purple-400/30'}`}>
-                  Audit Institusional
-                </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'}`}>
-                  DCA Terpisah
-                </span>
               </div>
               <p className={`text-[11px] sm:text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                 Evaluasi kinerja organik real-time, perimbangan instrumen, dan pemisahan setoran DCA dari imbal hasil.

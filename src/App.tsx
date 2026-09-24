@@ -1946,6 +1946,7 @@ export default function App() {
                       <BudgetingTracker
                         budgets={budgets}
                         settings={glassSettings}
+                        currentSheetName={sheetName}
                         onAddBudget={handleAddBudget}
                         onEditBudget={handleEditBudget}
                         onDeleteBudget={handleDeleteBudget}

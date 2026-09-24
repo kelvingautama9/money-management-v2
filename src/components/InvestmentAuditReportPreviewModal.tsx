@@ -34,8 +34,18 @@ import {
   ArrowUpRight,
   Shield
 } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+
+// Resilient helper to obtain the jsPDF constructor across all module formats
+const getJsPdfConstructor = () => {
+  if (typeof jsPDF === 'function') return jsPDF;
+  if ((jsPDF as any)?.jsPDF && typeof (jsPDF as any).jsPDF === 'function') return (jsPDF as any).jsPDF;
+  const win = typeof window !== 'undefined' ? (window as any) : {};
+  if (win.jspdf?.jsPDF) return win.jspdf.jsPDF;
+  if (win.jsPDF) return win.jsPDF;
+  return null;
+};
 
 interface InvestmentAuditReportPreviewModalProps {
   isOpen: boolean;
@@ -161,9 +171,15 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
 
     try {
       const element = reportRef.current;
+      const JsPdfCtor = getJsPdfConstructor();
+      if (!JsPdfCtor) {
+        throw new Error('Konstruktor berkas PDF belum siap diinisialisasi.');
+      }
+
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
         onclone: (clonedDoc) => {
@@ -172,8 +188,8 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
           styles.forEach((style) => {
             if (style.textContent) {
               style.textContent = style.textContent
-                .replace(/oklch\([^)]+\)/g, '#94a3b8')
-                .replace(/color-mix\([^)]+\)/g, '#cbd5e1');
+                .replace(/oklch\([^)]+\)/g, '#334155')
+                .replace(/color-mix\([^)]+\)/g, '#475569');
             }
           });
           const report = clonedDoc.getElementById('audit-investasi-printable-document');
@@ -181,12 +197,14 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
             report.style.width = '800px';
             report.style.maxWidth = '800px';
             report.style.margin = '0 auto';
+            report.style.backgroundColor = '#ffffff';
+            report.style.color = '#0f172a';
           }
         }
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF({
+      const pdf = new JsPdfCtor({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
@@ -214,7 +232,7 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
       triggerHaptic('success');
     } catch (err: any) {
       console.error('Gagal generate PDF Audit Investasi:', err);
-      setExportError('Gagal membuat berkas PDF langsung. Anda dapat mencetak melalui tombol "Print Report" atau memilih "Save as PDF" dari dialog cetak browser.');
+      setExportError('Gagal membuat berkas PDF langsung. Anda dapat mencetak atau memilih "Save as PDF" melalui tombol Print Report di atas.');
       triggerHaptic('error');
     } finally {
       setIsExportingPdf(false);
@@ -240,8 +258,80 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
-      {/* Dynamic Print CSS */}
+      {/* Dynamic Print & High-Contrast Document CSS */}
       <style>{`
+        #audit-investasi-printable-document {
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        #audit-investasi-printable-document * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        #audit-investasi-printable-document h1,
+        #audit-investasi-printable-document h2,
+        #audit-investasi-printable-document h3,
+        #audit-investasi-printable-document h4,
+        #audit-investasi-printable-document h5,
+        #audit-investasi-printable-document h6 {
+          color: #0f172a !important;
+        }
+        #audit-investasi-printable-document .text-slate-950 {
+          color: #020617 !important;
+        }
+        #audit-investasi-printable-document .text-slate-900 {
+          color: #0f172a !important;
+        }
+        #audit-investasi-printable-document .text-slate-800 {
+          color: #1e293b !important;
+        }
+        #audit-investasi-printable-document .text-slate-700 {
+          color: #334155 !important;
+        }
+        #audit-investasi-printable-document .text-slate-600 {
+          color: #475569 !important;
+        }
+        #audit-investasi-printable-document .text-slate-500 {
+          color: #64748b !important;
+        }
+        #audit-investasi-printable-document .text-slate-400 {
+          color: #64748b !important;
+        }
+        #audit-investasi-printable-document .text-purple-950 {
+          color: #3b0764 !important;
+        }
+        #audit-investasi-printable-document .text-purple-900 {
+          color: #581c87 !important;
+        }
+        #audit-investasi-printable-document .text-purple-800 {
+          color: #6b21a8 !important;
+        }
+        #audit-investasi-printable-document .text-purple-700 {
+          color: #7e22ce !important;
+        }
+        #audit-investasi-printable-document .text-sky-950 {
+          color: #082f49 !important;
+        }
+        #audit-investasi-printable-document .text-sky-900 {
+          color: #0c4a6e !important;
+        }
+        #audit-investasi-printable-document .text-sky-800 {
+          color: #075985 !important;
+        }
+        #audit-investasi-printable-document .text-emerald-800 {
+          color: #065f46 !important;
+        }
+        #audit-investasi-printable-document .text-emerald-700 {
+          color: #047857 !important;
+        }
+        #audit-investasi-printable-document .text-rose-800 {
+          color: #9f1239 !important;
+        }
+        #audit-investasi-printable-document .text-rose-700 {
+          color: #be123c !important;
+        }
         @media print {
           @page {
             size: A4 portrait;
@@ -392,21 +482,21 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
                   ID: INV-AUD-{currentSheetName.toUpperCase()}-2026
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-950 uppercase pt-0.5">
+              <h1 style={{ color: '#020617' }} className="text-xl sm:text-2xl font-black tracking-tight text-slate-950 uppercase pt-0.5">
                 Audit Investasi, Intelijen Makro & Alokasi Portofolio
               </h1>
-              <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
+              <p style={{ color: '#475569' }} className="text-xs text-slate-600 max-w-xl leading-relaxed">
                 Diagnosa terintegrasi posisi aset multi-broker, proyeksi Summary of Economic Projections (SEP) The Fed, analisis 3-pilar rekomendasi instrumen unggulan, dan integritas akuntansi DCA mandiri.
               </p>
             </div>
 
             <div className="text-left sm:text-right shrink-0 space-y-0.5 text-xs text-slate-600 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl border sm:border-0 border-slate-200">
-              <div className="font-bold text-slate-900 flex items-center sm:justify-end gap-1.5">
+              <div style={{ color: '#0f172a' }} className="font-bold text-slate-900 flex items-center sm:justify-end gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-purple-600" />
                 <span>Periode: {currentSheetName} 2026</span>
               </div>
-              <div>Tanggal Audit: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-              <div className="text-[11px] text-emerald-700 font-bold flex items-center sm:justify-end gap-1">
+              <div style={{ color: '#475569' }}>Tanggal Audit: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+              <div style={{ color: '#047857' }} className="text-[11px] text-emerald-700 font-bold flex items-center sm:justify-end gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Status Audit: Terverifikasi Sistem</span>
               </div>
@@ -416,11 +506,11 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
           {/* 2. EXECUTIVE SUMMARY NARRATIVE */}
           {aiData?.executiveSummaryNarrative && (
             <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 text-xs text-slate-800 space-y-1">
-              <div className="flex items-center gap-1.5 text-purple-900 font-bold text-xs uppercase tracking-wider">
+              <div style={{ color: '#581c87' }} className="flex items-center gap-1.5 text-purple-900 font-bold text-xs uppercase tracking-wider">
                 <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                 <span>Rangkuman Eksekutif Portofolio (Senior CIO & CFP Insight)</span>
               </div>
-              <p className="text-[11px] leading-relaxed text-slate-700">
+              <p style={{ color: '#334155' }} className="text-[11px] leading-relaxed text-slate-700">
                 {aiData.executiveSummaryNarrative}
               </p>
             </div>
@@ -428,18 +518,18 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
 
           {/* 3. CRITICAL AUDIT HIGHLIGHT: DCA SEPARATION NOTE */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 space-y-1">
-            <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs uppercase tracking-wider">
+            <div style={{ color: '#0f172a' }} className="flex items-center gap-1.5 text-slate-900 font-bold text-xs uppercase tracking-wider">
               <Info className="w-3.5 h-3.5 text-purple-600 shrink-0" />
               <span>Standar Integritas Akuntansi: Pemisahan Setoran Modal DCA dari Return Organik</span>
             </div>
-            <p className="text-[11px] leading-relaxed text-slate-600">
-              Setoran berkala (DCA) sebesar <strong className="text-purple-900 font-mono">+{formatRupiah(totalDCA)}</strong> dicatat murni sebagai penambahan modal pokok mandiri dan sama sekali tidak dimasukkan ke dalam perhitungan laba/return pasar. Imbal hasil organik pasar pada periode ini tercatat <strong className="font-mono text-emerald-700">{pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`})</strong>, serta akumulasi realized profit 2026 terkunci aman di angka <strong className="font-mono text-slate-900">{formatRupiah(totalRealizedProfit)}</strong>.
+            <p style={{ color: '#475569' }} className="text-[11px] leading-relaxed text-slate-600">
+              Setoran berkala (DCA) sebesar <strong style={{ color: '#581c87' }} className="text-purple-900 font-mono">+{formatRupiah(totalDCA)}</strong> dicatat murni sebagai penambahan modal pokok mandiri dan sama sekali tidak dimasukkan ke dalam perhitungan laba/return pasar. Imbal hasil organik pasar pada periode ini tercatat <strong style={{ color: '#047857' }} className="font-mono text-emerald-700">{pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`})</strong>, serta akumulasi realized profit 2026 terkunci aman di angka <strong style={{ color: '#0f172a' }} className="font-mono text-slate-900">{formatRupiah(totalRealizedProfit)}</strong>.
             </p>
           </div>
 
           {/* 4. EXECUTIVE KPI METRICS */}
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+            <h3 style={{ color: '#475569' }} className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
               Ringkasan Posisi & Kinerja Investasi
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -511,7 +601,7 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
             <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-sky-200">
               <div className="flex items-center gap-1.5">
                 <Building2 className="w-4 h-4 text-sky-700" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-sky-950">
+                <h3 style={{ color: '#082f49' }} className="text-xs font-black uppercase tracking-wider text-sky-950">
                   Intelijen Makroekonomi, Suku Bunga The Fed & Proyeksi SEP
                 </h3>
               </div>
@@ -645,11 +735,11 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
             <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-200">
               <div className="flex items-center gap-1.5">
                 <Target className="w-4 h-4 text-purple-700" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                <h3 style={{ color: '#0f172a' }} className="text-xs font-black uppercase tracking-wider text-slate-900">
                   Rekomendasi Koleksi Saham & Indeks Unggulan (Market Picks)
                 </h3>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200">
+              <span style={{ color: '#581c87' }} className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200">
                 Evaluasi 3 Pilar CFP
               </span>
             </div>
@@ -696,38 +786,38 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
                 <div key={pick.ticker + idx} className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col justify-between space-y-2">
                   <div>
                     <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="font-mono font-black text-sm text-purple-900">{pick.ticker}</span>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
+                      <span style={{ color: '#581c87' }} className="font-mono font-black text-sm text-purple-900">{pick.ticker}</span>
+                      <span style={{ color: '#6b21a8' }} className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
                         {pick.action}
                       </span>
                     </div>
-                    <div className="text-[11px] font-bold text-slate-900 leading-tight">{pick.name}</div>
-                    <div className="text-[9px] text-slate-500 mb-1.5">{pick.category} • Risiko: <strong>{pick.riskLevel}</strong></div>
+                    <div style={{ color: '#0f172a' }} className="text-[11px] font-bold text-slate-900 leading-tight">{pick.name}</div>
+                    <div style={{ color: '#64748b' }} className="text-[9px] text-slate-500 mb-1.5">{pick.category} • Risiko: <strong style={{ color: '#0f172a' }}>{pick.riskLevel}</strong></div>
 
                     <div className="space-y-1 text-[10px] leading-relaxed">
                       {pick.fairValueAnalysis && (
                         <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                          <strong className="text-purple-900 block text-[9px] uppercase">Fair Value & Valuasi:</strong>
-                          <span className="text-slate-700">{pick.fairValueAnalysis}</span>
+                          <strong style={{ color: '#581c87' }} className="text-purple-900 block text-[9px] uppercase">Fair Value & Valuasi:</strong>
+                          <span style={{ color: '#334155' }} className="text-slate-700">{pick.fairValueAnalysis}</span>
                         </div>
                       )}
                       {pick.fundamentalHighlights && (
                         <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                          <strong className="text-slate-800 block text-[9px] uppercase">Fundamental:</strong>
-                          <span className="text-slate-700">{pick.fundamentalHighlights}</span>
+                          <strong style={{ color: '#1e293b' }} className="text-slate-800 block text-[9px] uppercase">Fundamental:</strong>
+                          <span style={{ color: '#334155' }} className="text-slate-700">{pick.fundamentalHighlights}</span>
                         </div>
                       )}
                       {pick.monetaryFiscalSentiment && (
                         <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                          <strong className="text-sky-900 block text-[9px] uppercase">Sentimen Moneter The Fed:</strong>
-                          <span className="text-slate-700">{pick.monetaryFiscalSentiment}</span>
+                          <strong style={{ color: '#0c4a6e' }} className="text-sky-900 block text-[9px] uppercase">Sentimen Moneter The Fed:</strong>
+                          <span style={{ color: '#334155' }} className="text-slate-700">{pick.monetaryFiscalSentiment}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="pt-1.5 border-t border-slate-200 text-[9px] text-purple-950 font-medium italic">
-                    <strong>Saran Eksekusi:</strong> Alokasi DCA 20%-30% ({formatRupiah(totalDCA * 0.25)}) secara teratur.
+                  <div style={{ color: '#3b0764' }} className="pt-1.5 border-t border-slate-200 text-[9px] text-purple-950 font-medium italic">
+                    <strong style={{ color: '#3b0764' }}>Saran Eksekusi:</strong> Alokasi DCA 20%-30% ({formatRupiah(totalDCA * 0.25)}) secara teratur.
                   </div>
                 </div>
               ))}
@@ -736,34 +826,34 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
 
           {/* 7. REBALANCING & GLOBAL HEDGE SIGNALS */}
           <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
-            <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+            <h4 style={{ color: '#0f172a' }} className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider">
               <Activity className="w-4 h-4 text-purple-600" />
               Sinyal Rebalancing Taktis & Proteksi Valas
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] leading-relaxed text-slate-700">
               <div className="p-2.5 rounded-lg bg-white border border-slate-200">
-                <strong className="text-slate-900 block font-bold text-[10px] uppercase mb-0.5">
+                <strong style={{ color: '#0f172a' }} className="text-slate-900 block font-bold text-[10px] uppercase mb-0.5">
                   1. Peringatan Rebalancing:
                 </strong>
-                <p>
+                <p style={{ color: '#334155' }}>
                   Arahkan setoran DCA bulan berikutnya ke pos aset yang masih underweight (seperti saham/reksadana di Pluang). Hindari penjualan aset overweight yang dapat memicu pajak atau biaya transaksi.
                 </p>
               </div>
 
               <div className="p-2.5 rounded-lg bg-white border border-slate-200">
-                <strong className="text-slate-900 block font-bold text-[10px] uppercase mb-0.5">
+                <strong style={{ color: '#0f172a' }} className="text-slate-900 block font-bold text-[10px] uppercase mb-0.5">
                   2. Prioritas Alokasi Baru:
                 </strong>
-                <p>
+                <p style={{ color: '#334155' }}>
                   Posisi underweight merupakan instrumen target utama penyerapan modal baru untuk mengoptimalkan potensi imbal hasil majemuk tanpa mendistorsi profil risiko portofolio.
                 </p>
               </div>
 
               <div className="p-2.5 rounded-lg bg-white border border-slate-200">
-                <strong className="text-slate-900 block font-bold text-[10px] uppercase mb-0.5">
+                <strong style={{ color: '#0f172a' }} className="text-slate-900 block font-bold text-[10px] uppercase mb-0.5">
                   3. Ketahanan Lindung Nilai Valas ({usdHedgePct}%):
                 </strong>
-                <p>
+                <p style={{ color: '#334155' }}>
                   Porsi aset dalam mata uang kuat (USD/USDT) terbukti efektif memproteksi daya beli kekayaan bersih Anda dari depresiasi rupiah dan imported inflation.
                 </p>
               </div>
@@ -773,10 +863,10 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
           {/* 8. DETAIL BROKER & ASSET ALLOCATION AUDIT TABLE */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <h3 style={{ color: '#475569' }} className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Rincian Alokasi Per Broker & Status Diversifikasi
               </h3>
-              <span className="text-[11px] text-slate-600 font-medium">
+              <span style={{ color: '#475569' }} className="text-[11px] text-slate-600 font-medium">
                 Total Alokasi: 100%
               </span>
             </div>
@@ -856,10 +946,10 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
           {/* 9. HISTORICAL GROWTH & PERFORMANCE AUDIT */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <h3 style={{ color: '#475569' }} className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Riwayat Pertumbuhan Nilai & Rekap Realized Profit 2026
               </h3>
-              <span className="text-[11px] text-emerald-700 font-bold">
+              <span style={{ color: '#047857' }} className="text-[11px] text-emerald-700 font-bold">
                 Total Realized Profit YTD: {formatRupiah(totalRealizedProfit)}
               </span>
             </div>

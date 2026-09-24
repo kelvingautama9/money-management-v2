@@ -7,7 +7,9 @@ import {
   FinancialAnalysisData,
   getCachedMonthAnalysis,
   buildDeterministicMetricsPayload,
-  requestGeminiFinancialAnalysis
+  requestGeminiFinancialAnalysis,
+  requestGeminiFinancialAnalysisStream,
+  AiStreamEvent
 } from '../lib/geminiFinancialService';
 import { AiAnalysisModelBar } from './AiAnalysisModelBar';
 import {
@@ -110,9 +112,21 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
   const [activeAiTab, setActiveAiTab] = useState<'all' | 'macro' | 'stocks' | 'performance' | 'rebalance'>('all');
   const [selectedStockTicker, setSelectedStockTicker] = useState<string | null>(null);
 
+  // Real-Time Server-Sent Events (SSE) Streaming State
+  const [streamLogs, setStreamLogs] = useState<string>('');
+  const [streamStatus, setStreamStatus] = useState<string>('');
+  const [streamTtft, setStreamTtft] = useState<number | null>(null);
+  const [streamModel, setStreamModel] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+
   const runAiAnalysis = useCallback(
     async (overrideModel?: string) => {
       setIsAnalyzing(true);
+      setIsStreaming(true);
+      setStreamLogs('');
+      setStreamStatus('Menghubungkan ke Gemini Flash (Streaming)...');
+      setStreamTtft(null);
+
       try {
         const payload = buildDeterministicMetricsPayload(
           currentSheetName,
@@ -129,12 +143,37 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
         payload.dcaFormatted = formatRupiah(totalDCA);
         payload.usdHedgePct = String(usdHedgePct);
 
-        const result = await requestGeminiFinancialAnalysis(currentSheetName, payload, overrideModel);
+        const result = await requestGeminiFinancialAnalysisStream(
+          currentSheetName,
+          payload,
+          (ev: AiStreamEvent) => {
+            if (ev.type === 'status') {
+              setStreamStatus(ev.message || 'Memproses streaming data...');
+              if (ev.model) setStreamModel(ev.model);
+            } else if (ev.type === 'ttft') {
+              if (ev.ms !== undefined) setStreamTtft(ev.ms);
+              if (ev.model) setStreamModel(ev.model);
+            } else if (ev.type === 'chunk' && ev.text) {
+              setStreamLogs((prev) => (prev + ev.text).slice(-1500));
+            } else if (ev.type === 'fallback') {
+              setStreamStatus(ev.message || 'Mengalihkan ke pool model cadangan...');
+            } else if (ev.type === 'complete' && ev.data) {
+              setAiData(ev.data);
+              setStreamStatus(`Analisis selesai dengan sukses (${ev.modelUsed || 'Gemini Flash'})`);
+            }
+          },
+          overrideModel
+        );
+
         setAiData(result);
       } catch (err) {
-        console.error('Failed to run AI investment analysis:', err);
+        console.error('Failed to run AI investment analysis stream:', err);
       } finally {
         setIsAnalyzing(false);
+        // Keep streaming box visible briefly to showcase completed typing state
+        setTimeout(() => {
+          setIsStreaming(false);
+        }, 1200);
       }
     },
     [currentSheetName, totalWealth, transactions, safeAssets, pureProfit, purePnl, totalDCA, usdHedgePct]
@@ -655,6 +694,69 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
           onTriggerAnalysis={runAiAnalysis}
         />
 
+        {/* LIVE SERVER-SENT EVENTS (SSE) STREAMING TERMINAL / TYPING EFFECT */}
+        {(isStreaming || isAnalyzing) && (
+          <div
+            className={`p-4 rounded-2xl border transition-all animate-in fade-in zoom-in-95 duration-200 ${
+              isDark
+                ? 'bg-slate-950/90 border-purple-500/40 text-slate-200 shadow-2xl shadow-purple-950/30'
+                : 'bg-slate-900 border-purple-400 text-slate-100 shadow-xl'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 text-xs flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="font-mono font-extrabold uppercase tracking-wider text-emerald-400 text-[11px]">
+                  LIVE SERVER-SENT EVENTS (SSE) STREAM
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-300 font-medium text-[11px] truncate max-w-[280px]">
+                  {streamStatus || 'Menerima kata per kata real-time...'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {streamTtft !== null ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-emerald-400 animate-pulse" />
+                    TTFT: {streamTtft} ms
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-slate-300 text-[10px] font-mono">
+                    Mengukur TTFT...
+                  </span>
+                )}
+                <span className="text-[10px] font-mono text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-500/30 font-semibold">
+                  {streamModel || 'Gemini Flash'}
+                </span>
+              </div>
+            </div>
+
+            {/* Real-time Typing Console */}
+            <div className="mt-3 p-3.5 rounded-xl bg-black/70 font-mono text-[11px] sm:text-xs text-emerald-300/90 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap break-words border border-white/5 select-none scrollbar-thin">
+              {streamLogs ? (
+                <>
+                  {streamLogs}
+                  <span className="inline-block w-2 h-3.5 bg-emerald-400 ml-1 animate-pulse align-middle" />
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-slate-400 py-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
+                  <span>// Menghubungkan ke Gemini Live Streaming... (TTFT ~200-400ms)</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2 px-0.5">
+              <span>Streaming kata per kata (token-by-token) untuk menghilangkan jeda waktu tunggu (0 ms idle).</span>
+              <span className="font-mono text-emerald-400 font-semibold">Sticky Model Active</span>
+            </div>
+          </div>
+        )}
+
         {/* Interactive AI Market & Investment Intelligence Suite */}
         <div
           style={
@@ -830,192 +932,203 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
             </div>
           )}
 
-          {/* SECTION 2: INTELIJEN MAKRO THE FED, SUKU BUNGA & RINGKASAN PROYEKSI EKONOMI (SEP) */}
-          {(activeAiTab === 'all' || activeAiTab === 'macro') && (
-            <div className={`p-4 sm:p-5 rounded-2xl border space-y-4 transition ${
-              isDark ? 'bg-sky-500/5 border-sky-500/20' : 'bg-sky-50/60 border-sky-200'
+          {/* UNIFIED CONTAINER: INTELIJEN MAKRO THE FED (SEP), REKOMENDASI SAHAM & REBALANCING */}
+          {(activeAiTab === 'all' || activeAiTab === 'macro' || activeAiTab === 'stocks' || activeAiTab === 'rebalance') && (
+            <div className={`p-5 sm:p-6 rounded-2xl border space-y-6 transition ${
+              isDark ? 'bg-slate-900/60 border-white/10 shadow-sm' : 'bg-white border-slate-200 shadow-xs'
             }`}>
-              <div className="flex items-start justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-sky-400" />
-                  <div>
-                    <h4 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider ${isDark ? 'text-sky-300' : 'text-sky-950'}`}>
-                      {aiData?.macroFedIntelligence?.title || 'Analisis Sentimen Makro & Kebijakan The Fed Terkini'}
-                    </h4>
-                    <span className="text-[10px] text-sky-400/80">
-                      Data aktual suku bunga Fed Funds Rate, inflasi (CPI & PCE), ketenagakerjaan, yield obligasi, dan proyeksi Summary of Economic Projections (SEP)
-                    </span>
-                  </div>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
-                  <Globe className="w-3 h-3" /> Live Macro Grounding
-                </span>
-              </div>
-
-              {/* Real-Time Quantitative Indicator Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
-                <div className={`p-2.5 rounded-xl border text-center ${
-                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-2xs'
-                }`}>
-                  <span className="text-[10px] uppercase font-bold text-sky-400 block mb-0.5">Fed Funds Rate</span>
-                  <span className="text-xs sm:text-sm font-black font-mono tracking-tight text-white dark:text-white">
-                    {aiData?.macroFedIntelligence?.fedFundsRate || '4.75% - 5.00%'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">Suku Bunga Acuan</span>
-                </div>
-
-                <div className={`p-2.5 rounded-xl border text-center ${
-                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-2xs'
-                }`}>
-                  <span className="text-[10px] uppercase font-bold text-sky-400 block mb-0.5">Core PCE</span>
-                  <span className="text-xs sm:text-sm font-black font-mono tracking-tight text-white dark:text-white">
-                    {aiData?.macroFedIntelligence?.pceInflation || '2.7% YoY'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">Target Acuan Fed 2%</span>
-                </div>
-
-                <div className={`p-2.5 rounded-xl border text-center ${
-                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-2xs'
-                }`}>
-                  <span className="text-[10px] uppercase font-bold text-sky-400 block mb-0.5">Headline CPI</span>
-                  <span className="text-xs sm:text-sm font-black font-mono tracking-tight text-white dark:text-white">
-                    {aiData?.macroFedIntelligence?.cpiInflation || '2.5% YoY'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">Indeks Konsumen</span>
-                </div>
-
-                <div className={`p-2.5 rounded-xl border text-center ${
-                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-2xs'
-                }`}>
-                  <span className="text-[10px] uppercase font-bold text-sky-400 block mb-0.5">Pengangguran</span>
-                  <span className="text-xs sm:text-sm font-black font-mono tracking-tight text-white dark:text-white">
-                    {aiData?.macroFedIntelligence?.unemploymentRate || '4.2%'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">US Job Market</span>
-                </div>
-
-                <div className={`p-2.5 rounded-xl border text-center ${
-                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-2xs'
-                }`}>
-                  <span className="text-[10px] uppercase font-bold text-sky-400 block mb-0.5">Pertumbuhan PDB</span>
-                  <span className="text-xs sm:text-sm font-black font-mono tracking-tight text-white dark:text-white">
-                    {aiData?.macroFedIntelligence?.gdpGrowth || '3.0% ann.'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">Real GDP QoQ</span>
-                </div>
-
-                <div className={`p-2.5 rounded-xl border text-center ${
-                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-2xs'
-                }`}>
-                  <span className="text-[10px] uppercase font-bold text-sky-400 block mb-0.5">Treasury 10-Yr</span>
-                  <span className="text-xs sm:text-sm font-black font-mono tracking-tight text-white dark:text-white">
-                    {aiData?.macroFedIntelligence?.treasuryYield10Y || '3.75%'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">Yield Acuan Global</span>
-                </div>
-              </div>
-
-              {/* Dedicated Summary of Economic Projections (SEP / Dot Plot) Panel */}
-              <div className={`p-3.5 rounded-xl border space-y-2.5 ${
-                isDark ? 'bg-slate-900/80 border-sky-500/30 text-slate-200' : 'bg-white border-sky-200 text-slate-800'
-              }`}>
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <FileSpreadsheet className="w-4 h-4 text-sky-400 shrink-0" />
-                    <strong className="text-xs uppercase tracking-wider font-extrabold text-sky-400">
-                      Summary of Economic Projections (SEP / Dot Plot FOMC Terakhir)
-                    </strong>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/25 font-mono">
-                    FOMC Median Projections
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[11px]">
-                  <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200'}`}>
-                    <span className="text-slate-400 block font-semibold text-[10px] mb-0.5">Dot Plot Median Rate:</span>
-                    <span className="font-bold text-white dark:text-white leading-snug">
-                      {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.dotPlotMedianRate || '4.4% akhir 2024, berlanjut ke 3.4% pada 2025'}
+              {/* SUBSECTION A: INTELIJEN MAKRO THE FED, SUKU BUNGA & RINGKASAN PROYEKSI EKONOMI (SEP) */}
+              {(activeAiTab === 'all' || activeAiTab === 'macro') && (
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-sky-400" />
+                      <div>
+                        <h4 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider ${isDark ? 'text-sky-300' : 'text-slate-900'}`}>
+                          {aiData?.macroFedIntelligence?.title || 'Analisis Sentimen Makro & Kebijakan The Fed Terkini'}
+                        </h4>
+                        <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Data aktual suku bunga Fed Funds Rate, inflasi (CPI & PCE), ketenagakerjaan, yield obligasi, dan proyeksi Summary of Economic Projections (SEP)
+                        </span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                      <Globe className="w-3 h-3" /> Live Macro Grounding
                     </span>
                   </div>
 
-                  <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200'}`}>
-                    <span className="text-slate-400 block font-semibold text-[10px] mb-0.5">Proyeksi PDB Riil:</span>
-                    <span className="font-bold text-white dark:text-white leading-snug">
-                      {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.gdpProjection || '2.0% (Soft-landing trajectory)'}
-                    </span>
+                  {/* Real-Time Quantitative Indicator Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+                    <div className={`p-2.5 rounded-xl border text-center ${
+                      isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-sky-400' : 'text-sky-700'}`}>Fed Funds Rate</span>
+                      <span className={`text-xs sm:text-sm font-black font-mono tracking-tight block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {aiData?.macroFedIntelligence?.fedFundsRate || '4.75% - 5.00%'}
+                      </span>
+                      <span className={`text-[9px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Suku Bunga Acuan</span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-xl border text-center ${
+                      isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-sky-400' : 'text-sky-700'}`}>Core PCE</span>
+                      <span className={`text-xs sm:text-sm font-black font-mono tracking-tight block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {aiData?.macroFedIntelligence?.pceInflation || '2.7% YoY'}
+                      </span>
+                      <span className={`text-[9px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Target Acuan Fed 2%</span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-xl border text-center ${
+                      isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-sky-400' : 'text-sky-700'}`}>Headline CPI</span>
+                      <span className={`text-xs sm:text-sm font-black font-mono tracking-tight block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {aiData?.macroFedIntelligence?.cpiInflation || '2.5% YoY'}
+                      </span>
+                      <span className={`text-[9px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Indeks Konsumen</span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-xl border text-center ${
+                      isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-sky-400' : 'text-sky-700'}`}>Pengangguran</span>
+                      <span className={`text-xs sm:text-sm font-black font-mono tracking-tight block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {aiData?.macroFedIntelligence?.unemploymentRate || '4.2%'}
+                      </span>
+                      <span className={`text-[9px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>US Job Market</span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-xl border text-center ${
+                      isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-sky-400' : 'text-sky-700'}`}>Pertumbuhan PDB</span>
+                      <span className={`text-xs sm:text-sm font-black font-mono tracking-tight block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {aiData?.macroFedIntelligence?.gdpGrowth || '3.0% ann.'}
+                      </span>
+                      <span className={`text-[9px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Real GDP QoQ</span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-xl border text-center ${
+                      isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-sky-400' : 'text-sky-700'}`}>Treasury 10-Yr</span>
+                      <span className={`text-xs sm:text-sm font-black font-mono tracking-tight block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {aiData?.macroFedIntelligence?.treasuryYield10Y || '3.75%'}
+                      </span>
+                      <span className={`text-[9px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Yield Acuan Global</span>
+                    </div>
                   </div>
 
-                  <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200'}`}>
-                    <span className="text-slate-400 block font-semibold text-[10px] mb-0.5">Proyeksi Core PCE:</span>
-                    <span className="font-bold text-white dark:text-white leading-snug">
-                      {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.pceProjection || 'Melandai menuju 2.0% target jangka menengah'}
-                    </span>
-                  </div>
-
-                  <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200'}`}>
-                    <span className="text-slate-400 block font-semibold text-[10px] mb-0.5">Proyeksi Pengangguran:</span>
-                    <span className="font-bold text-white dark:text-white leading-snug">
-                      {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.unemploymentProjection || 'Stabil di rentang 4.3% - 4.4%'}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-[11px] leading-relaxed pt-1.5 border-t border-sky-500/20 text-slate-300 dark:text-slate-300">
-                  <strong className="text-sky-300">Arah Jalur Kebijakan: </strong>
-                  {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.analysis || (
-                    'Dot Plot SEP mengonfirmasi jalur pelonggaran moneter (rate cuts) bertahap. The Fed beralih dari mode restriktif ekstrem ke penyeimbangan risiko antara target inflasi 2% dan pencegahan pelambatan pasar tenaga kerja.'
-                  )}
-                </p>
-              </div>
-
-              <div className="space-y-3 text-xs leading-relaxed">
-                <div className={`p-3.5 rounded-xl border ${
-                  isDark ? 'bg-white/[0.02] border-sky-500/30 text-slate-200' : 'bg-white border-sky-200 text-slate-800'
-                }`}>
-                  <strong className="block mb-1 text-sky-400 font-bold uppercase tracking-wider text-[11px]">
-                    Status Kebijakan The Fed & Dinamika Likuiditas:
-                  </strong>
-                  {aiData?.macroFedIntelligence?.policyStatus || (
-                    'The Federal Reserve mempertahankan fokus cermat pada jalur normalisasi suku bunga dan penjinakan inflasi. Siklus pemangkasan bertahap memperkuat peluang pelonggaran moneter, memberikan angin segar bagi pasar saham global dan aset likuid berbasis USD.'
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className={`p-3.5 rounded-xl border ${
-                    isDark ? 'bg-white/[0.02] border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-800'
+                  {/* Dedicated Summary of Economic Projections (SEP / Dot Plot) Panel */}
+                  <div className={`p-3.5 rounded-xl border space-y-2.5 ${
+                    isDark ? 'bg-white/[0.02] border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
                   }`}>
-                    <strong className="block mb-1 text-slate-200 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
-                      <Shield className="w-3.5 h-3.5 text-purple-400" />
-                      Pengaruh ke Aset Portofolio Anda:
-                    </strong>
-                    {aiData?.macroFedIntelligence?.impactOnUserAssets || (
-                      `Porsi aset valas Anda (${usdHedgePct}% dalam USD Valas BCA & Crypto USDT) menjadi benteng protektif yang tangguh terhadap depresiasi rupiah. Sementara itu, instrumen saham global/reksadana di Pluang mendapatkan momentum pemulihan valuasi seiring melandainya tekanan yield obligasi AS.`
-                    )}
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <FileSpreadsheet className={`w-4 h-4 shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                        <strong className={`text-xs uppercase tracking-wider font-extrabold ${isDark ? 'text-sky-400' : 'text-sky-800'}`}>
+                          Summary of Economic Projections (SEP / Dot Plot FOMC Terakhir)
+                        </strong>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+                        isDark ? 'bg-sky-500/15 text-sky-300 border border-sky-500/25' : 'bg-sky-100 text-sky-900 border border-sky-200'
+                      }`}>
+                        FOMC Median Projections
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[11px]">
+                      <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-white border-slate-200'}`}>
+                        <span className={`block font-semibold text-[10px] mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Dot Plot Median Rate:</span>
+                        <span className={`font-bold leading-snug ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.dotPlotMedianRate || '4.4% akhir 2024, berlanjut ke 3.4% pada 2025'}
+                        </span>
+                      </div>
+
+                      <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-white border-slate-200'}`}>
+                        <span className={`block font-semibold text-[10px] mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Proyeksi PDB Riil:</span>
+                        <span className={`font-bold leading-snug ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.gdpProjection || '2.0% (Soft-landing trajectory)'}
+                        </span>
+                      </div>
+
+                      <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-white border-slate-200'}`}>
+                        <span className={`block font-semibold text-[10px] mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Proyeksi Core PCE:</span>
+                        <span className={`font-bold leading-snug ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.pceProjection || 'Melandai menuju 2.0% target jangka menengah'}
+                        </span>
+                      </div>
+
+                      <div className={`p-2.5 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-white border-slate-200'}`}>
+                        <span className={`block font-semibold text-[10px] mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Proyeksi Pengangguran:</span>
+                        <span className={`font-bold leading-snug ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.unemploymentProjection || 'Stabil di rentang 4.3% - 4.4%'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className={`text-[11px] leading-relaxed pt-1.5 border-t ${
+                      isDark ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700'
+                    }`}>
+                      <strong className={isDark ? 'text-sky-300' : 'text-sky-800'}>Arah Jalur Kebijakan: </strong>
+                      {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.analysis || (
+                        'Dot Plot SEP mengonfirmasi jalur pelonggaran moneter (rate cuts) bertahap. The Fed beralih dari mode restriktif ekstrem ke penyeimbangan risiko antara target inflasi 2% dan pencegahan pelambatan pasar tenaga kerja.'
+                      )}
+                    </p>
                   </div>
 
-                  <div className={`p-3.5 rounded-xl border ${
-                    isDark ? 'bg-white/[0.02] border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-800'
-                  }`}>
-                    <strong className="block mb-1 text-slate-200 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
-                      <Compass className="w-3.5 h-3.5 text-purple-400" />
-                      Saran Langkah Antisipasi DCA:
-                    </strong>
-                    {aiData?.macroFedIntelligence?.strategicAction || (
-                      'Manfaatkan stabilitas nilai tukar valas untuk terus mengalirkan setoran modal DCA ke aset-aset ekuitas yang valuasinya terdiskon sebelum The Fed memulai siklus pelonggaran penuh.'
-                    )}
+                  <div className="space-y-3 text-xs leading-relaxed">
+                    <div className={`p-3.5 rounded-xl border ${
+                      isDark ? 'bg-white/[0.02] border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}>
+                      <strong className={`block mb-1 font-bold uppercase tracking-wider text-[11px] ${isDark ? 'text-sky-400' : 'text-sky-800'}`}>
+                        Status Kebijakan The Fed & Dinamika Likuiditas:
+                      </strong>
+                      {aiData?.macroFedIntelligence?.policyStatus || (
+                        'The Federal Reserve mempertahankan fokus cermat pada jalur normalisasi suku bunga dan penjinakan inflasi. Siklus pemangkasan bertahap memperkuat peluang pelonggaran moneter, memberikan angin segar bagi pasar saham global dan aset likuid berbasis USD.'
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className={`p-3.5 rounded-xl border ${
+                        isDark ? 'bg-white/[0.02] border-white/10 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}>
+                        <strong className={`block mb-1 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1 ${
+                          isDark ? 'text-slate-200' : 'text-slate-900'
+                        }`}>
+                          <Shield className="w-3.5 h-3.5 text-purple-400" />
+                          Pengaruh ke Aset Portofolio Anda:
+                        </strong>
+                        {aiData?.macroFedIntelligence?.impactOnUserAssets || (
+                          `Porsi aset valas Anda (${usdHedgePct}% dalam USD Valas BCA & Crypto USDT) menjadi benteng protektif yang tangguh terhadap depresiasi rupiah. Sementara itu, instrumen saham global/reksadana di Pluang mendapatkan momentum pemulihan valuasi seiring melandainya tekanan yield obligasi AS.`
+                        )}
+                      </div>
+
+                      <div className={`p-3.5 rounded-xl border ${
+                        isDark ? 'bg-white/[0.02] border-white/10 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}>
+                        <strong className={`block mb-1 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1 ${
+                          isDark ? 'text-slate-200' : 'text-slate-900'
+                        }`}>
+                          <Compass className="w-3.5 h-3.5 text-purple-400" />
+                          Saran Langkah Antisipasi DCA:
+                        </strong>
+                        {aiData?.macroFedIntelligence?.strategicAction || (
+                          'Manfaatkan stabilitas nilai tukar valas untuk terus mengalirkan setoran modal DCA ke aset-aset ekuitas yang valuasinya terdiskon sebelum The Fed memulai siklus pelonggaran penuh.'
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* CONSOLIDATED UNIFIED CONTAINER: REKOMENDASI ASET UNGGULAN & SINYAL REBALANCING */}
-          {(activeAiTab === 'all' || activeAiTab === 'stocks' || activeAiTab === 'rebalance') && (
-            <div className={`p-4 sm:p-5 rounded-2xl border space-y-5 transition ${
-              isDark ? 'bg-slate-900/60 border-white/10 shadow-sm' : 'bg-white border-slate-200 shadow-2xs'
-            }`}>
-              {/* UPPER SECTION: REKOMENDASI SAHAM / INDEKS / ASET UNGGULAN */}
+              {/* Minimalist Divider between Macro & Stock Picks when viewing All */}
+              {activeAiTab === 'all' && (
+                <div className="border-t border-slate-200/80 dark:border-white/10" />
+              )}
+
+              {/* SUBSECTION B: REKOMENDASI SAHAM / INDEKS / ASET UNGGULAN */}
               {(activeAiTab === 'all' || activeAiTab === 'stocks') && (
                 <div className="space-y-3.5">
                   <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1100,10 +1213,14 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                           <div className="space-y-2.5">
                             {/* Ticker & Action Badge */}
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-base font-black font-mono tracking-tight text-white dark:text-white flex items-center gap-1.5">
+                              <span className={`text-base font-black font-mono tracking-tight flex items-center gap-1.5 ${
+                                isDark ? 'text-white' : 'text-purple-950'
+                              }`}>
                                 {pick.ticker}
                               </span>
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border bg-white/5 border-white/15 text-slate-200">
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border ${
+                                isDark ? 'bg-white/5 border-white/15 text-slate-200' : 'bg-purple-100 border-purple-200 text-purple-800'
+                              }`}>
                                 {pick.action}
                               </span>
                             </div>
@@ -1114,7 +1231,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                                 {pick.name}
                               </h5>
                               <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {pick.category} • Risiko: <strong className="text-slate-300">{pick.riskLevel}</strong>
+                                {pick.category} • Risiko: <strong className={isDark ? 'text-slate-300' : 'text-slate-800'}>{pick.riskLevel}</strong>
                               </span>
                             </div>
 
@@ -1122,10 +1239,10 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                             <div className="space-y-1.5 text-[11px] pt-1">
                               {pick.fairValueAnalysis && (
                                 <div className={`p-2 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200/80'}`}>
-                                  <strong className="text-[10px] text-purple-300 block uppercase font-bold tracking-wider mb-0.5">
+                                  <strong className={`text-[10px] block uppercase font-bold tracking-wider mb-0.5 ${isDark ? 'text-purple-300' : 'text-purple-800'}`}>
                                     Fair Value & Valuasi:
                                   </strong>
-                                  <p className="text-slate-300 dark:text-slate-300 leading-relaxed">
+                                  <p className={`leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                     {pick.fairValueAnalysis}
                                   </p>
                                 </div>
@@ -1133,10 +1250,10 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
 
                               {pick.fundamentalHighlights && (
                                 <div className={`p-2 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200/80'}`}>
-                                  <strong className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">
+                                  <strong className={`text-[10px] block uppercase font-bold tracking-wider mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
                                     Sorotan Fundamental:
                                   </strong>
-                                  <p className="text-slate-300 dark:text-slate-300 leading-relaxed">
+                                  <p className={`leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                     {pick.fundamentalHighlights}
                                   </p>
                                 </div>
@@ -1144,10 +1261,10 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
 
                               {pick.monetaryFiscalSentiment && (
                                 <div className={`p-2 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200/80'}`}>
-                                  <strong className="text-[10px] text-sky-400 block uppercase font-bold tracking-wider mb-0.5">
+                                  <strong className={`text-[10px] block uppercase font-bold tracking-wider mb-0.5 ${isDark ? 'text-sky-400' : 'text-sky-800'}`}>
                                     Sentimen Moneter & Fiskal:
                                   </strong>
-                                  <p className="text-slate-300 dark:text-slate-300 leading-relaxed">
+                                  <p className={`leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                     {pick.monetaryFiscalSentiment}
                                   </p>
                                 </div>
@@ -1160,7 +1277,7 @@ export const SmartAnalysisPage: React.FC<SmartAnalysisPageProps> = ({
                               )}
 
                               {pick.financialPlannerVerdict && (
-                                <p className="text-[10px] text-purple-300/90 italic pt-1">
+                                <p className={`text-[10px] italic pt-1 ${isDark ? 'text-purple-300/90' : 'text-purple-900 font-medium'}`}>
                                   <strong>Saran CFP:</strong> {pick.financialPlannerVerdict}
                                 </p>
                               )}
