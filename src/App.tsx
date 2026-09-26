@@ -64,6 +64,7 @@ import { InvestmentPortfolio } from './components/InvestmentPortfolio';
 import { AccountBalancesCard } from './components/AccountBalancesCard';
 import { TransactionManager } from './components/TransactionManager';
 import { GlassSettingsModal } from './components/GlassSettingsModal';
+import { ApiKeyModal } from './components/ApiKeyModal';
 import { AutomatedReportModal } from './components/AutomatedReportModal';
 import { SmartAnalysisModal } from './components/SmartAnalysisModal';
 import { GlassMenuPopup } from './components/GlassMenuPopup';
@@ -114,6 +115,7 @@ export default function App() {
   });
   const isDark = glassSettings.themeMode === 'dark' || glassSettings.themeMode === 'midnight';
   const [isGlassModalOpen, setIsGlassModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSmartAnalysisOpen, setIsSmartAnalysisOpen] = useState(false);
   const [isMenuPopupOpen, setIsMenuPopupOpen] = useState(false);
@@ -1950,6 +1952,7 @@ export default function App() {
                         onAddBudget={handleAddBudget}
                         onEditBudget={handleEditBudget}
                         onDeleteBudget={handleDeleteBudget}
+                        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
                       />
 
                       {/* Spending vs Envelope Detailed Insight */}
@@ -2046,8 +2049,11 @@ export default function App() {
                         transactions={transactions}
                         budgets={budgets}
                         emergencyFund={emergencyFund}
+                        assets={assets}
+                        totalInvestment={totalInvestment}
                         currentSheetName={sheetName}
                         onBack={() => setActivePage('summary')}
+                        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
                       />
                     </div>
                   )}
@@ -2063,6 +2069,7 @@ export default function App() {
                         currentSheetName={sheetName}
                         transactions={transactions}
                         onBack={() => setActivePage('portfolio')}
+                        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
                       />
                     </div>
                   )}
@@ -2122,6 +2129,14 @@ export default function App() {
         onClose={() => setIsGlassModalOpen(false)}
         settings={glassSettings}
         onUpdateSettings={setGlassSettings}
+        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+      />
+
+      {/* 3-in-1 Gemini API Key & Vercel Management Modal */}
+      <ApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        settings={glassSettings}
       />
 
       {/* Automated Financial Report Modal */}
@@ -2174,6 +2189,7 @@ export default function App() {
         onUpdateSheetName={(name) => handleSaveProjectConfig(spreadsheetId, name)}
         onSyncNow={handleSyncFromSheets}
         onPushToSheet={handlePushAllToSheet}
+        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
       />
 
       {/* Google Sheets Project Sync Manager Modal */}

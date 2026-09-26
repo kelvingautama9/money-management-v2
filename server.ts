@@ -15,16 +15,29 @@ const port = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
-// Initialized with required User-Agent header
-const apiKey = process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({
-  apiKey,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build'
+// 3-in-1 Gemini Client resolver:
+// 1. User manual import key from UI (x-gemini-api-key header or body)
+// 2. Server environment key (GEMINI_API_KEY from AI Studio / Cloud Run)
+// 3. Vercel environment variables (VERCEL_GEMINI_API_KEY or VITE_GEMINI_API_KEY)
+export function getGeminiClient(customApiKey?: string): GoogleGenAI {
+  const effectiveKey =
+    (typeof customApiKey === 'string' && customApiKey.trim().length > 0 ? customApiKey.trim() : null) ||
+    process.env.GEMINI_API_KEY ||
+    process.env.VERCEL_GEMINI_API_KEY ||
+    process.env.VITE_GEMINI_API_KEY ||
+    '';
+  return new GoogleGenAI({
+    apiKey: effectiveKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build'
+      }
     }
-  }
-});
+  });
+}
+
+// Default fallback client
+const ai = getGeminiClient();
 
 // Curated reliable fallback models
 const FALLBACK_FLASH_MODELS = [
@@ -149,9 +162,11 @@ function parseGeminiJson(rawText: string) {
 
 function buildFinancialAnalysisPrompt(monthName: string, metrics: any) {
   return `
-Anda adalah seorang Senior Chief Investment Officer (CIO), Certified Financial Planner (CFP), dan Global Macro Strategist terkemuka.
-Lakukan audit mendalam dan to-the-point terhadap portofolio investasi dan keuangan user periode ${monthName} 2026.
+Anda adalah seorang Senior Chief Investment Officer (CIO) dan Certified Financial Planner (CFP) terkemuka.
+Lakukan analisis mendalam, to-the-point, dan berbasis data real-time terhadap investasi dan portofolio user periode ${monthName} 2026.
 Tampilkan data angka aktual dan analisis terstruktur tanpa kata pengantar klise atau basa-basi bertele-tele.
+
+SAAT MEMBERIKAN REKOMENDASI SAHAM/ASET, ANDA WAJIB MENCARI DATA TERBARU DAN REAL-TIME (live market price, konsensus fair value analis terkini, forward P/E, rasio fundamental).
 
 DATA PORTOFOLIO & KEUANGAN USER (100% Deterministik):
 - Total Aset Bersih: ${metrics.totalAsetFormatted || 'Rp 54.148.790'}
@@ -165,53 +180,36 @@ DATA PORTOFOLIO & KEUANGAN USER (100% Deterministik):
 - Posisi Dana Darurat: ${metrics.emergencyFundFormatted || 'Rp 436.550'} / Target ${metrics.emergencyTargetFormatted || 'Rp 12.000.000'} (${metrics.emergencyPct || '3.6'}%)
 - Lindung Nilai Valas (USD & USDT): ${metrics.usdHedgePct || '67.4'}%
 
-INSTRUKSI ANALISIS CEPAT & TO THE POINT:
-1. MAKROEKONOMI & THE FED TERKINI (Sertakan angka aktual):
-   - Fed Funds Rate (4.75% - 5.00% atau level terkini), Core PCE, Headline CPI, US Unemployment Rate, GDP Growth, US 10-Yr Treasury Yield.
-   - **WAJIB:** DATA SUMMARY OF ECONOMIC PROJECTIONS (SEP / DOT PLOT) FOMC TERAKHIR:
-     * Dot Plot Median Rate
-     * Proyeksi Real GDP
-     * Proyeksi Core PCE
-     * Proyeksi Unemployment
-     * Arah jalur kebijakan moneter The Fed
-   - Analisis dampak ke portofolio user: USD Valas BCA (${metrics.usdHedgePct || '67.4'}%), Crypto USDT, dan Pluang.
+FOKUS UTAMA ANALISIS:
+1. DIAGNOSA PERFORMA & KUALITAS PERTUMBUHAN INVESTASI (Mendalam & To-The-Point):
+   - Evaluasi tajam return murni pasar (${metrics.pureProfitFormatted || '+Rp 1.148.790'}) vs setoran modal mandiri DCA (${metrics.dcaFormatted || 'Rp 2.016.286'}).
+   - Analisis disiplin pemisahan injeksi modal baru dengan keuntungan organik pasar.
+   - Prospek pertumbuhan jangka panjang (compound interest trajectory) dan ketahanan alokasi aset.
 
-2. REKOMENDASI 3 KOLEKSI SAHAM & INDEKS UNGGULAN:
-   - Sesuaikan secara adaptif dengan portofolio user (overweight valas, crypto tinggi, Pluang moderat).
-   - Berikan 3 pilihan instrumen terbaik (misal GOOGL, VOO, SCHD atau alternatif bernilai tinggi).
-   - Setiap aset WAJIB dianalisis dalam 3 pilar:
-     a) Fair Value: Estimasi valuasi, Forward P/E vs historis, diskon/margin of safety.
-     b) Fundamental: Pertumbuhan revenue, margin laba, kas bersih & FCF.
-     c) Sentimen Moneter/Fiskal: Daya tahan terhadap siklus suku bunga The Fed.
+2. REKOMENDASI 3 KOLEKSI SAHAM & INDEKS UNGGULAN (MARKET PICKS):
+   - Wajib cari data TERBARU dan REAL TIME untuk harga pasar dan konsensus fair value.
+   - Berikan 3 rekomendasi instrumen terbaik (misalnya GOOGL, VOO, SCHD atau instrumen unggulan lainnya).
+   - Setiap aset WAJIB mencakup:
+     a) Fair Value: Cantumkan harga pasar saat ini (currentPrice), estimasi harga wajar (fairValue), status valuasi (undervalued/overvalued/fairly_valued), dan over/under berapa % dari harga wajarnya (valuationDiscountPct, contoh: 'Undervalued 15.0% dari Fair Value' atau 'Overvalued 4.2%'), serta analisis fair value yang to-the-point.
+     b) Fundamental: Angka dan metrik fundamental riil terbaru (pertumbuhan pendapatan YoY, margin laba, forward P/E, free cash flow, neraca kas vs utang).
+     c) Saran Porsi Investasi: Rekomendasi porsi alokasi yang jelas (contoh: '20% - 25% dari alokasi DCA bulanan' atau 'Porsi 10% dari portofolio investasi').
+     d) Perkiraan Jangka Waktu Investasi: Klasifikasi jangka waktu (Short Term / Mid Term / Long Term) dengan durasi konkret (berapa minggu, bulan, atau tahun, contoh: 'Long Term (2 - 5 tahun)', 'Mid Term (6 - 12 bulan)', 'Short Term (4 - 8 minggu)').
+     e) Action, Catalyst, dan Financial Planner Verdict: Ringkasan opini eksekusi to-the-point CFP.
 
-3. KELUARAN: HANYA format JSON valid tanpa teks di luar kurung kurawal.
+3. SINYAL REBALANCING TAKTIS & PROTEKSI VALAS:
+   - Sinyal rebalancing tanpa cut-profit (arahkan DCA ke aset underweight seperti Pluang).
+   - Ketahanan lindung nilai valas (${metrics.usdHedgePct || '67.4'}%).
 
-FORMAT JSON OUTPUT WAJIB:
+4. AUDIT KEUANGAN (Efisiensi tabungan, kontrol anggaran, prioritas dana darurat).
+
+KELUARAN:
+HANYA format JSON valid di dalam blok \`\`\`json ... \`\`\` tanpa teks di luar blok:
 \`\`\`json
 {
   "portfolioPerformance": {
     "performanceVerdict": "Evaluasi padat return murni vs setoran DCA.",
     "pureVsDcaAnalysis": "Analisis pemisahan modal baru DCA (${metrics.dcaFormatted || 'Rp 2.016.286'}) vs profit pasar murni (${metrics.pureProfitFormatted || '+Rp 1.148.790'}).",
-    "growthOutlook": "Pandangan pertumbuhan jangka panjang."
-  },
-  "macroFedIntelligence": {
-    "title": "Analisis Sentimen Makro & Kebijakan The Fed Terkini",
-    "fedFundsRate": "4.75% - 5.00%",
-    "cpiInflation": "2.5% YoY",
-    "pceInflation": "Core PCE 2.7% YoY",
-    "unemploymentRate": "4.2%",
-    "gdpGrowth": "3.0% annualized",
-    "treasuryYield10Y": "3.75%",
-    "summaryOfEconomicProjections": {
-      "dotPlotMedianRate": "4.4% akhir 2024, berlanjut ke 3.4% pada 2025",
-      "gdpProjection": "2.0% (Soft-landing trajectory)",
-      "pceProjection": "Melandai menuju 2.0% target jangka menengah",
-      "unemploymentProjection": "Stabil di rentang 4.3% - 4.4%",
-      "analysis": "Dot Plot SEP mengonfirmasi jalur pelonggaran moneter (rate cuts) bertahap dari The Fed."
-    },
-    "policyStatus": "Status kebijakan suku bunga The Fed dan likuiditas global terkini.",
-    "impactOnUserAssets": "Dampak terhadap USD Valas BCA (${metrics.usdHedgePct || '67.4'}%), Crypto USDT, dan Pluang.",
-    "strategicAction": "Saran langkah taktis alokasi DCA bulanan."
+    "growthOutlook": "Pandangan pertumbuhan jangka panjang dan compound interest trajectory."
   },
   "recommendedStockPicks": [
     {
@@ -219,9 +217,16 @@ FORMAT JSON OUTPUT WAJIB:
       "name": "Alphabet Inc.",
       "category": "Big Tech / AI Infrastructure",
       "action": "Akumulasi DCA",
-      "fairValueAnalysis": "Forward P/E ~20.5x dengan diskon margin of safety ~22% terhadap konsensus analis.",
-      "fundamentalHighlights": "Pertumbuhan Google Cloud +29% YoY, margin operasional 32%, neraca kas sangat kuat.",
-      "monetaryFiscalSentiment": "Siklus rate cut The Fed menurunkan biaya modal korporasi dan mengerek kelipatan valuasi.",
+      "currentPrice": "$178.50",
+      "fairValue": "$210.00",
+      "valuationDiscountPct": "Undervalued 15.0% dari Fair Value",
+      "valuationStatus": "undervalued",
+      "fairValueAnalysis": "Forward P/E ~20.5x, berada 15% di bawah estimasi fair value konsensus ($210), margin of safety solid.",
+      "fundamental": "Pertumbuhan Google Cloud +29% YoY, margin operasional 32%, free cash flow tahunan >$60 Miliar, neraca kas sangat kuat.",
+      "investmentPortion": "20% - 25% dari alokasi DCA bulanan",
+      "timeHorizon": "Long Term (2 - 5 tahun)",
+      "timeHorizonType": "long_term",
+      "timeHorizonDuration": "2 - 5 tahun",
       "catalyst": "Monetisasi infrastruktur AI enterprise Gemini dan dominasi Search.",
       "riskLevel": "Moderat",
       "financialPlannerVerdict": "Pilar pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia."
@@ -231,9 +236,16 @@ FORMAT JSON OUTPUT WAJIB:
       "name": "Vanguard S&P 500 ETF",
       "category": "Indeks Pasar Luas AS",
       "action": "Koleksi Bertahap",
-      "fairValueAnalysis": "Trading pada forward P/E ~21x dengan rasio Sharpe historis 0.85.",
-      "fundamentalHighlights": "Expense ratio 0.03%, agregat ROE konstituen >18%, diversifikasi 500 emiten teratas.",
-      "monetaryFiscalSentiment": "Didukung proyeksi soft-landing SEP The Fed dan ketahanan ekonomi broad-market.",
+      "currentPrice": "$525.00",
+      "fairValue": "$560.00",
+      "valuationDiscountPct": "Undervalued 6.25% dari Fair Value",
+      "valuationStatus": "undervalued",
+      "fairValueAnalysis": "Trading pada forward P/E ~21x dengan rasio Sharpe historis 0.85, menawarkan diskon valuasi moderat terhadap target indeks.",
+      "fundamental": "Expense ratio ultra-rendah 0.03%, agregat ROE konstituen >18%, diversifikasi 500 emiten teratas AS.",
+      "investmentPortion": "40% - 50% dari alokasi DCA bulanan",
+      "timeHorizon": "Long Term (3 - 10 tahun)",
+      "timeHorizonType": "long_term",
+      "timeHorizonDuration": "3 - 10 tahun",
       "catalyst": "Fondasi inti penyerap DCA rutin dengan risiko kejatuhan emiten tunggal minimal.",
       "riskLevel": "Rendah",
       "financialPlannerVerdict": "Pilar utama portofolio untuk menyerap akumulasi DCA jangka panjang."
@@ -243,9 +255,16 @@ FORMAT JSON OUTPUT WAJIB:
       "name": "Schwab U.S. Dividend Equity ETF",
       "category": "Kualitas Dividen & Defensif",
       "action": "Koleksi Bertahap",
-      "fairValueAnalysis": "Dividend yield ~3.4% dengan P/E ~16.2x, valuasi defensif diskon.",
-      "fundamentalHighlights": "Menyaring emiten dengan rekam jejak dividen bertumbuh 10 tahun berturut-turut.",
-      "monetaryFiscalSentiment": "Diuntungkan saat yield US Treasury melandai, memicu rotasi ke saham dividen stabil.",
+      "currentPrice": "$82.00",
+      "fairValue": "$92.00",
+      "valuationDiscountPct": "Undervalued 10.8% dari Fair Value",
+      "valuationStatus": "undervalued",
+      "fairValueAnalysis": "Dividend yield ~3.4% dengan P/E ~16.2x, valuasi defensif diskon ~11% di bawah fair value industri.",
+      "fundamental": "Menyaring emiten dengan rekam jejak dividen bertumbuh 10 tahun berturut-turut, debt-to-equity sehat, dan ROE konsisten.",
+      "investmentPortion": "15% - 20% dari alokasi DCA bulanan",
+      "timeHorizon": "Mid to Long Term (1 - 3 tahun)",
+      "timeHorizonType": "mid_term",
+      "timeHorizonDuration": "1 - 3 tahun",
       "catalyst": "Arus kas dividen pasif teratur dan beta lebih rendah (0.78) penangkal volatilitas.",
       "riskLevel": "Rendah",
       "financialPlannerVerdict": "Penyeimbang ideal porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi."
@@ -279,7 +298,7 @@ FORMAT JSON OUTPUT WAJIB:
       "text": "Posisi dana darurat saat ini mencapai ${metrics.emergencyPct || '3.6'}% (${metrics.emergencyFundFormatted || 'Rp 436.550'} dari target ${metrics.emergencyTargetFormatted || 'Rp 12.000.000'})."
     }
   },
-  "executiveSummaryNarrative": "Audit keuangan periode ${monthName} menunjukkan kinerja surplus yang sehat dengan sinergi investasi yang positif menghadapi dinamika makro global."
+  "executiveSummaryNarrative": "Audit investasi periode ${monthName} menunjukkan kinerja surplus yang sehat dengan return murni pasar yang solid dan momentum akumulasi DCA yang terukur."
 }
 \`\`\`
 `;
@@ -292,46 +311,41 @@ function getDeterministicFallback(monthName: string, metrics: any) {
       pureVsDcaAnalysis: `Setoran modal mandiri (DCA) bulan ini sebesar ${metrics?.dcaFormatted || 'Rp 2.016.286'} dialokasikan murni sebagai setoran modal baru, terpisah secara disiplin dari return keuntungan organik pasar.`,
       growthOutlook: 'Disiplin akumulasi rutin memperkokoh daya ungkit majemuk (compound interest) portofolio Anda secara terukur.'
     },
-    macroFedIntelligence: {
-      title: 'Analisis Sentimen Makro & Kebijakan The Fed Terkini',
-      fedFundsRate: '4.75% - 5.00%',
-      cpiInflation: '2.5% YoY',
-      pceInflation: 'Core PCE 2.7% YoY',
-      unemploymentRate: '4.2%',
-      gdpGrowth: '3.0% annualized',
-      treasuryYield10Y: '3.75%',
-      summaryOfEconomicProjections: {
-        dotPlotMedianRate: 'Median FFR 4.4% akhir 2024, berlanjut ke 3.4% pada 2025',
-        gdpProjection: '2.0% (Soft-landing trajectory)',
-        pceProjection: 'Melandai menuju 2.0% target jangka menengah',
-        unemploymentProjection: 'Stabil di rentang 4.3% - 4.4%',
-        analysis: 'Dot Plot SEP mengonfirmasi jalur pelonggaran moneter (rate cuts) bertahap dari The Fed.'
-      },
-      policyStatus: 'The Federal Reserve memulai siklus pelonggaran moneter dengan pemangkasan suku bunga acuan ke rentang 4.75%-5.00%. Data Summary of Economic Projections (SEP) terbaru mengindikasikan tambahan pemangkasan gradual seiring melandainya inflasi PCE mendekati target 2%.',
-      impactOnUserAssets: `Porsi lindung nilai valas Anda (${metrics?.usdHedgePct || '67.4'}% dalam USD Valas BCA & Crypto USDT) memberikan kestabilan modal di tengah fluktuasi nilai tukar Rupiah. Siklus penurunan Fed Funds Rate menguntungkan instrumen ekuitas dan reksadana di Pluang karena ekspansi kelipatan valuasi.`,
-      strategicAction: 'Manfaatkan stabilitas likuiditas valas untuk mengarahkan setoran DCA bulanan ke instrumen ekuitas bertaraf global yang memiliki diskon fair value dan neraca kas sehat.'
-    },
     recommendedStockPicks: [
       {
         ticker: 'GOOGL',
         name: 'Alphabet Inc.',
         category: 'Big Tech / AI & Cloud Infrastructure',
         action: 'Akumulasi DCA',
-        fairValueAnalysis: 'Forward P/E ~20.5x, berada di bawah rata-rata historis 5 tahun (24.8x). Konsensus analis mematok fair value di kisaran $200-$210, mencerminkan margin of safety ~22%.',
-        fundamentalHighlights: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional mencapai 32%, dan free cash flow tahunan melampaui $60 Miliar.',
-        monetaryFiscalSentiment: 'Siklus pemangkasan suku bunga The Fed menurunkan biaya modal korporasi dan mendorong ekspansi valuasi saham teknologi berfundamental prima.',
-        catalyst: 'Monetisasi infrastruktur AI enterprise Gemini dan ketahanan luar biasa pendapatan periklanan digital Search & YouTube.',
+        currentPrice: '$178.50',
+        fairValue: '$210.00',
+        valuationDiscountPct: 'Undervalued 15.0% dari Fair Value',
+        valuationStatus: 'undervalued',
+        fairValueAnalysis: 'Forward P/E ~20.5x, berada 15.0% di bawah estimasi konsensus fair value ($210), memberikan margin of safety solid.',
+        fundamental: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional 32%, free cash flow tahunan melampaui $60 Miliar, neraca kas tanpa utang berlebih.',
+        investmentPortion: '20% - 25% dari alokasi DCA bulanan',
+        timeHorizon: 'Long Term (2 - 5 tahun)',
+        timeHorizonType: 'long_term',
+        timeHorizonDuration: '2 - 5 tahun',
+        catalyst: 'Monetisasi infrastruktur AI enterprise Gemini dan dominasi Search & Cloud komputasi.',
         riskLevel: 'Moderat',
-        financialPlannerVerdict: 'Kandidat ideal untuk alokasi porsi pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia.'
+        financialPlannerVerdict: 'Kandidat ideal untuk pilar pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia.'
       },
       {
         ticker: 'VOO',
         name: 'Vanguard S&P 500 ETF',
         category: 'Indeks Pasar Luas AS',
         action: 'Koleksi Bertahap',
-        fairValueAnalysis: 'Trading pada forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85. Menyajikan imbal hasil majemuk historis rata-rata 10.2% per tahun.',
-        fundamentalHighlights: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat emiten konstituen di atas 18%, dan diversifikasi ke 500 korporasi terbesar AS.',
-        monetaryFiscalSentiment: 'Didukung oleh proyeksi soft-landing ekonomi AS dalam rilis SEP The Fed terbaru dan pertumbuhan laba emiten broad-market.',
+        currentPrice: '$525.00',
+        fairValue: '$560.00',
+        valuationDiscountPct: 'Undervalued 6.25% dari Fair Value',
+        valuationStatus: 'undervalued',
+        fairValueAnalysis: 'Trading pada forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85, menawarkan diskon valuasi moderat terhadap target indeks.',
+        fundamental: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat konstituen >18%, diversifikasi ke 500 korporasi terbesar AS.',
+        investmentPortion: '40% - 50% dari alokasi DCA bulanan',
+        timeHorizon: 'Long Term (3 - 10 tahun)',
+        timeHorizonType: 'long_term',
+        timeHorizonDuration: '3 - 10 tahun',
         catalyst: 'Eksposur pasar luas yang melindungi dari risiko kejatuhan saham individual, sangat ideal sebagai fondasi inti (core holding).',
         riskLevel: 'Rendah',
         financialPlannerVerdict: 'Pilar utama portofolio untuk menyerap akumulasi DCA jangka panjang dengan risiko struktural minimal.'
@@ -341,12 +355,19 @@ function getDeterministicFallback(monthName: string, metrics: any) {
         name: 'Schwab U.S. Dividend Equity ETF',
         category: 'Kualitas Dividen & Defensif',
         action: 'Koleksi Bertahap',
-        fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi signifikan dibandingkan indeks teknologi berbobot tinggi.',
-        fundamentalHighlights: 'Menyaring 100 perusahaan dengan rekam jejak pembayaran dividen minimal 10 tahun berturut-turut, cash flow-to-debt sehat, dan ROE tinggi.',
-        monetaryFiscalSentiment: 'Diuntungkan saat imbal hasil obligasi US Treasury menurun, memicu rotasi aliran dana institusional ke saham dividen berimbal hasil stabil.',
-        catalyst: 'Kombinasi pendapatan dividen pasif teratur dan volatilitas beta yang lebih rendah (0.78) menghadapi koreksi pasar makro.',
+        currentPrice: '$82.00',
+        fairValue: '$92.00',
+        valuationDiscountPct: 'Undervalued 10.8% dari Fair Value',
+        valuationStatus: 'undervalued',
+        fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi defensif ~11% di bawah valuasi historis.',
+        fundamental: 'Menyaring 100 perusahaan dengan rekam jejak pembayaran dividen minimal 10 tahun berturut-turut, debt-to-equity sehat, dan ROE konsisten.',
+        investmentPortion: '15% - 20% dari alokasi DCA bulanan',
+        timeHorizon: 'Mid to Long Term (1 - 3 tahun)',
+        timeHorizonType: 'mid_term',
+        timeHorizonDuration: '1 - 3 tahun',
+        catalyst: 'Kombinasi pendapatan dividen pasif teratur dan volatilitas beta yang lebih rendah (0.78) penangkal gejolak pasar.',
         riskLevel: 'Rendah',
-        financialPlannerVerdict: 'Sangat cocok untuk diversifikasi penyeimbang porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi.'
+        financialPlannerVerdict: 'Penyeimbang ideal porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi.'
       }
     ],
     investmentAudit: {
@@ -377,7 +398,108 @@ function getDeterministicFallback(monthName: string, metrics: any) {
         text: `Posisi dana darurat saat ini mencapai ${metrics?.emergencyPct || '3.6'}% (${metrics?.emergencyFundFormatted || 'Rp 436.550'} dari target ${metrics?.emergencyTargetFormatted || 'Rp 12.000.000'}).`
       }
     },
-    executiveSummaryNarrative: `Audit keuangan periode ${monthName} menunjukkan kinerja surplus yang sehat dengan sinergi investasi yang positif menghadapi dinamika makro global.`
+    executiveSummaryNarrative: `Audit investasi periode ${monthName} menunjukkan kinerja surplus yang sehat dengan return murni pasar yang solid dan momentum akumulasi DCA yang terukur.`
+  };
+}
+
+function mergeFinancialAnalysisWithFallback(parsed: any, monthName: string, metrics: any) {
+  const fallback = getDeterministicFallback(monthName, metrics);
+  if (!parsed || typeof parsed !== 'object') return fallback;
+
+  const rawPerf = parsed.portfolioPerformance || parsed.portfolio_performance || parsed.performaPortofolio || {};
+  const normalizedPerf = {
+    performanceVerdict: rawPerf.performanceVerdict || rawPerf.performance_verdict || rawPerf.verdict || fallback.portfolioPerformance.performanceVerdict,
+    pureVsDcaAnalysis: rawPerf.pureVsDcaAnalysis || rawPerf.pure_vs_dca_analysis || rawPerf.pureReturnAnalysis || fallback.portfolioPerformance.pureVsDcaAnalysis,
+    growthOutlook: rawPerf.growthOutlook || rawPerf.growth_outlook || rawPerf.outlook || fallback.portfolioPerformance.growthOutlook,
+  };
+
+  // Normalize stock picks with deep real-time fair value, fundamental, portion, and time horizon data
+  const rawPicks = Array.isArray(parsed.recommendedStockPicks) && parsed.recommendedStockPicks.length > 0
+    ? parsed.recommendedStockPicks
+    : Array.isArray(parsed.marketPicks) && parsed.marketPicks.length > 0
+    ? parsed.marketPicks
+    : fallback.recommendedStockPicks;
+
+  const normalizedPicks = rawPicks.map((pick: any, idx: number) => {
+    const fb = fallback.recommendedStockPicks[idx] || fallback.recommendedStockPicks[0];
+    const ticker = pick.ticker || fb.ticker;
+    const name = pick.name || fb.name;
+    const category = pick.category || fb.category;
+    const action = pick.action || fb.action;
+    const currentPrice = pick.currentPrice || pick.price || pick.livePrice || fb.currentPrice;
+    const fairValue = pick.fairValue || pick.intrinsicValue || pick.targetPrice || fb.fairValue;
+    const valuationDiscountPct = pick.valuationDiscountPct || pick.discountPct || pick.valuationDiscount || fb.valuationDiscountPct;
+    const valuationStatus = pick.valuationStatus || (valuationDiscountPct?.toLowerCase().includes('over') ? 'overvalued' : 'undervalued');
+    const fairValueAnalysis = pick.fairValueAnalysis || pick.valuationAnalysis || fb.fairValueAnalysis;
+    const fundamental = pick.fundamental || pick.fundamentalHighlights || fb.fundamental;
+    const investmentPortion = pick.investmentPortion || pick.saranPorsi || pick.portion || fb.investmentPortion;
+    const timeHorizon = pick.timeHorizon || pick.jangkaWaktu || fb.timeHorizon;
+    const timeHorizonType = pick.timeHorizonType || (timeHorizon?.toLowerCase().includes('short') ? 'short_term' : timeHorizon?.toLowerCase().includes('mid') ? 'mid_term' : 'long_term');
+    const timeHorizonDuration = pick.timeHorizonDuration || (timeHorizon?.match(/\(([^)]+)\)/)?.[1] || fb.timeHorizonDuration);
+    const catalyst = pick.catalyst || fb.catalyst;
+    const riskLevel = pick.riskLevel || fb.riskLevel;
+    const financialPlannerVerdict = pick.financialPlannerVerdict || pick.verdictCFP || fb.financialPlannerVerdict;
+
+    return {
+      ticker,
+      name,
+      category,
+      action,
+      currentPrice,
+      fairValue,
+      valuationDiscountPct,
+      valuationStatus,
+      fairValueAnalysis,
+      fundamental,
+      fundamentalHighlights: fundamental,
+      investmentPortion,
+      timeHorizon,
+      timeHorizonType,
+      timeHorizonDuration,
+      catalyst,
+      riskLevel,
+      financialPlannerVerdict
+    };
+  });
+
+  return {
+    ...fallback,
+    ...parsed,
+    portfolioPerformance: normalizedPerf,
+    financialAudit: {
+      ...fallback.financialAudit,
+      ...(parsed.financialAudit || {}),
+      savingsEfficiency: {
+        ...fallback.financialAudit?.savingsEfficiency,
+        ...(parsed.financialAudit?.savingsEfficiency || {})
+      },
+      budgetControl: {
+        ...fallback.financialAudit?.budgetControl,
+        ...(parsed.financialAudit?.budgetControl || {})
+      },
+      emergencyFundPriority: {
+        ...fallback.financialAudit?.emergencyFundPriority,
+        ...(parsed.financialAudit?.emergencyFundPriority || {})
+      }
+    },
+    investmentAudit: {
+      ...fallback.investmentAudit,
+      ...(parsed.investmentAudit || {}),
+      rebalancingAlert: {
+        ...fallback.investmentAudit?.rebalancingAlert,
+        ...(parsed.investmentAudit?.rebalancingAlert || {})
+      },
+      newAllocationPriority: {
+        ...fallback.investmentAudit?.newAllocationPriority,
+        ...(parsed.investmentAudit?.newAllocationPriority || {})
+      },
+      globalHedgeResilience: {
+        ...fallback.investmentAudit?.globalHedgeResilience,
+        ...(parsed.investmentAudit?.globalHedgeResilience || {})
+      }
+    },
+    recommendedStockPicks: normalizedPicks,
+    executiveSummaryNarrative: parsed.executiveSummaryNarrative || fallback.executiveSummaryNarrative
   };
 }
 
@@ -386,8 +508,11 @@ function getDeterministicFallback(monthName: string, metrics: any) {
  * Dynamically queries Google AI Studio API for available models.
  * Automatically discovers any newly released Flash models from Google in real time!
  */
-app.get('/api/gemini/models', async (_req: Request, res: Response) => {
+app.get('/api/gemini/models', async (req: Request, res: Response) => {
   try {
+    const userKey = (req.headers['x-gemini-api-key'] as string) || (req.query?.apiKey as string);
+    const client = getGeminiClient(userKey);
+
     const modelList: Array<{
       id: string;
       name: string;
@@ -400,7 +525,7 @@ app.get('/api/gemini/models', async (_req: Request, res: Response) => {
     }> = [];
 
     try {
-      const remoteList = await ai.models.list();
+      const remoteList = await client.models.list();
       for await (const m of remoteList) {
         const rawName = (m.name || '').toLowerCase();
         // Filter strictly for Flash text models, excluding specialized media models
@@ -497,6 +622,94 @@ app.get('/api/gemini/models', async (_req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/gemini/key-status
+ * Checks availability of 3-in-1 keys without exposing private strings.
+ */
+app.get('/api/gemini/key-status', (_req: Request, res: Response) => {
+  const serverKey = process.env.GEMINI_API_KEY || '';
+  const vercelKey = process.env.VERCEL_GEMINI_API_KEY || '';
+  const hasServerKey = Boolean(serverKey && serverKey.trim().length > 0);
+  const hasVercelKey = Boolean(vercelKey && vercelKey.trim().length > 0);
+
+  const activeKey = serverKey || vercelKey;
+  const masked = activeKey.length > 8
+    ? `${activeKey.slice(0, 6)}...${activeKey.slice(-4)}`
+    : (activeKey ? '••••••••' : '');
+
+  res.json({
+    success: true,
+    hasServerKey: hasServerKey || hasVercelKey,
+    serverKeyMasked: masked,
+    isVercelEnv: Boolean(process.env.VERCEL),
+    defaultSource: hasServerKey ? 'ai_studio_server' : (hasVercelKey ? 'vercel_env' : 'none')
+  });
+});
+
+/**
+ * POST /api/gemini/validate-key
+ * Realtime connectivity and quota verification for user-imported or server Gemini API keys.
+ */
+app.post('/api/gemini/validate-key', async (req: Request, res: Response) => {
+  const startTime = Date.now();
+  const inputKey = (req.headers['x-gemini-api-key'] as string) || req.body?.apiKey;
+  const effectiveKey = (inputKey && inputKey.trim()) || process.env.GEMINI_API_KEY || process.env.VERCEL_GEMINI_API_KEY || '';
+
+  if (!effectiveKey) {
+    return res.status(400).json({
+      valid: false,
+      message: 'Belum ada API Key yang dimasukkan atau dikonfigurasi di server.'
+    });
+  }
+
+  try {
+    const testClient = new GoogleGenAI({
+      apiKey: effectiveKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+    });
+
+    // Test with the ultra-lightweight gemini-2.5-flash-lite or gemini-3.5-flash
+    const testResp = await testClient.models.generateContent({
+      model: 'gemini-2.5-flash-lite',
+      contents: 'Ping: reply with 1 word "OK".',
+      config: {
+        maxOutputTokens: 5,
+        temperature: 0.1
+      }
+    });
+
+    const elapsedMs = Date.now() - startTime;
+    const masked = effectiveKey.length > 8
+      ? `${effectiveKey.slice(0, 6)}...${effectiveKey.slice(-4)}`
+      : '••••••••';
+
+    return res.json({
+      valid: true,
+      keyMasked: masked,
+      source: inputKey ? 'custom_user' : (process.env.VERCEL ? 'vercel_env' : 'server_env'),
+      elapsedMs,
+      message: `API Key Google Gemini Valid! Respons diterima dalam ${elapsedMs}ms.`,
+      responseText: (testResp.text || 'OK').trim()
+    });
+  } catch (err: any) {
+    const status = err?.status || err?.statusCode || 500;
+    const msg = String(err?.message || '').toLowerCase();
+    const isQuota = status === 429 || msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted');
+    const isInvalid = status === 400 || status === 403 || msg.includes('api key not valid') || msg.includes('permission');
+
+    return res.status(status === 429 ? 429 : 400).json({
+      valid: false,
+      isQuota,
+      status,
+      message: isQuota
+        ? 'API Key terdeteksi VALID, namun kuota gratis (Free Tier) sedang mencapai batas limit (429 Quota Exceeded). Coba beberapa saat lagi atau ganti model Flash lain.'
+        : isInvalid
+        ? 'API Key Ditolak oleh Google: Format salah atau key tidak aktif di Google AI Studio.'
+        : `Gagal menghubungi Google Gemini: ${err?.message || 'Error tidak diketahui'}`
+    });
+  }
+});
+
+/**
  * POST /api/gemini/analyze-stream
  * Server-Sent Events (SSE / Streaming Response)
  * Real-time streaming token-by-token (TTFT ~200-400ms) with typing effect,
@@ -522,8 +735,12 @@ app.post('/api/gemini/analyze-stream', async (req: Request, res: Response) => {
     monthName = 'SEPTEMBER',
     metrics,
     preferredModel,
-    autoFallback = true
+    autoFallback = true,
+    customApiKey
   } = req.body || {};
+
+  const userKey = (req.headers['x-gemini-api-key'] as string) || customApiKey;
+  const aiClient = getGeminiClient(userKey);
 
   if (!metrics) {
     sendEvent({ type: 'error', message: 'Missing financial metrics payload' });
@@ -567,20 +784,34 @@ app.post('/api/gemini/analyze-stream', async (req: Request, res: Response) => {
     try {
       sendEvent({
         type: 'status',
-        message: `Menghubungkan ke ${modelToAttempt} (Sticky Healthy Model)...`,
+        message: `Menghubungkan ke ${modelToAttempt} (Mencari data real-time via Google Search)...`,
         model: modelToAttempt,
         stickyModel: stickyHealthyModel,
         step: 'connecting'
       });
 
-      const stream = await ai.models.generateContentStream({
-        model: modelToAttempt,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.15
-        }
-      });
+      let stream;
+      try {
+        stream = await aiClient.models.generateContentStream({
+          model: modelToAttempt,
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            temperature: 0.2,
+            maxOutputTokens: 8192
+          }
+        });
+      } catch (searchToolErr: any) {
+        console.warn(`[AI Stream] Search tool fallback on ${modelToAttempt}:`, searchToolErr?.message);
+        stream = await aiClient.models.generateContentStream({
+          model: modelToAttempt,
+          contents: prompt,
+          config: {
+            temperature: 0.2,
+            maxOutputTokens: 8192
+          }
+        });
+      }
 
       let accumulated = '';
       let firstTokenMs = 0;
@@ -606,11 +837,12 @@ app.post('/api/gemini/analyze-stream', async (req: Request, res: Response) => {
       }
 
       const parsed = parseGeminiJson(accumulated);
-      if (parsed && (parsed.macroFedIntelligence || parsed.investmentAudit)) {
+      if (parsed) {
+        const enriched = mergeFinancialAnalysisWithFallback(parsed, monthName, metrics);
         markModelHealthy(modelToAttempt);
         sendEvent({
           type: 'complete',
-          data: parsed,
+          data: enriched,
           modelUsed: modelToAttempt,
           fallbackOccurred: modelToAttempt !== priorityStart,
           elapsedMs: Date.now() - startTime,
@@ -659,8 +891,12 @@ app.post('/api/gemini/analyze', async (req: Request, res: Response) => {
     monthName = 'SEPTEMBER',
     metrics,
     preferredModel,
-    autoFallback = true
-  } = req.body;
+    autoFallback = true,
+    customApiKey
+  } = req.body || {};
+
+  const userKey = (req.headers['x-gemini-api-key'] as string) || customApiKey;
+  const aiClient = getGeminiClient(userKey);
 
   if (!metrics) {
     return res.status(400).json({ error: 'Missing financial metrics payload' });
@@ -688,18 +924,33 @@ app.post('/api/gemini/analyze', async (req: Request, res: Response) => {
   for (const modelToAttempt of (autoFallback ? modelsToTry : [priorityStart])) {
     try {
       usedModel = modelToAttempt;
-      const directResponse = await ai.models.generateContent({
-        model: modelToAttempt,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.15
-        }
-      });
+      let directResponse;
+      try {
+        directResponse = await aiClient.models.generateContent({
+          model: modelToAttempt,
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            temperature: 0.2,
+            maxOutputTokens: 8192
+          }
+        });
+      } catch (toolErr: any) {
+        console.warn(`[AI Sync] Search tool fallback on ${modelToAttempt}:`, toolErr?.message);
+        directResponse = await aiClient.models.generateContent({
+          model: modelToAttempt,
+          contents: prompt,
+          config: {
+            temperature: 0.2,
+            maxOutputTokens: 8192
+          }
+        });
+      }
 
       const responseText = directResponse.text || '';
-      successfulResult = parseGeminiJson(responseText);
-      if (successfulResult && (successfulResult.macroFedIntelligence || successfulResult.investmentAudit)) {
+      const rawParsed = parseGeminiJson(responseText);
+      if (rawParsed) {
+        successfulResult = mergeFinancialAnalysisWithFallback(rawParsed, monthName, metrics);
         markModelHealthy(modelToAttempt);
         fallbackOccurred = modelToAttempt !== priorityStart;
         break;
@@ -860,8 +1111,12 @@ app.post('/api/gemini/analyze-budget-envelopes', async (req: Request, res: Respo
     budgetItems = [],
     summaryMetrics = {},
     preferredModel,
-    autoFallback = true
+    autoFallback = true,
+    customApiKey
   } = req.body || {};
+
+  const userKey = (req.headers['x-gemini-api-key'] as string) || customApiKey;
+  const aiClient = getGeminiClient(userKey);
 
   if (!budgetItems || budgetItems.length === 0) {
     return res.status(400).json({ error: 'Missing budgetItems' });
@@ -889,7 +1144,7 @@ app.post('/api/gemini/analyze-budget-envelopes', async (req: Request, res: Respo
   for (const modelToAttempt of (autoFallback ? modelsToTry : [priorityStart])) {
     try {
       usedModel = modelToAttempt;
-      const response = await ai.models.generateContent({
+      const response = await aiClient.models.generateContent({
         model: modelToAttempt,
         contents: prompt,
         config: {
@@ -959,8 +1214,12 @@ app.post('/api/gemini/analyze-budget-stream', async (req: Request, res: Response
     budgetItems = [],
     summaryMetrics = {},
     preferredModel,
-    autoFallback = true
+    autoFallback = true,
+    customApiKey
   } = req.body || {};
+
+  const userKey = (req.headers['x-gemini-api-key'] as string) || customApiKey;
+  const aiClient = getGeminiClient(userKey);
 
   if (!budgetItems || budgetItems.length === 0) {
     sendEvent({ type: 'error', message: 'Missing budgetItems payload' });
@@ -1003,7 +1262,7 @@ app.post('/api/gemini/analyze-budget-stream', async (req: Request, res: Response
         stickyModel: stickyHealthyModel
       });
 
-      const stream = await ai.models.generateContentStream({
+      const stream = await aiClient.models.generateContentStream({
         model: modelToAttempt,
         contents: prompt,
         config: {
@@ -1100,4 +1359,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start standalone HTTP server if not running as a Vercel serverless function
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;

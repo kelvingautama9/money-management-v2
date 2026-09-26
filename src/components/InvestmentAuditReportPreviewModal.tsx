@@ -22,17 +22,17 @@ import {
   Activity,
   CheckCircle2,
   Info,
-  Building2,
   Globe,
   Target,
   Zap,
   Compass,
-  FileSpreadsheet,
   Scale,
   Landmark,
   Percent,
   ArrowUpRight,
-  Shield
+  Shield,
+  Clock,
+  PieChart
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -596,141 +596,7 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
             </div>
           </div>
 
-          {/* 5. MACRO THE FED & SEP PROJECTIONS SECTION */}
-          <div className="p-3.5 rounded-xl border border-sky-200 bg-sky-50/40 space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-sky-200">
-              <div className="flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-sky-700" />
-                <h3 style={{ color: '#082f49' }} className="text-xs font-black uppercase tracking-wider text-sky-950">
-                  Intelijen Makroekonomi, Suku Bunga The Fed & Proyeksi SEP
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-200/80 text-sky-900 border border-sky-300">
-                FOMC Grounded Data
-              </span>
-            </div>
-
-            {/* 6 Real Quantitative Indicators */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
-              <div className="p-2 rounded-lg bg-white border border-sky-200">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Fed Funds Rate</span>
-                <strong className="font-mono text-xs block text-slate-900 mt-0.5">
-                  {aiData?.macroFedIntelligence?.fedFundsRate || '4.75% - 5.00%'}
-                </strong>
-                <span className="text-[8px] text-slate-500">Suku Bunga Acuan</span>
-              </div>
-
-              <div className="p-2 rounded-lg bg-white border border-sky-200">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Core PCE</span>
-                <strong className="font-mono text-xs block text-slate-900 mt-0.5">
-                  {aiData?.macroFedIntelligence?.pceInflation || '2.7% YoY'}
-                </strong>
-                <span className="text-[8px] text-slate-500">Target Fed 2%</span>
-              </div>
-
-              <div className="p-2 rounded-lg bg-white border border-sky-200">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Headline CPI</span>
-                <strong className="font-mono text-xs block text-slate-900 mt-0.5">
-                  {aiData?.macroFedIntelligence?.cpiInflation || '2.5% YoY'}
-                </strong>
-                <span className="text-[8px] text-slate-500">Indeks Konsumen</span>
-              </div>
-
-              <div className="p-2 rounded-lg bg-white border border-sky-200">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Pengangguran</span>
-                <strong className="font-mono text-xs block text-slate-900 mt-0.5">
-                  {aiData?.macroFedIntelligence?.unemploymentRate || '4.2%'}
-                </strong>
-                <span className="text-[8px] text-slate-500">Pasar Tenaga Kerja</span>
-              </div>
-
-              <div className="p-2 rounded-lg bg-white border border-sky-200">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">PDB Riil</span>
-                <strong className="font-mono text-xs block text-slate-900 mt-0.5">
-                  {aiData?.macroFedIntelligence?.gdpGrowth || '3.0% ann.'}
-                </strong>
-                <span className="text-[8px] text-slate-500">Real GDP Growth</span>
-              </div>
-
-              <div className="p-2 rounded-lg bg-white border border-sky-200">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Treasury 10-Yr</span>
-                <strong className="font-mono text-xs block text-slate-900 mt-0.5">
-                  {aiData?.macroFedIntelligence?.treasuryYield10Y || '3.75%'}
-                </strong>
-                <span className="text-[8px] text-slate-500">Risk-Free Rate</span>
-              </div>
-            </div>
-
-            {/* Summary of Economic Projections (SEP / Dot Plot) */}
-            <div className="p-2.5 rounded-lg bg-white border border-sky-200 text-[11px] space-y-1.5">
-              <div className="flex items-center justify-between">
-                <strong className="text-sky-900 font-bold uppercase tracking-wide text-[10px] flex items-center gap-1">
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-sky-600" />
-                  Ringkasan Proyeksi Ekonomi (Summary of Economic Projections - SEP FOMC):
-                </strong>
-                <span className="text-[9px] font-mono text-sky-800">FOMC Median Forecast</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
-                <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block">Dot Plot Median:</span>
-                  <strong className="text-slate-900">
-                    {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.dotPlotMedianRate || '4.4% akhir 2024, 3.4% 2025'}
-                  </strong>
-                </div>
-                <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block">Proyeksi PDB Riil:</span>
-                  <strong className="text-slate-900">
-                    {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.gdpProjection || '2.0% (Soft-landing)'}
-                  </strong>
-                </div>
-                <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block">Proyeksi Core PCE:</span>
-                  <strong className="text-slate-900">
-                    {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.pceProjection || 'Melandai menuju 2.0% target'}
-                  </strong>
-                </div>
-                <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block">Proyeksi Pengangguran:</span>
-                  <strong className="text-slate-900">
-                    {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.unemploymentProjection || 'Stabil di 4.3% - 4.4%'}
-                  </strong>
-                </div>
-              </div>
-              <p className="text-[10px] text-slate-700 leading-snug">
-                <strong>Arah Jalur Kebijakan: </strong>
-                {aiData?.macroFedIntelligence?.summaryOfEconomicProjections?.analysis || (
-                  'Dot Plot SEP mengonfirmasi jalur pemangkasan suku bunga bertahap. The Fed beralih dari pengetatan moneter agresif menuju penyeimbangan risiko antara target inflasi 2% dan pencegahan pelambatan tenaga kerja.'
-                )}
-              </p>
-            </div>
-
-            {/* Macro Impact on Portfolio Assets */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              <div className="p-2.5 rounded-lg bg-white border border-slate-200">
-                <strong className="text-slate-900 block font-bold mb-0.5 text-[10px] uppercase">
-                  Pengaruh ke Aset Portofolio Anda:
-                </strong>
-                <p className="text-slate-600 leading-snug">
-                  {aiData?.macroFedIntelligence?.impactOnUserAssets || (
-                    `Porsi aset valas Anda (${usdHedgePct}% dalam USD Valas BCA & Crypto USDT) menjadi benteng protektif dari depresiasi rupiah. Instrumen ekuitas global/reksadana di Pluang mendapatkan katalis ekspansi valuasi seiring melandainya yield obligasi AS.`
-                  )}
-                </p>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-white border border-slate-200">
-                <strong className="text-slate-900 block font-bold mb-0.5 text-[10px] uppercase">
-                  Saran Antisipasi DCA:
-                </strong>
-                <p className="text-slate-600 leading-snug">
-                  {aiData?.macroFedIntelligence?.strategicAction || (
-                    'Manfaatkan stabilitas nilai tukar valas untuk terus mengalirkan setoran modal DCA ke aset-aset ekuitas yang valuasinya terdiskon sebelum The Fed memulai siklus pelonggaran penuh.'
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* 6. RECOMMENDED STOCK PICKS (3-PILLAR CFP ANALYSIS) */}
+          {/* 5. RECOMMENDED STOCK PICKS (MARKET PICKS: REAL-TIME FAIR VALUE & FUNDAMENTAL) */}
           <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-200">
               <div className="flex items-center gap-1.5">
@@ -739,8 +605,9 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
                   Rekomendasi Koleksi Saham & Indeks Unggulan (Market Picks)
                 </h3>
               </div>
-              <span style={{ color: '#581c87' }} className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200">
-                Evaluasi 3 Pilar CFP
+              <span style={{ color: '#581c87' }} className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200 flex items-center gap-1">
+                <Globe className="w-3 h-3 text-purple-600" />
+                Live Real-Time Market Picks
               </span>
             </div>
 
@@ -753,20 +620,38 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
                       name: 'Alphabet Inc.',
                       category: 'Big Tech / AI & Cloud Infrastructure',
                       action: 'Akumulasi DCA',
-                      fairValueAnalysis: 'Forward P/E ~20.5x, berada di bawah rata-rata historis 5 tahun (24.8x). Konsensus analis mematok fair value di $200-$210 (Margin of safety ~22%).',
-                      fundamentalHighlights: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional 32%, dan free cash flow tahunan melampaui $60 Miliar.',
-                      monetaryFiscalSentiment: 'Siklus pemangkasan suku bunga The Fed menurunkan biaya modal korporasi dan mendorong ekspansi valuasi saham teknologi prima.',
+                      currentPrice: '$178.50',
+                      fairValue: '$210.00',
+                      valuationDiscountPct: 'Undervalued 15.0% dari Fair Value',
+                      valuationStatus: 'undervalued',
+                      fairValueAnalysis: 'Forward P/E ~20.5x, berada 15.0% di bawah estimasi konsensus analis ($210), margin of safety solid.',
+                      fundamental: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional 32%, free cash flow tahunan melampaui $60 Miliar, neraca kas prima.',
+                      fundamentalHighlights: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional 32%, free cash flow tahunan melampaui $60 Miliar.',
+                      investmentPortion: '20% - 25% dari alokasi DCA',
+                      timeHorizon: 'Long Term (2 - 5 tahun)',
+                      timeHorizonType: 'long_term',
+                      timeHorizonDuration: '2 - 5 tahun',
+                      catalyst: 'Monetisasi infrastruktur AI enterprise Gemini dan dominasi Google Cloud.',
                       riskLevel: 'Moderat',
-                      financialPlannerVerdict: 'Kandidat ideal untuk alokasi porsi pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia.'
+                      financialPlannerVerdict: 'Kandidat prima untuk pilar pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia.'
                     },
                     {
                       ticker: 'VOO',
                       name: 'Vanguard S&P 500 ETF',
                       category: 'Indeks Pasar Luas AS',
                       action: 'Koleksi Bertahap',
-                      fairValueAnalysis: 'Forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85. Menyajikan return majemuk historis rata-rata 10.2% per tahun.',
-                      fundamentalHighlights: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat di atas 18%, dan diversifikasi ke 500 korporasi terbesar AS.',
-                      monetaryFiscalSentiment: 'Didukung oleh proyeksi soft-landing ekonomi AS dalam rilis SEP The Fed terbaru dan pertumbuhan laba emiten broad-market.',
+                      currentPrice: '$525.00',
+                      fairValue: '$560.00',
+                      valuationDiscountPct: 'Undervalued 6.25% dari Fair Value',
+                      valuationStatus: 'undervalued',
+                      fairValueAnalysis: 'Forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85, diskon valuasi moderat terhadap target indeks broad market.',
+                      fundamental: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat konstituen >18%, diversifikasi ke 500 emiten terbesar AS.',
+                      fundamentalHighlights: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat konstituen >18%, diversifikasi ke 500 emiten terbesar AS.',
+                      investmentPortion: '40% - 50% dari alokasi DCA',
+                      timeHorizon: 'Long Term (3 - 10 tahun)',
+                      timeHorizonType: 'long_term',
+                      timeHorizonDuration: '3 - 10 tahun',
+                      catalyst: 'Fondasi inti penyerap DCA rutin dengan risiko kejatuhan emiten individual minimal.',
                       riskLevel: 'Rendah',
                       financialPlannerVerdict: 'Pilar utama portofolio untuk menyerap akumulasi DCA jangka panjang dengan risiko struktural minimal.'
                     },
@@ -775,56 +660,88 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
                       name: 'Schwab U.S. Dividend Equity ETF',
                       category: 'Kualitas Dividen & Defensif',
                       action: 'Koleksi Bertahap',
-                      fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi signifikan dibandingkan indeks teknologi berbobot tinggi.',
-                      fundamentalHighlights: 'Menyaring 100 perusahaan dengan rekam jejak dividen minimal 10 tahun berturut-turut, cash flow-to-debt sehat, dan ROE tinggi.',
-                      monetaryFiscalSentiment: 'Diuntungkan saat yield obligasi US Treasury menurun, memicu rotasi aliran dana institusional ke saham dividen stabil.',
+                      currentPrice: '$82.00',
+                      fairValue: '$92.00',
+                      valuationDiscountPct: 'Undervalued 10.8% dari Fair Value',
+                      valuationStatus: 'undervalued',
+                      fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi defensif ~11% di bawah valuasi historis.',
+                      fundamental: 'Menyaring emiten dengan rekam jejak dividen bertumbuh minimal 10 tahun berturut-turut, debt-to-equity sehat, dan ROE konsisten.',
+                      fundamentalHighlights: 'Menyaring emiten dengan rekam jejak dividen bertumbuh minimal 10 tahun berturut-turut, debt-to-equity sehat, dan ROE konsisten.',
+                      investmentPortion: '15% - 20% dari alokasi DCA',
+                      timeHorizon: 'Mid to Long Term (1 - 3 tahun)',
+                      timeHorizonType: 'mid_term',
+                      timeHorizonDuration: '1 - 3 tahun',
+                      catalyst: 'Arus kas dividen pasif teratur dan beta rendah (0.78) penangkal volatilitas pasar.',
                       riskLevel: 'Rendah',
-                      financialPlannerVerdict: 'Sangat cocok untuk diversifikasi penyeimbang porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi.'
+                      financialPlannerVerdict: 'Penyeimbang ideal porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi.'
                     }
                   ]
-              ).map((pick, idx) => (
-                <div key={pick.ticker + idx} className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col justify-between space-y-2">
-                  <div>
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span style={{ color: '#581c87' }} className="font-mono font-black text-sm text-purple-900">{pick.ticker}</span>
-                      <span style={{ color: '#6b21a8' }} className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
-                        {pick.action}
-                      </span>
-                    </div>
-                    <div style={{ color: '#0f172a' }} className="text-[11px] font-bold text-slate-900 leading-tight">{pick.name}</div>
-                    <div style={{ color: '#64748b' }} className="text-[9px] text-slate-500 mb-1.5">{pick.category} • Risiko: <strong style={{ color: '#0f172a' }}>{pick.riskLevel}</strong></div>
+              ).map((pick, idx) => {
+                const isUndervalued = (pick.valuationStatus === 'undervalued') || (pick.valuationDiscountPct?.toLowerCase().includes('under'));
 
-                    <div className="space-y-1 text-[10px] leading-relaxed">
-                      {pick.fairValueAnalysis && (
+                return (
+                  <div key={pick.ticker + idx} className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col justify-between space-y-2">
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span style={{ color: '#581c87' }} className="font-mono font-black text-sm text-purple-900">{pick.ticker}</span>
+                        <span style={{ color: '#6b21a8' }} className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
+                          {pick.action}
+                        </span>
+                      </div>
+                      <div style={{ color: '#0f172a' }} className="text-[11px] font-bold text-slate-900 leading-tight">{pick.name}</div>
+                      <div style={{ color: '#64748b' }} className="text-[9px] text-slate-500 mb-1.5">{pick.category} • Risiko: <strong style={{ color: '#0f172a' }}>{pick.riskLevel}</strong></div>
+
+                      <div className="space-y-1.5 text-[10px] leading-relaxed">
+                        {/* Live Price & Fair Value */}
                         <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                          <strong style={{ color: '#581c87' }} className="text-purple-900 block text-[9px] uppercase">Fair Value & Valuasi:</strong>
-                          <span style={{ color: '#334155' }} className="text-slate-700">{pick.fairValueAnalysis}</span>
+                          <div className="flex justify-between font-mono font-bold text-[10px] mb-0.5">
+                            <span>Harga: {pick.currentPrice || '$178.50'}</span>
+                            <span style={{ color: '#6b21a8' }}>Fair Value: {pick.fairValue || '$210.00'}</span>
+                          </div>
+                          <span className={`inline-block text-[9px] font-bold px-1.5 py-0.2 rounded mb-1 ${
+                            isUndervalued ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {pick.valuationDiscountPct || (isUndervalued ? 'Undervalued dari Fair Value' : 'Fairly Valued')}
+                          </span>
+                          {pick.fairValueAnalysis && (
+                            <p style={{ color: '#334155' }} className="text-[9px] leading-tight text-slate-700">
+                              {pick.fairValueAnalysis}
+                            </p>
+                          )}
                         </div>
-                      )}
-                      {pick.fundamentalHighlights && (
+
+                        {/* Fundamental */}
                         <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
                           <strong style={{ color: '#1e293b' }} className="text-slate-800 block text-[9px] uppercase">Fundamental:</strong>
-                          <span style={{ color: '#334155' }} className="text-slate-700">{pick.fundamentalHighlights}</span>
+                          <span style={{ color: '#334155' }} className="text-[9px] leading-tight text-slate-700">
+                            {pick.fundamental || pick.fundamentalHighlights}
+                          </span>
                         </div>
-                      )}
-                      {pick.monetaryFiscalSentiment && (
-                        <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                          <strong style={{ color: '#0c4a6e' }} className="text-sky-900 block text-[9px] uppercase">Sentimen Moneter The Fed:</strong>
-                          <span style={{ color: '#334155' }} className="text-slate-700">{pick.monetaryFiscalSentiment}</span>
+
+                        {/* Saran Porsi & Jangka Waktu */}
+                        <div className="grid grid-cols-2 gap-1 text-[9px]">
+                          <div className="p-1 rounded bg-purple-50/70 border border-purple-200">
+                            <span className="text-purple-800 font-bold block">Porsi:</span>
+                            <span className="font-semibold text-purple-950 truncate block">{pick.investmentPortion || '20% - 25% DCA'}</span>
+                          </div>
+                          <div className="p-1 rounded bg-sky-50/70 border border-sky-200">
+                            <span className="text-sky-800 font-bold block">Horizon:</span>
+                            <span className="font-semibold text-sky-950 truncate block">{pick.timeHorizon || 'Long Term'}</span>
+                          </div>
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    <div style={{ color: '#3b0764' }} className="pt-1.5 border-t border-slate-200 text-[9px] text-purple-950 font-medium italic">
+                      <strong style={{ color: '#3b0764' }}>CFP Verdict:</strong> {pick.financialPlannerVerdict || `Alokasikan ${pick.investmentPortion || '20% - 25%'} DCA secara bertahap.`}
                     </div>
                   </div>
-
-                  <div style={{ color: '#3b0764' }} className="pt-1.5 border-t border-slate-200 text-[9px] text-purple-950 font-medium italic">
-                    <strong style={{ color: '#3b0764' }}>Saran Eksekusi:</strong> Alokasi DCA 20%-30% ({formatRupiah(totalDCA * 0.25)}) secara teratur.
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* 7. REBALANCING & GLOBAL HEDGE SIGNALS */}
+          {/* 6. REBALANCING & GLOBAL HEDGE SIGNALS */}
           <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
             <h4 style={{ color: '#0f172a' }} className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider">
               <Activity className="w-4 h-4 text-purple-600" />

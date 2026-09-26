@@ -39,7 +39,7 @@ interface LiquidHeaderProps {
 const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
   summary: { title: 'Summary', subtitle: 'Overview Portofolio & Arus Kas' },
   cashflow: { title: 'Input Cashflow', subtitle: 'Catat Pengeluaran & Pemasukan' },
-  budgeting: { title: 'Budgeting Amplop', subtitle: 'Sinking Fund & Alokasi Pos' },
+  budgeting: { title: 'Dompet Budgeting', subtitle: 'Sinking Fund & Alokasi Pos' },
   portfolio: { title: 'Portofolio & Investasi', subtitle: 'Valuasi Aset, PnL & Dana Darurat' },
   accounts: { title: 'Saldo by Rekening', subtitle: 'Multi-Rekening & Transfer Saldo' },
   journal: { title: 'Jurnal & Rekap Data', subtitle: 'Tabel Mutasi Google Sheets' },

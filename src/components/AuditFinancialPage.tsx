@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GlassSettings, Transaction, BudgetCategory, EmergencyFund } from '../types';
+import { GlassSettings, Transaction, BudgetCategory, EmergencyFund, InvestmentAsset } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
 import {
@@ -28,7 +28,13 @@ import {
   PieChart,
   CheckCircle2,
   AlertCircle,
-  Zap
+  Zap,
+  Building2,
+  Globe,
+  FileSpreadsheet,
+  Shield,
+  Compass,
+  BarChart3
 } from 'lucide-react';
 
 interface AuditFinancialPageProps {
@@ -39,8 +45,11 @@ interface AuditFinancialPageProps {
   transactions: Transaction[];
   budgets: BudgetCategory[];
   emergencyFund?: EmergencyFund;
+  assets?: InvestmentAsset[];
+  totalInvestment?: number;
   currentSheetName: string;
   onBack?: () => void;
+  onOpenApiKeyModal?: () => void;
 }
 
 export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
@@ -51,8 +60,11 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
   transactions = [],
   budgets = [],
   emergencyFund,
+  assets = [],
+  totalInvestment = 0,
   currentSheetName,
-  onBack
+  onBack,
+  onOpenApiKeyModal
 }) => {
   const isDark = settings?.themeMode !== 'light' && settings?.themeMode !== 'beige';
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -646,7 +658,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
           <div className="flex items-center justify-between pb-3 border-b border-white/10 dark:border-white/10">
             <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
               <PieChart className="w-4 h-4 text-amber-400" />
-              Status Budgeting Amplop ({safeBudgets.length} Pos Aktif)
+              Status Dompet Budgeting ({safeBudgets.length} Pos Aktif)
             </h3>
             <span className={`text-xs font-mono font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Target Bulanan: {formatRupiah(safeBudgets.reduce((s, b) => s + (b.budgeting || b.targetBulanan || 0), 0))} • Kapasitas: {formatRupiah(safeBudgets.reduce((s, b) => s + (b.totalSaldo || (b.saldoAwal || 0) + (b.budgeting || b.targetBulanan || 0)), 0))}
@@ -736,6 +748,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
           analyzedAt={aiData?.timestamp}
           isAnalyzing={isAnalyzing}
           onTriggerAnalysis={runAiAnalysis}
+          onOpenApiKeyModal={onOpenApiKeyModal}
         />
 
         {/* LIVE SERVER-SENT EVENTS (SSE) STREAMING TERMINAL / TYPING EFFECT */}

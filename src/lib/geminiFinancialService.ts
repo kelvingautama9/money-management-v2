@@ -44,8 +44,17 @@ export interface MarketPickItem {
   name: string;
   category: string;
   action: 'Akumulasi DCA' | 'Koleksi Bertahap' | 'Watchlist' | string;
+  currentPrice?: string;
+  fairValue?: string;
+  valuationDiscountPct?: string;
+  valuationStatus?: 'undervalued' | 'overvalued' | 'fairly_valued' | string;
   fairValueAnalysis?: string;
+  fundamental?: string;
   fundamentalHighlights?: string;
+  investmentPortion?: string;
+  timeHorizon?: string;
+  timeHorizonType?: 'short_term' | 'mid_term' | 'long_term' | string;
+  timeHorizonDuration?: string;
   monetaryFiscalSentiment?: string;
   catalyst: string;
   riskLevel: 'Rendah' | 'Moderat' | 'Agresif' | string;
@@ -53,15 +62,15 @@ export interface MarketPickItem {
 }
 
 export interface SummaryOfEconomicProjections {
-  dotPlotMedianRate: string;
-  gdpProjection: string;
-  pceProjection: string;
-  unemploymentProjection: string;
-  analysis: string;
+  dotPlotMedianRate?: string;
+  gdpProjection?: string;
+  pceProjection?: string;
+  unemploymentProjection?: string;
+  analysis?: string;
 }
 
 export interface MacroFedAnalysis {
-  title: string;
+  title?: string;
   fedFundsRate?: string;
   cpiInflation?: string;
   pceInflation?: string;
@@ -69,9 +78,9 @@ export interface MacroFedAnalysis {
   gdpGrowth?: string;
   treasuryYield10Y?: string;
   summaryOfEconomicProjections?: SummaryOfEconomicProjections;
-  policyStatus: string;
-  impactOnUserAssets: string;
-  strategicAction: string;
+  policyStatus?: string;
+  impactOnUserAssets?: string;
+  strategicAction?: string;
 }
 
 export interface PortfolioPerformanceAnalysis {
@@ -107,7 +116,9 @@ export const DEFAULT_AI_MODEL_ID = 'gemini-3.5-flash';
  */
 export async function getAvailableGeminiModels(): Promise<GeminiModelOption[]> {
   try {
-    const res = await fetch('/api/gemini/models');
+    const res = await fetch('/api/gemini/models', {
+      headers: getEffectiveApiHeaders()
+    });
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.models) && data.models.length > 0) {
@@ -181,7 +192,9 @@ export interface GeminiModelsDetailedResponse {
 
 export async function getDetailedGeminiModels(): Promise<GeminiModelsDetailedResponse> {
   try {
-    const res = await fetch('/api/gemini/models');
+    const res = await fetch('/api/gemini/models', {
+      headers: getEffectiveApiHeaders()
+    });
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.models)) {
@@ -242,6 +255,160 @@ export function setStoredAutoFallbackPreference(enabled: boolean): void {
   try {
     localStorage.setItem('kelvin_financial_ai_fallback', String(enabled));
   } catch {}
+}
+
+// --- 3-IN-1 GEMINI API KEY MANAGEMENT ---
+// 1. Server Environment (AI Studio default)
+// 2. Custom User Manual Import (stored in localStorage, sent via x-gemini-api-key)
+// 3. Vercel Cloud Serverless & Client-Side Fallback
+export const CUSTOM_API_KEY_STORAGE = 'kelvin_custom_gemini_api_key';
+
+export function getStoredCustomApiKey(): string {
+  try {
+    return localStorage.getItem(CUSTOM_API_KEY_STORAGE) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setStoredCustomApiKey(key: string): void {
+  try {
+    const trimmed = key.trim();
+    if (!trimmed) {
+      localStorage.removeItem(CUSTOM_API_KEY_STORAGE);
+    } else {
+      localStorage.setItem(CUSTOM_API_KEY_STORAGE, trimmed);
+    }
+  } catch {}
+}
+
+export function hasCustomApiKey(): boolean {
+  return Boolean(getStoredCustomApiKey());
+}
+
+export function getMaskedApiKey(key?: string): string {
+  const target = key || getStoredCustomApiKey();
+  if (!target) return '';
+  if (target.length <= 8) return '••••••••';
+  return `${target.slice(0, 6)}...${target.slice(-4)}`;
+}
+
+export function getEffectiveApiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  const customKey = getStoredCustomApiKey();
+  if (customKey) {
+    headers['x-gemini-api-key'] = customKey;
+  }
+  return headers;
+}
+
+export interface KeyValidationResult {
+  valid: boolean;
+  message: string;
+  source?: string;
+  keyMasked?: string;
+  elapsedMs?: number;
+  isQuota?: boolean;
+}
+
+export async function validateApiKeyOnline(keyToTest?: string): Promise<KeyValidationResult> {
+  const key = keyToTest !== undefined ? keyToTest.trim() : getStoredCustomApiKey();
+  try {
+    const res = await fetch('/api/gemini/validate-key', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(key ? { 'x-gemini-api-key': key } : {})
+      },
+      body: JSON.stringify({ apiKey: key })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.valid) {
+      return {
+        valid: true,
+        message: data.message || 'API Key Google Gemini Valid!',
+        source: data.source,
+        keyMasked: data.keyMasked,
+        elapsedMs: data.elapsedMs
+      };
+    }
+    return {
+      valid: false,
+      message: data.message || 'Gagal memverifikasi API Key',
+      isQuota: data.isQuota
+    };
+  } catch (err: any) {
+    // If backend is unreachable (e.g. static host on Vercel), test directly against Google's API
+    if (key) {
+      try {
+        const start = Date.now();
+        const googleRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${encodeURIComponent(key)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'ping' }] }],
+              generationConfig: { maxOutputTokens: 2 }
+            })
+          }
+        );
+        const elapsed = Date.now() - start;
+        if (googleRes.ok) {
+          return {
+            valid: true,
+            message: `API Key Valid (Terhubung langsung ke Google API ${elapsed}ms)!`,
+            source: 'custom_user_direct',
+            keyMasked: getMaskedApiKey(key),
+            elapsedMs: elapsed
+          };
+        } else {
+          const errData = await googleRes.json().catch(() => ({}));
+          const msg = errData?.error?.message || `HTTP ${googleRes.status}`;
+          const isQuota = googleRes.status === 429;
+          return {
+            valid: false,
+            message: isQuota ? 'Batas kuota habis (429 Quota Exceeded).' : `Ditolak Google: ${msg}`,
+            isQuota
+          };
+        }
+      } catch (directErr: any) {
+        return {
+          valid: false,
+          message: `Gagal memverifikasi API Key: ${directErr.message || 'Koneksi internet bermasalah'}`
+        };
+      }
+    }
+    return {
+      valid: false,
+      message: 'Gagal menghubungi server validasi API Key.'
+    };
+  }
+}
+
+export interface ServerKeyStatus {
+  hasServerKey: boolean;
+  serverKeyMasked: string;
+  isVercelEnv: boolean;
+  defaultSource: string;
+}
+
+export async function checkServerKeyStatus(): Promise<ServerKeyStatus> {
+  try {
+    const res = await fetch('/api/gemini/key-status');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+  return {
+    hasServerKey: false,
+    serverKeyMasked: '',
+    isVercelEnv: false,
+    defaultSource: 'none'
+  };
 }
 
 /**
@@ -378,14 +545,13 @@ export async function requestGeminiFinancialAnalysisStream(
   try {
     const res = await fetch('/api/gemini/analyze-stream', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: getEffectiveApiHeaders(),
       body: JSON.stringify({
         monthName,
         metrics,
         preferredModel: model,
-        autoFallback: fallback
+        autoFallback: fallback,
+        customApiKey: getStoredCustomApiKey()
       })
     });
 
@@ -459,14 +625,13 @@ export async function requestGeminiFinancialAnalysis(
   try {
     const res = await fetch('/api/gemini/analyze', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: getEffectiveApiHeaders(),
       body: JSON.stringify({
         monthName,
         metrics,
         preferredModel: model,
-        autoFallback: fallback
+        autoFallback: fallback,
+        customApiKey: getStoredCustomApiKey()
       })
     });
 
@@ -495,34 +660,23 @@ export async function requestGeminiFinancialAnalysis(
       pureVsDcaAnalysis: `Setoran modal mandiri (DCA) bulan ini sebesar ${metrics.dcaFormatted || 'Rp 2.016.286'} dialokasikan murni sebagai setoran modal baru, terpisah secara disiplin dari return keuntungan organik pasar.`,
       growthOutlook: 'Disiplin akumulasi rutin memperkokoh daya ungkit majemuk (compound interest) portofolio Anda secara terukur.'
     },
-    macroFedIntelligence: {
-      title: 'Analisis Sentimen Makro & Kebijakan The Fed Terkini',
-      fedFundsRate: '4.75% - 5.00%',
-      cpiInflation: '2.5% YoY',
-      pceInflation: 'Core PCE 2.7% YoY (Headline 2.2%)',
-      unemploymentRate: '4.2%',
-      gdpGrowth: '3.0% QoQ (Real GDP Annualized)',
-      treasuryYield10Y: '3.75%',
-      summaryOfEconomicProjections: {
-        dotPlotMedianRate: 'Median FFR diproyeksikan di 4.4% akhir 2024, 3.4% pada 2025, dan 2.9% pada 2026',
-        gdpProjection: 'Pertumbuhan PDB riil diproyeksikan bertahan di level 2.0% (soft-landing)',
-        pceProjection: 'Core PCE diproyeksikan menuju target 2.0% secara gradual pada 2026',
-        unemploymentProjection: 'Tingkat pengangguran diproyeksikan stabil pada rentang 4.3% - 4.4%',
-        analysis: 'Dot Plot SEP mengonfirmasi jalur pelonggaran moneter (rate cuts) bertahap. The Fed beralih dari mode restriktif ekstrem ke penyeimbangan risiko antara target inflasi 2% dan pencegahan pelambatan pasar tenaga kerja.'
-      },
-      policyStatus: 'The Federal Reserve memulai siklus pelonggaran moneter dengan pemangkasan suku bunga acuan ke rentang 4.75%-5.00%. Data Summary of Economic Projections (SEP) terbaru mengindikasikan tambahan pemangkasan gradual seiring melandainya inflasi PCE mendekati target 2%.',
-      impactOnUserAssets: `Porsi lindung nilai valas Anda (${metrics.usdHedgePct}% dalam USD Valas BCA & Crypto USDT) memberikan kestabilan modal di tengah fluktuasi nilai tukar Rupiah (USD/IDR). Siklus penurunan Fed Funds Rate menguntungkan instrumen ekuitas dan reksadana di Pluang karena ekspansi kelipatan valuasi (P/E multiple expansion).`,
-      strategicAction: 'Manfaatkan stabilitas likuiditas valas untuk mengarahkan setoran DCA bulanan ke instrumen ekuitas bertaraf global yang memiliki diskon fair value dan neraca kas sehat.'
-    },
     recommendedStockPicks: [
       {
         ticker: 'GOOGL',
         name: 'Alphabet Inc.',
         category: 'Big Tech / AI & Cloud Infrastructure',
         action: 'Akumulasi DCA',
-        fairValueAnalysis: 'Forward P/E ~20.5x, berada di bawah rata-rata historis 5 tahun (24.8x). Konsensus analis mematok fair value di kisaran $200-$210, mencerminkan margin of safety ~22%.',
+        currentPrice: '$178.50',
+        fairValue: '$210.00',
+        valuationDiscountPct: 'Undervalued 15.0% dari Fair Value',
+        valuationStatus: 'undervalued',
+        fairValueAnalysis: 'Forward P/E ~20.5x, berada 15.0% di bawah estimasi konsensus fair value ($210), mencerminkan margin of safety solid.',
+        fundamental: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional mencapai 32%, dan free cash flow tahunan melampaui $60 Miliar.',
         fundamentalHighlights: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional mencapai 32%, dan free cash flow tahunan melampaui $60 Miliar.',
-        monetaryFiscalSentiment: 'Siklus pemangkasan suku bunga The Fed menurunkan biaya modal korporasi dan mendorong ekspansi valuasi saham teknologi berfundamental prima.',
+        investmentPortion: '20% - 25% dari alokasi DCA bulanan',
+        timeHorizon: 'Long Term (2 - 5 tahun)',
+        timeHorizonType: 'long_term',
+        timeHorizonDuration: '2 - 5 tahun',
         catalyst: 'Monetisasi infrastruktur AI enterprise Gemini dan ketahanan luar biasa pendapatan periklanan digital Search & YouTube.',
         riskLevel: 'Moderat',
         financialPlannerVerdict: 'Kandidat ideal untuk alokasi porsi pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia.'
@@ -532,9 +686,17 @@ export async function requestGeminiFinancialAnalysis(
         name: 'Vanguard S&P 500 ETF',
         category: 'Indeks Pasar Luas AS',
         action: 'Koleksi Bertahap',
-        fairValueAnalysis: 'Trading pada forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85. Menyajikan imbal hasil majemuk historis rata-rata 10.2% per tahun.',
+        currentPrice: '$525.00',
+        fairValue: '$560.00',
+        valuationDiscountPct: 'Undervalued 6.25% dari Fair Value',
+        valuationStatus: 'undervalued',
+        fairValueAnalysis: 'Trading pada forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85, diskon valuasi moderat terhadap target indeks.',
+        fundamental: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat emiten konstituen di atas 18%, dan diversifikasi ke 500 korporasi terbesar AS.',
         fundamentalHighlights: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat emiten konstituen di atas 18%, dan diversifikasi ke 500 korporasi terbesar AS.',
-        monetaryFiscalSentiment: 'Didukung oleh proyeksi soft-landing ekonomi AS dalam rilis SEP The Fed terbaru dan pertumbuhan laba emiten broad-market.',
+        investmentPortion: '40% - 50% dari alokasi DCA bulanan',
+        timeHorizon: 'Long Term (3 - 10 tahun)',
+        timeHorizonType: 'long_term',
+        timeHorizonDuration: '3 - 10 tahun',
         catalyst: 'Eksposur pasar luas yang melindungi dari risiko kejatuhan saham individual, sangat ideal sebagai fondasi inti (core holding).',
         riskLevel: 'Rendah',
         financialPlannerVerdict: 'Pilar utama portofolio untuk menyerap akumulasi DCA jangka panjang dengan risiko struktural minimal.'
@@ -544,10 +706,18 @@ export async function requestGeminiFinancialAnalysis(
         name: 'Schwab U.S. Dividend Equity ETF',
         category: 'Kualitas Dividen & Defensif',
         action: 'Koleksi Bertahap',
-        fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi signifikan dibandingkan indeks teknologi berbobot tinggi.',
+        currentPrice: '$82.00',
+        fairValue: '$92.00',
+        valuationDiscountPct: 'Undervalued 10.8% dari Fair Value',
+        valuationStatus: 'undervalued',
+        fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi defensif ~11% dibandingkan rata-rata historis.',
+        fundamental: 'Menyaring 100 perusahaan dengan rekam jejak pembayaran dividen minimal 10 tahun berturut-turut, cash flow-to-debt sehat, dan ROE tinggi.',
         fundamentalHighlights: 'Menyaring 100 perusahaan dengan rekam jejak pembayaran dividen minimal 10 tahun berturut-turut, cash flow-to-debt sehat, dan ROE tinggi.',
-        monetaryFiscalSentiment: 'Diuntungkan saat imbal hasil obligasi US Treasury menurun, memicu rotasi aliran dana institusional ke saham dividen berimbal hasil stabil.',
-        catalyst: 'Kombinasi pendapatan dividen pasif teratur dan volatilitas beta yang lebih rendah (0.78) menghadapi koreksi pasar makro.',
+        investmentPortion: '15% - 20% dari alokasi DCA bulanan',
+        timeHorizon: 'Mid to Long Term (1 - 3 tahun)',
+        timeHorizonType: 'mid_term',
+        timeHorizonDuration: '1 - 3 tahun',
+        catalyst: 'Kombinasi pendapatan dividen pasif teratur dan volatilitas beta yang lebih rendah (0.78) menghadapi koreksi pasar.',
         riskLevel: 'Rendah',
         financialPlannerVerdict: 'Sangat cocok untuk diversifikasi penyeimbang porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi.'
       }
@@ -656,11 +826,12 @@ export async function requestBudgetEnvelopesAnalysis(
   try {
     const res = await fetch('/api/gemini/analyze-budget-envelopes', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getEffectiveApiHeaders(),
       body: JSON.stringify({
         monthName,
         budgetItems,
-        summaryMetrics
+        summaryMetrics,
+        customApiKey: getStoredCustomApiKey()
       })
     });
 
@@ -733,12 +904,13 @@ export async function requestBudgetEnvelopesAnalysisStream(
   try {
     const res = await fetch('/api/gemini/analyze-budget-stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getEffectiveApiHeaders(),
       body: JSON.stringify({
         monthName,
         budgetItems,
         summaryMetrics,
-        preferredModel
+        preferredModel,
+        customApiKey: getStoredCustomApiKey()
       })
     });
 

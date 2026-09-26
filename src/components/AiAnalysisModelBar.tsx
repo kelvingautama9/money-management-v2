@@ -9,7 +9,8 @@ import {
   SlidersHorizontal,
   Bot,
   Flame,
-  Clock
+  Clock,
+  Key
 } from 'lucide-react';
 import { triggerHaptic } from '../lib/haptics';
 import {
@@ -19,7 +20,8 @@ import {
   getStoredModelPreference,
   setStoredModelPreference,
   getStoredAutoFallbackPreference,
-  setStoredAutoFallbackPreference
+  setStoredAutoFallbackPreference,
+  hasCustomApiKey
 } from '../lib/geminiFinancialService';
 
 interface AiAnalysisModelBarProps {
@@ -29,6 +31,7 @@ interface AiAnalysisModelBarProps {
   analyzedAt?: string;
   isAnalyzing: boolean;
   onTriggerAnalysis: (selectedModelId?: string) => void;
+  onOpenApiKeyModal?: () => void;
   className?: string;
 }
 
@@ -39,6 +42,7 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
   analyzedAt,
   isAnalyzing,
   onTriggerAnalysis,
+  onOpenApiKeyModal,
   className = ''
 }) => {
   const [models, setModels] = useState<GeminiModelOption[]>([]);
@@ -47,6 +51,7 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
   const [selectedModel, setSelectedModel] = useState<string>(getStoredModelPreference());
   const [autoFallback, setAutoFallback] = useState<boolean>(getStoredAutoFallbackPreference());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const customKeyActive = hasCustomApiKey();
 
   useEffect(() => {
     let isMounted = true;
@@ -141,6 +146,31 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
 
         {/* Right actions: Model selector dropdown trigger & Regenerate button */}
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          {/* API Key (3-in-1) Button */}
+          {onOpenApiKeyModal && (
+            <button
+              onClick={() => {
+                triggerHaptic('light');
+                onOpenApiKeyModal();
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 cursor-pointer ${
+                isDark
+                  ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-300'
+                  : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-800 shadow-xs'
+              }`}
+              title="Kelola Google Gemini API Key: Import User (BYOK), Server Default & Vercel (3-in-1)"
+            >
+              <Key className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline font-bold">API Key</span>
+              <span className="px-1 py-0.2 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                3-in-1
+              </span>
+              {customKeyActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Custom Key User Aktif" />
+              )}
+            </button>
+          )}
+
           {/* Settings / Model selector toggle */}
           <div className="relative">
             <button
@@ -183,6 +213,23 @@ export const AiAnalysisModelBar: React.FC<AiAnalysisModelBarProps> = ({
                       100% Free Tier
                     </span>
                   </div>
+
+                  {/* API Key quick button in dropdown */}
+                  {onOpenApiKeyModal && (
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        onOpenApiKeyModal();
+                      }}
+                      className="w-full mb-2 p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 text-xs font-bold flex items-center justify-between transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Key className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="truncate">Kelola API Key & Vercel (3-in-1)</span>
+                      </div>
+                      <span className="text-[10px] text-amber-400 underline font-semibold shrink-0">Buka &gt;</span>
+                    </button>
+                  )}
 
                   {/* Model List */}
                   <div className="space-y-1.5 max-h-56 overflow-y-auto no-scrollbar py-1">

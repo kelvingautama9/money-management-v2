@@ -18,7 +18,8 @@ import {
   MoonStar,
   Settings,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  Key
 } from 'lucide-react';
 
 interface GlassMenuPopupProps {
@@ -47,6 +48,7 @@ interface GlassMenuPopupProps {
   onPushToSheet?: () => Promise<void>;
   showSyncBarOnDashboard?: boolean;
   onToggleSyncBarOnDashboard?: () => void;
+  onOpenApiKeyModal?: () => void;
 }
 
 export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
@@ -66,7 +68,8 @@ export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
   onUpdateSpreadsheetId,
   onUpdateSheetName,
   onSyncNow,
-  onPushToSheet
+  onPushToSheet,
+  onOpenApiKeyModal
 }) => {
   const [showConfig, setShowConfig] = useState(false);
   const [tempId, setTempId] = useState(spreadsheetId);
@@ -480,6 +483,39 @@ export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
               )}
             </div>
           </div>
+
+          {/* 3-IN-1 GEMINI API KEY & VERCEL QUICK ACCESS */}
+          {onOpenApiKeyModal && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenApiKeyModal();
+              }}
+              className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between transition active:scale-[0.99] cursor-pointer shadow-xs ${
+                isDark
+                  ? 'bg-gradient-to-r from-blue-950/40 via-purple-950/30 to-indigo-950/40 border-blue-500/30 hover:border-blue-400 text-white'
+                  : 'bg-gradient-to-r from-blue-50 via-purple-50 to-indigo-50 border-blue-200 hover:border-blue-300 text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
+                  <Key className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs">Google Gemini API Key (3-in-1)</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-400/30">
+                      Universal
+                    </span>
+                  </div>
+                  <span className={`text-[11px] block truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Input manual user (BYOK), server default & Vercel deployment
+                  </span>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-blue-400 pl-2">&gt;</span>
+            </button>
+          )}
 
           {/* SECTION: PILIHAN TEMA (TETAP ADA) */}
           {onSelectTheme && (

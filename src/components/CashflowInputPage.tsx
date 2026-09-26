@@ -177,6 +177,8 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
   const recentTransactions = transactions.slice(0, 5);
   const numericNominal = parseFloat(nominal.replace(/[^0-9.-]/g, '')) || 0;
 
+  const isLight = settings.themeMode === 'light' || settings.themeMode === 'beige';
+
   return (
     <div className="w-full max-w-xl mx-auto px-2 sm:px-4 py-2 space-y-4">
       {/* Top Banner Alert */}
@@ -196,34 +198,38 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
       )}
 
       {/* Centered Apple-Style Card */}
-      <GlassContainer settings={settings} className="p-5 sm:p-7 relative shadow-2xl">
+      <GlassContainer settings={settings} className={`p-5 sm:p-7 relative shadow-2xl ${isLight ? 'border-slate-200' : ''}`}>
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div className={`flex items-center justify-between pb-4 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md">
               <PlusCircle className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <h2 className={`text-base sm:text-lg font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 Input Transaksi
               </h2>
-              <span className="text-[11px] text-slate-400 block">
-                Tab Aktif: <strong className="text-blue-300">{bulan}</strong>
+              <span className={`text-[11px] block ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                Tab Aktif: <strong className={isLight ? 'text-blue-700 font-bold' : 'text-blue-300'}>{bulan}</strong>
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border ${
-                isGoogleConnected
+              className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                isLight
+                  ? isGoogleConnected
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                  : isGoogleConnected
                   ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                   : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
               }`}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  isGoogleConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                  isGoogleConnected ? (isLight ? 'bg-emerald-600 animate-pulse' : 'bg-emerald-400 animate-pulse') : (isLight ? 'bg-amber-600' : 'bg-amber-400')
                 }`}
               />
               {isGoogleConnected ? 'Sync Sheets' : 'Lokal'}
@@ -232,17 +238,56 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* 1. Apple-Style Segmented Type Switcher */}
-          <div className="p-1 rounded-2xl bg-white/[0.04] border border-white/10 grid grid-cols-4 gap-1">
+          {/* 1. Apple-Style Segmented Type Switcher with High-Contrast Colors */}
+          <div
+            className={`p-1.5 rounded-2xl grid grid-cols-4 gap-1.5 transition-all shadow-inner border ${
+              isLight
+                ? 'bg-slate-100/90 border-slate-300/90'
+                : 'bg-slate-900/80 border-white/10'
+            }`}
+          >
             {(
               [
-                { id: 'Expense', label: 'Pengeluaran', icon: <ArrowDownLeft className="w-3.5 h-3.5 text-rose-400" /> },
-                { id: 'Income', label: 'Pemasukan', icon: <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> },
-                { id: 'Transfer Keluar', label: 'Out', icon: <ArrowRightLeft className="w-3.5 h-3.5 text-amber-400" /> },
-                { id: 'Transfer Masuk', label: 'In', icon: <ArrowRightLeft className="w-3.5 h-3.5 text-sky-400" /> }
+                {
+                  id: 'Expense',
+                  label: 'Pengeluaran',
+                  icon: ArrowDownLeft,
+                  activeLight: 'bg-rose-600 text-white border-rose-700 shadow-md shadow-rose-600/30',
+                  activeDark: 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/40',
+                  idleIconLight: 'text-rose-600',
+                  idleIconDark: 'text-rose-400'
+                },
+                {
+                  id: 'Income',
+                  label: 'Pemasukan',
+                  icon: ArrowUpRight,
+                  activeLight: 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/30',
+                  activeDark: 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/40',
+                  idleIconLight: 'text-emerald-600',
+                  idleIconDark: 'text-emerald-400'
+                },
+                {
+                  id: 'Transfer Keluar',
+                  label: 'Out',
+                  icon: ArrowRightLeft,
+                  activeLight: 'bg-amber-600 text-white border-amber-700 shadow-md shadow-amber-600/30',
+                  activeDark: 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/40',
+                  idleIconLight: 'text-amber-600',
+                  idleIconDark: 'text-amber-400'
+                },
+                {
+                  id: 'Transfer Masuk',
+                  label: 'In',
+                  icon: ArrowRightLeft,
+                  activeLight: 'bg-sky-600 text-white border-sky-700 shadow-md shadow-sky-600/30',
+                  activeDark: 'bg-sky-600 text-white border-sky-500 shadow-md shadow-sky-600/40',
+                  idleIconLight: 'text-sky-600',
+                  idleIconDark: 'text-sky-400'
+                }
               ] as const
             ).map((item) => {
               const isSelected = selectedType === item.id;
+              const IconComp = item.icon;
               return (
                 <button
                   type="button"
@@ -251,13 +296,27 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
                     triggerHaptic('selection');
                     setSelectedType(item.id);
                   }}
-                  className={`flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-1 rounded-xl text-xs transition-all duration-200 cursor-pointer border ${
                     isSelected
-                      ? 'bg-white/20 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]'
+                      ? isLight
+                        ? `${item.activeLight} font-bold scale-[1.02]`
+                        : `${item.activeDark} font-bold scale-[1.02]`
+                      : isLight
+                      ? 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border-slate-300/70 font-semibold'
+                      : 'bg-slate-800/40 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 border-transparent font-medium'
                   }`}
                 >
-                  {item.icon}
+                  <IconComp
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      isSelected
+                        ? item.id === 'Transfer Keluar' && !isLight
+                          ? 'text-slate-950'
+                          : 'text-white'
+                        : isLight
+                        ? item.idleIconLight
+                        : item.idleIconDark
+                    }`}
+                  />
                   <span className="truncate">{item.label}</span>
                 </button>
               );
@@ -266,11 +325,17 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
 
           {/* 2. Apple Pay Centerpiece Hero Amount */}
           <div className="py-2 text-center">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+            <span className={`text-[11px] font-bold uppercase tracking-wider block mb-1 ${
+              isLight ? 'text-slate-700' : 'text-slate-400'
+            }`}>
               Nominal Transaksi (Rp)
             </span>
             <div className="relative inline-flex items-center justify-center w-full">
-              <span className="text-xl sm:text-2xl font-bold text-slate-400 mr-2">Rp</span>
+              <span className={`text-xl sm:text-2xl font-bold mr-2 ${
+                isLight ? 'text-slate-500' : 'text-slate-400'
+              }`}>
+                Rp
+              </span>
               <input
                 type="number"
                 required
@@ -278,7 +343,11 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
                 placeholder="0"
                 value={nominal}
                 onChange={(e) => setNominal(e.target.value)}
-                className="w-48 sm:w-64 text-center py-1.5 bg-transparent border-b-2 border-white/20 focus:border-blue-400 text-3xl sm:text-4xl font-mono font-black text-white outline-none tracking-tight transition"
+                className={`w-48 sm:w-64 text-center py-1.5 bg-transparent border-b-2 text-3xl sm:text-4xl font-mono font-black outline-none tracking-tight transition ${
+                  isLight
+                    ? 'text-slate-900 border-slate-300 focus:border-blue-600'
+                    : 'text-white border-white/20 focus:border-blue-400'
+                }`}
               />
             </div>
 
@@ -292,7 +361,11 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
                   type="button"
                   key={amt}
                   onClick={() => handleAddQuickAmount(amt)}
-                  className="shrink-0 px-2.5 py-1 rounded-xl bg-white/[0.06] hover:bg-white/[0.15] text-slate-300 hover:text-white text-xs font-mono border border-white/10 transition active:scale-95 whitespace-nowrap"
+                  className={`shrink-0 px-2.5 py-1 rounded-xl text-xs font-mono border transition active:scale-95 whitespace-nowrap cursor-pointer ${
+                    isLight
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300 font-semibold'
+                      : 'bg-white/[0.06] hover:bg-white/[0.15] text-slate-300 hover:text-white border-white/10'
+                  }`}
                 >
                   +{amt >= 1000000 ? `${amt / 1000000}Jt` : `${amt / 1000}K`}
                 </button>
@@ -301,7 +374,11 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setNominal('')}
-                  className="shrink-0 px-2.5 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 text-xs border border-rose-500/25 transition whitespace-nowrap"
+                  className={`shrink-0 px-2.5 py-1 rounded-xl text-xs border transition whitespace-nowrap cursor-pointer ${
+                    isLight
+                      ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 border-rose-300 font-bold'
+                      : 'bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border-rose-500/25'
+                  }`}
                 >
                   Reset
                 </button>
@@ -313,7 +390,7 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-slate-400 block">
+                <label className={`text-[11px] font-bold block ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
                   Kategori Pos (Google Sheet)
                 </label>
                 {/* Chip Preview */}
@@ -343,7 +420,7 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-slate-400 block">
+                <label className={`text-[11px] font-bold block ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
                   Rekening / Dompet (Google Sheet)
                 </label>
                 {/* Chip Preview */}
@@ -375,7 +452,7 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
           {/* 4. Bulan Periode & Catatan */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className={`text-[11px] font-bold block mb-1 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
                 Periode Bulan (Sheet Dropdown)
               </label>
               <select
@@ -391,7 +468,7 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className={`text-[11px] font-bold block mb-1 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
                 Catatan / Keterangan (Opsional)
               </label>
               <input
@@ -405,9 +482,9 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
           </div>
 
           {/* Auto Sync Toggle & Direct Primary Action Button */}
-          <div className="pt-3 border-t border-white/10 space-y-3">
+          <div className={`pt-3 border-t space-y-3 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
             <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+              <label className={`flex items-center gap-2 cursor-pointer select-none ${isLight ? 'text-slate-700 font-medium' : 'text-slate-300'}`}>
                 <input
                   type="checkbox"
                   checked={autoSyncToSheets}
@@ -420,7 +497,7 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToJournal}
-                className="text-xs text-blue-400 hover:text-blue-300 underline font-medium"
+                className={`text-xs underline font-semibold ${isLight ? 'text-blue-700 hover:text-blue-900' : 'text-blue-400 hover:text-blue-300'}`}
               >
                 Buka Jurnal
               </button>
@@ -452,35 +529,41 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
       </GlassContainer>
 
       {/* Collapsible Recent Transactions Stream */}
-      <GlassContainer settings={settings} className="p-4">
+      <GlassContainer settings={settings} className={`p-4 ${isLight ? 'border-slate-200' : ''}`}>
         <button
           type="button"
           onClick={() => setShowRecentStream(!showRecentStream)}
-          className="w-full flex items-center justify-between text-xs font-semibold text-slate-300 hover:text-white transition"
+          className={`w-full flex items-center justify-between text-xs font-semibold transition ${
+            isLight ? 'text-slate-800 hover:text-slate-950 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
         >
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-blue-400" />
+            <Clock className={`w-4 h-4 ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
             <span>Aliran Transaksi Terakhir ({recentTransactions.length})</span>
           </div>
           {showRecentStream ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
         {showRecentStream && (
-          <div className="space-y-2 mt-3 pt-3 border-t border-white/10 animate-in fade-in duration-200">
+          <div className={`space-y-2 mt-3 pt-3 border-t animate-in fade-in duration-200 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
             {recentTransactions.length === 0 ? (
-              <p className="text-center py-2 text-xs text-slate-400">Belum ada transaksi di bulan ini.</p>
+              <p className={`text-center py-2 text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Belum ada transaksi di bulan ini.</p>
             ) : (
               recentTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between text-xs"
+                  className={`p-2.5 rounded-xl flex items-center justify-between text-xs border ${
+                    isLight ? 'bg-slate-100/90 border-slate-200' : 'bg-white/[0.03] border-white/5'
+                  }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                      isLight ? 'bg-white border border-slate-200' : 'bg-white/5'
+                    }`}>
                       {getCategoryIcon(tx.kategori)}
                     </div>
                     <div className="min-w-0">
-                      <span className="font-semibold text-white block truncate">
+                      <span className={`font-bold block truncate ${isLight ? 'text-slate-900' : 'text-white font-semibold'}`}>
                         {tx.catatan || tx.kategori}
                       </span>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -503,7 +586,7 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
                           {tx.akun}
                         </span>
                         {tx.rowIndex && (
-                          <span className="text-[9px] font-mono text-slate-400">
+                          <span className={`text-[9px] font-mono ${isLight ? 'text-slate-500 font-semibold' : 'text-slate-400'}`}>
                             #{tx.rowIndex}
                           </span>
                         )}
@@ -513,10 +596,10 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
                   <span
                     className={`font-mono font-bold shrink-0 ml-2 ${
                       tx.tipe === 'Income'
-                        ? 'text-emerald-400'
+                        ? isLight ? 'text-emerald-700 font-extrabold' : 'text-emerald-400'
                         : tx.tipe === 'Expense'
-                        ? 'text-rose-400'
-                        : 'text-slate-300'
+                        ? isLight ? 'text-rose-700 font-extrabold' : 'text-rose-400'
+                        : isLight ? 'text-slate-800' : 'text-slate-300'
                     }`}
                   >
                     {tx.tipe === 'Expense' ? '-' : '+'}

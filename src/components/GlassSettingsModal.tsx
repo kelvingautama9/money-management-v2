@@ -1,6 +1,6 @@
 import React from 'react';
 import { GlassSettings, ThemeMode } from '../types';
-import { Sparkles, Sliders, X, RotateCcw, Eye, ShieldCheck, Sun, Moon, Palette, MoonStar } from 'lucide-react';
+import { Sparkles, Sliders, X, RotateCcw, Eye, ShieldCheck, Sun, Moon, Palette, MoonStar, Key, ExternalLink } from 'lucide-react';
 import { GlassButton } from './GlassButton';
 
 interface GlassSettingsModalProps {
@@ -8,13 +8,15 @@ interface GlassSettingsModalProps {
   onClose: () => void;
   settings: GlassSettings;
   onUpdateSettings: (newSettings: GlassSettings) => void;
+  onOpenApiKeyModal?: () => void;
 }
 
 export const GlassSettingsModal: React.FC<GlassSettingsModalProps> = ({
   isOpen,
   onClose,
   settings,
-  onUpdateSettings
+  onUpdateSettings,
+  onOpenApiKeyModal
 }) => {
   if (!isOpen) return null;
 
@@ -143,6 +145,37 @@ export const GlassSettingsModal: React.FC<GlassSettingsModalProps> = ({
 
         {/* Scrollable body */}
         <div className="overflow-y-auto no-scrollbar py-4 space-y-5 flex-1">
+          {/* 3-IN-1 GEMINI API KEY & VERCEL QUICK ACCESS */}
+          {onOpenApiKeyModal && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border border-blue-500/30 flex items-center justify-between gap-3 shadow-lg shadow-blue-950/30">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                  <Key className="w-4 h-4 text-blue-300" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white block">Google Gemini API Key</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                      3-in-1
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-300 block truncate">
+                    Input manual user (BYOK), server default & siap deploy Vercel
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenApiKeyModal();
+                }}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shrink-0 transition active:scale-95 shadow-md shadow-blue-600/20 cursor-pointer"
+              >
+                Kelola Key
+              </button>
+            </div>
+          )}
+
           {/* THEME MODE SELECTOR */}
           <div>
             <div className="flex items-center justify-between mb-2">

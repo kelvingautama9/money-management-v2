@@ -443,12 +443,12 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
               </div>
             </div>
 
-            {/* 3. BUDGETING AMPLOP DUAL-DETAIL TABLE */}
+            {/* 3. DOMPET BUDGETING DUAL-DETAIL TABLE */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                   <PieChart className="w-3.5 h-3.5 text-amber-600" />
-                  2. Rincian Budgeting Amplop (Jatah Bulanan vs Saldo Kantong)
+                  2. Rincian Dompet Budgeting (Jatah Bulanan vs Saldo Kantong)
                 </h2>
                 <span className="text-[11px] font-mono text-slate-600">
                   Kapasitas Total: <strong>{formatRupiah(totalKapasitasKantong)}</strong>
@@ -459,7 +459,7 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 font-bold">
-                      <th className="p-2.5">Pos Amplop</th>
+                      <th className="p-2.5">Pos Dompet</th>
                       <th className="p-2.5 text-right">Jatah Bulanan</th>
                       <th className="p-2.5 text-right">Actual Spend</th>
                       <th className="p-2.5 text-right">Saldo Awal</th>

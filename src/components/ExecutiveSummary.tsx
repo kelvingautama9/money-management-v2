@@ -82,6 +82,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const [hideBalance, setHideBalance] = useState(false);
   const [isReportPreviewOpen, setIsReportPreviewOpen] = useState(false);
   const isDark = settings.themeMode !== 'light' && settings.themeMode !== 'beige';
+  const isLight = !isDark;
   const [centerWalletIndex, setCenterWalletIndex] = useState(0);
   const walletScrollRef = useRef<HTMLDivElement>(null);
 
@@ -539,21 +540,33 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         </div>
       </div>
 
-      {/* QUICK ACTIONS ROW (Image 4 Clean Interface Match) */}
+      {/* QUICK ACTIONS ROW (Image 4 Clean Interface Match with High Contrast Palette) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full min-w-0">
         <button
           onClick={() => {
             triggerHaptic('selection');
             onNavigate?.('cashflow');
           }}
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 transition-all text-left active:scale-[0.98]"
+          className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all text-left active:scale-[0.98] cursor-pointer ${
+            isLight
+              ? 'bg-white hover:bg-slate-50 border border-slate-200/90 shadow-sm shadow-slate-900/5'
+              : 'bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 shadow-lg shadow-black/20'
+          }`}
         >
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-            <PlusCircle className="w-5 h-5" />
+          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${
+            isLight
+              ? 'bg-emerald-100 border-emerald-300/80 text-emerald-800'
+              : 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+          }`}>
+            <PlusCircle className={`w-5 h-5 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`} />
           </div>
           <div>
-            <span className="text-xs font-bold text-white block leading-tight">Input Transaksi</span>
-            <span className="text-[10px] text-slate-400">Auto-sync Sheet</span>
+            <span className={`text-xs font-bold block leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              Input Transaksi
+            </span>
+            <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              Auto-sync Sheet
+            </span>
           </div>
         </button>
 
@@ -562,14 +575,26 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             triggerHaptic('selection');
             onNavigate?.('accounts');
           }}
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 transition-all text-left active:scale-[0.98]"
+          className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all text-left active:scale-[0.98] cursor-pointer ${
+            isLight
+              ? 'bg-white hover:bg-slate-50 border border-slate-200/90 shadow-sm shadow-slate-900/5'
+              : 'bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 shadow-lg shadow-black/20'
+          }`}
         >
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
-            <ArrowLeftRight className="w-5 h-5" />
+          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${
+            isLight
+              ? 'bg-purple-100 border-purple-300/80 text-purple-800'
+              : 'bg-purple-500/20 border-purple-500/30 text-purple-400'
+          }`}>
+            <ArrowLeftRight className={`w-5 h-5 ${isLight ? 'text-purple-700' : 'text-purple-400'}`} />
           </div>
           <div>
-            <span className="text-xs font-bold text-white block leading-tight">Transfer Saldo</span>
-            <span className="text-[10px] text-slate-400">Antar 9 Rekening</span>
+            <span className={`text-xs font-bold block leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              Transfer Saldo
+            </span>
+            <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              {accounts.length > 0 ? `Antar ${accounts.length} Rekening` : 'Antar 9 Rekening'}
+            </span>
           </div>
         </button>
 
@@ -578,14 +603,26 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             triggerHaptic('selection');
             onNavigate?.('budgeting');
           }}
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 transition-all text-left active:scale-[0.98]"
+          className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all text-left active:scale-[0.98] cursor-pointer ${
+            isLight
+              ? 'bg-white hover:bg-slate-50 border border-slate-200/90 shadow-sm shadow-slate-900/5'
+              : 'bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 shadow-lg shadow-black/20'
+          }`}
         >
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-            <PieChart className="w-5 h-5" />
+          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${
+            isLight
+              ? 'bg-amber-100 border-amber-300/80 text-amber-800'
+              : 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+          }`}>
+            <PieChart className={`w-5 h-5 ${isLight ? 'text-amber-700' : 'text-amber-400'}`} />
           </div>
           <div>
-            <span className="text-xs font-bold text-white block leading-tight">4 Pos Budget</span>
-            <span className="text-[10px] text-slate-400">Kontrol Anggaran</span>
+            <span className={`text-xs font-bold block leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {budgets.length > 0 ? `${budgets.length} Pos Budget` : '4 Pos Budget'}
+            </span>
+            <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              Kontrol Anggaran
+            </span>
           </div>
         </button>
 
@@ -595,14 +632,26 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             onSyncGoogleSheets?.();
           }}
           disabled={isSyncing}
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 transition-all text-left active:scale-[0.98] disabled:opacity-50"
+          className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all text-left active:scale-[0.98] disabled:opacity-50 cursor-pointer ${
+            isLight
+              ? 'bg-white hover:bg-slate-50 border border-slate-200/90 shadow-sm shadow-slate-900/5'
+              : 'bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 shadow-lg shadow-black/20'
+          }`}
         >
-          <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
-            <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${
+            isLight
+              ? 'bg-sky-100 border-sky-300/80 text-sky-800'
+              : 'bg-sky-500/20 border-sky-500/30 text-sky-400'
+          }`}>
+            <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''} ${isLight ? 'text-sky-700' : 'text-sky-400'}`} />
           </div>
           <div>
-            <span className="text-xs font-bold text-white block leading-tight">Sync Sheets</span>
-            <span className="text-[10px] text-slate-400">{isSyncing ? 'Proses...' : 'Tarik Data'}</span>
+            <span className={`text-xs font-bold block leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              Sync Sheets
+            </span>
+            <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              {isSyncing ? 'Proses...' : 'Tarik Data'}
+            </span>
           </div>
         </button>
       </div>

@@ -120,7 +120,7 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
     },
     {
       id: 'budgeting' as ActivePage,
-      label: 'Budgeting Amplop',
+      label: 'Dompet Budgeting',
       sublabel: '4 Kantong Keuangan',
       icon: PieChart,
       badge: '4 Pos',
