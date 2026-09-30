@@ -37,17 +37,13 @@ interface LiquidHeaderProps {
 }
 
 const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
-  summary: { title: 'Summary', subtitle: 'Overview Portofolio & Arus Kas' },
-  cashflow: { title: 'Input Cashflow', subtitle: 'Catat Pengeluaran & Pemasukan' },
-  budgeting: { title: 'Dompet Budgeting', subtitle: 'Sinking Fund & Alokasi Pos' },
-  portfolio: { title: 'Portofolio & Investasi', subtitle: 'Valuasi Aset, PnL & Dana Darurat' },
-  accounts: { title: 'Saldo by Rekening', subtitle: 'Multi-Rekening & Transfer Saldo' },
-  journal: { title: 'Jurnal & Rekap Data', subtitle: 'Tabel Mutasi Google Sheets' },
+  summary: { title: 'Ringkasan', subtitle: 'Overview Portofolio & Arus Kas' },
+  cashflow: { title: 'Input Cashflow / Mutasi', subtitle: 'Catat Mutasi & Riwayat Transaksi' },
+  budgeting: { title: 'Dompet & Rekening', subtitle: 'Alokasi Pos & Amplop Anggaran' },
+  portfolio: { title: 'Portofolio & Aset', subtitle: 'Investasi, Multi-Aset & Dana Darurat' },
+  accounts: { title: 'Saldo Rekening', subtitle: 'Multi-Rekening Bank, E-Wallet & Transfer' },
   calculator: { title: 'Kalkulator Investasi', subtitle: 'Simulasi Dana Pensiun & Aturan 4%' },
-  audit: { title: 'Audit Financial', subtitle: 'Audit Neraca & Ekspor Laporan Finansial' },
-  analysis: { title: 'Audit Investasi', subtitle: 'Audit Portofolio, Rebalancing & Ekspor PDF' },
-  sync: { title: 'Singkron Google Sheet', subtitle: 'Integrasi Spreadsheet & Mutasi Realtime' },
-  theme: { title: 'Custom Theme', subtitle: 'Pengaturan Kaca Liquid & Gaya Tema' }
+  investing: { title: 'Jurnal Investing', subtitle: 'Rekapitulasi Trading Tab INVESTING' }
 };
 
 export const LiquidHeader: React.FC<LiquidHeaderProps> = ({
@@ -84,7 +80,7 @@ export const LiquidHeader: React.FC<LiquidHeaderProps> = ({
           : '1px solid rgba(226, 232, 240, 0.85)',
         boxShadow: isDark
           ? '0 12px 32px -8px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
-          : '0 10px 30px -8px rgba(99, 102, 241, 0.08), inset 0 1.5px 1px rgba(255, 255, 255, 0.95)'
+          : '0 10px 30px -8px rgba(15, 23, 42, 0.06), inset 0 1.5px 1px rgba(255, 255, 255, 0.95)'
       }}
     >
       {/* Top Rim Highlight */}
@@ -120,9 +116,6 @@ export const LiquidHeader: React.FC<LiquidHeaderProps> = ({
             >
               {pageInfo.title}
             </h1>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-400/20">
-              Live
-            </span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden md:block">
             {pageInfo.subtitle}

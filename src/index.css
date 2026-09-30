@@ -2,6 +2,60 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+@theme inline {
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-color-destructive-foreground: var(----color-destructive-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+}
+
+:root {
+  --destructive-foreground: oklch(1 0 0);
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0f172a;
+  --primary-foreground: #ffffff;
+  --secondary: #f8fafc;
+  --secondary-foreground: #0f172a;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+}
+
+.dark {
+  --destructive-foreground: oklch(1 0 0);
+  --card: #0c1222;
+  --card-foreground: #f8fafc;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.2);
+  --muted: rgba(255, 255, 255, 0.08);
+  --muted-foreground: #94a3b8;
+  --popover: #0c1222;
+  --popover-foreground: #f8fafc;
+  --primary: #f8fafc;
+  --primary-foreground: #0f172a;
+  --secondary: rgba(255, 255, 255, 0.06);
+  --secondary-foreground: #f8fafc;
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: #f8fafc;
+}
+
 @layer base {
   :root {
     --glass-blur: 24px;
@@ -18,8 +72,8 @@
     overscroll-behavior-y: none;
     overscroll-behavior-x: none;
     position: relative;
-    background-color: #060713;
-    color: #f1f5f9;
+    background-color: #070b16;
+    color: #f8fafc;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     letter-spacing: -0.012em;
     -webkit-font-smoothing: antialiased;
@@ -34,8 +88,8 @@
     overscroll-behavior-y: none;
     overscroll-behavior-x: none;
     position: relative;
-    background-color: #060713;
-    color: #f1f5f9;
+    background-color: #070b16;
+    color: #f8fafc;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
@@ -47,68 +101,65 @@
   }
 }
 
-/* Apple iOS Control Center Ambient Orbs - Hardware-accelerated and GPU-contained */
+/* Apple iOS Ambient Orbs - Hardware-accelerated and GPU-contained (Navy, Slate, Clean Monochrome) */
 .ambient-glow-1 {
   position: absolute;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.14) 0%, rgba(219, 39, 119, 0.05) 45%, transparent 70%);
-  filter: blur(40px);
+  background: radial-gradient(circle, rgba(30, 58, 138, 0.15) 0%, rgba(15, 23, 42, 0.05) 50%, transparent 70%);
+  filter: blur(50px);
   pointer-events: none !important;
   border-radius: 50%;
   transform: translate3d(0, 0, 0);
   will-change: transform;
   contain: strict;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .ambient-glow-2 {
   position: absolute;
   width: 450px;
   height: 450px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(147, 51, 234, 0.05) 50%, transparent 70%);
-  filter: blur(40px);
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.08) 0%, rgba(30, 41, 59, 0.04) 50%, transparent 70%);
+  filter: blur(50px);
   pointer-events: none !important;
   border-radius: 50%;
   transform: translate3d(0, 0, 0);
   will-change: transform;
   contain: strict;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .ambient-glow-3 {
   position: absolute;
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.10) 0%, rgba(139, 92, 246, 0.04) 45%, transparent 70%);
-  filter: blur(40px);
+  background: radial-gradient(circle, rgba(30, 58, 138, 0.10) 0%, transparent 70%);
+  filter: blur(50px);
   pointer-events: none !important;
   border-radius: 50%;
   transform: translate3d(0, 0, 0);
   will-change: transform;
   contain: strict;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .theme-light .ambient-glow-1 {
   display: block !important;
-  background: radial-gradient(circle, rgba(147, 197, 253, 0.32) 0%, rgba(196, 181, 253, 0.18) 50%, transparent 70%);
-  filter: blur(50px);
-  opacity: 0.85;
+  background: radial-gradient(circle, rgba(203, 213, 225, 0.4) 0%, rgba(226, 232, 240, 0.2) 50%, transparent 70%);
+  filter: blur(60px);
+  opacity: 0.7;
 }
 
 .theme-light .ambient-glow-2 {
   display: block !important;
-  background: radial-gradient(circle, rgba(192, 132, 252, 0.25) 0%, rgba(224, 231, 255, 0.15) 50%, transparent 70%);
-  filter: blur(50px);
-  opacity: 0.85;
+  background: radial-gradient(circle, rgba(226, 232, 240, 0.5) 0%, transparent 70%);
+  filter: blur(60px);
+  opacity: 0.7;
 }
 
 .theme-light .ambient-glow-3 {
-  display: block !important;
-  background: radial-gradient(circle, rgba(125, 211, 252, 0.28) 0%, rgba(243, 232, 255, 0.15) 50%, transparent 70%);
-  filter: blur(50px);
-  opacity: 0.85;
+  display: none !important;
 }
 
 .theme-beige .ambient-glow-1,
@@ -117,7 +168,7 @@
   display: none !important;
 }
 
-/* Custom Sleek Scrollbar (Preserves mousewheel and touch scroll) */
+/* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -167,49 +218,24 @@
   flex-shrink: 0;
 }
 
-/* --- THEME SYSTEM: CLEAN APPLE LIGHT, BEIGE, & MIDNIGHT STYLING --- */
+/* --- THEME SYSTEM: MINIMALIST LIGHT GREY, NAVY, WHITE, BLACK & DARK RED --- */
 .theme-light {
-  background: radial-gradient(at 0% 0%, #e0f2fe 0, transparent 50%), radial-gradient(at 100% 0%, #ede9fe 0, transparent 50%), radial-gradient(at 50% 100%, #f3e8ff 0, transparent 50%), #f8fafc !important;
+  background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
 .theme-light body,
 .theme-light #root {
-  background: radial-gradient(at 0% 0%, #e0f2fe 0, transparent 50%), radial-gradient(at 100% 0%, #ede9fe 0, transparent 50%), radial-gradient(at 50% 100%, #f3e8ff 0, transparent 50%), #f8fafc !important;
+  background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-/* High-Contrast Light Theme Typography (Prevents washed out colors while protecting colored buttons & gradients) */
-.theme-light .text-white:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]):not([class*="to-"]):not([class*="badge"]):not([class*="pill"]):not([style*="background"]):not(.text-white-force):not(.bg-blue-600):not(.bg-blue-500):not(.bg-emerald-600):not(.bg-emerald-500):not(.bg-indigo-600):not(.bg-rose-600):not(.bg-slate-900):not(.bg-black) {
-  color: #0f172a !important;
-}
-
-.theme-light .text-white-force,
-.theme-light .text-white-force *,
-.theme-light button.bg-blue-600,
-.theme-light button.bg-blue-600 *,
-.theme-light button.bg-blue-700,
-.theme-light button.bg-blue-700 *,
-.theme-light button.bg-emerald-600,
-.theme-light button.bg-emerald-600 *,
-.theme-light button.bg-emerald-700,
-.theme-light button.bg-emerald-700 *,
-.theme-light button.bg-indigo-600,
-.theme-light button.bg-indigo-600 *,
-.theme-light button.bg-indigo-700,
-.theme-light button.bg-indigo-700 *,
-.theme-light button.bg-purple-600,
-.theme-light button.bg-purple-600 *,
-.theme-light button.bg-rose-600,
-.theme-light button.bg-rose-600 *,
-.theme-light button.bg-slate-900,
-.theme-light button.bg-slate-900 *,
-.theme-light button.bg-black,
-.theme-light button.bg-black *,
-.theme-light .bg-blue-600:not(span),
-.theme-light .bg-emerald-600:not(span),
-.theme-light .bg-indigo-600:not(span) {
-  color: #ffffff !important;
+/* High-Contrast Light Theme Specific Adjustments */
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4 {
+  color: #0f172a;
 }
 
 .theme-light .text-slate-100,
@@ -225,98 +251,23 @@
   color: #475569 !important;
 }
 
-/* Vibrant High-Contrast Financial Numbers */
-.theme-light .text-emerald-300,
-.theme-light .text-emerald-400,
-.theme-light .text-emerald-200 {
-  color: #047857 !important;
+/* Dark Red Specifically For Spending / Minus Numbers */
+.text-spending-minus,
+.spending-minus-value {
+  color: #991b1b !important;
   font-weight: 700;
 }
 
-.theme-light .text-rose-300,
 .theme-light .text-rose-400,
-.theme-light .text-rose-200,
-.theme-light .text-red-400 {
-  color: #dc2626 !important;
-  font-weight: 700;
+.theme-light .text-rose-500,
+.theme-light .text-rose-600,
+.theme-light .text-red-400,
+.theme-light .text-red-500,
+.theme-light .text-red-600 {
+  color: #991b1b !important;
 }
 
-.theme-light .text-sky-300,
-.theme-light .text-sky-400,
-.theme-light .text-sky-200,
-.theme-light .text-blue-400 {
-  color: #0284c7 !important;
-  font-weight: 700;
-}
-
-.theme-light .text-amber-300,
-.theme-light .text-amber-400 {
-  color: #b45309 !important;
-}
-
-.theme-light .text-purple-300,
-.theme-light .text-purple-400 {
-  color: #7e22ce !important;
-}
-
-/* Light Theme Badges & Indicators */
-.theme-light .bg-emerald-500\/20,
-.theme-light .bg-emerald-500\/10 {
-  background-color: #d1fae5 !important;
-  border-color: #a7f3d0 !important;
-  color: #065f46 !important;
-}
-
-.theme-light .bg-rose-500\/20,
-.theme-light .bg-rose-500\/10 {
-  background-color: #ffe4e6 !important;
-  border-color: #fecdd3 !important;
-  color: #9f1239 !important;
-}
-
-.theme-light .bg-sky-500\/20,
-.theme-light .bg-blue-500\/20 {
-  background-color: #e0f2fe !important;
-  border-color: #bae6fd !important;
-  color: #0369a1 !important;
-}
-
-.theme-light .bg-amber-500\/20 {
-  background-color: #fef3c7 !important;
-  border-color: #fde68a !important;
-  color: #92400e !important;
-}
-
-.theme-light .bg-purple-500\/20 {
-  background-color: #f3e8ff !important;
-  border-color: #e9d5ff !important;
-  color: #6b21a8 !important;
-}
-
-/* Light Theme Interactive Containers and Quick Action Cards */
-.theme-light .bg-white\/\[0\.04\],
-.theme-light .bg-white\/\[0\.03\],
-.theme-light .bg-white\/5,
-.theme-light .bg-white\/10 {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-}
-
-.theme-light .border-white\/10,
-.theme-light .border-white\/15,
-.theme-light .border-white\/20,
-.theme-light .border-white\/25 {
-  border-color: #e2e8f0 !important;
-}
-
-.theme-light .hover\:bg-white\/10:hover,
-.theme-light .hover\:bg-white\/\[0\.09\]:hover,
-.theme-light .hover\:bg-white\/5:hover {
-  background-color: #f8fafc !important;
-}
-
-/* Light Mode Input & Button Controls (Apple iOS Look) */
+/* Light Theme Interactive Containers */
 .theme-light .liquid-glass-input {
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
@@ -325,22 +276,20 @@
 }
 
 .theme-light .liquid-glass-input:focus {
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  border-color: #0f172a !important;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1) !important;
 }
 
 .theme-light .liquid-glass-button {
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
   color: #0f172a !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
 .theme-light .liquid-glass-button:hover {
-  background: #f8fafc !important;
+  background: #f1f5f9 !important;
   border-color: #94a3b8 !important;
-  color: #0f172a !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
 }
 
 .theme-light select option {
@@ -348,97 +297,72 @@
   color: #0f172a !important;
 }
 
-/* Warm Editorial Beige Theme */
+/* Clean Neutral Beige Theme */
 .theme-beige {
-  background-color: #f5f2eb !important;
-  color: #29231c !important;
+  background-color: #f5f4ef !important;
+  color: #1c1917 !important;
 }
 
 .theme-beige body,
 .theme-beige #root {
-  background-color: #f5f2eb !important;
-  color: #29231c !important;
+  background-color: #f5f4ef !important;
+  color: #1c1917 !important;
 }
 
 .theme-beige .liquid-glass-input {
-  background: rgba(255, 253, 248, 0.95) !important;
-  border: 1px solid rgba(223, 213, 198, 0.95) !important;
-  color: #29231c !important;
-  box-shadow: 0 1px 3px rgba(60, 45, 30, 0.04) !important;
-}
-
-.theme-beige .liquid-glass-input:focus {
-  border-color: #b45309 !important;
-  box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.12) !important;
+  background: #ffffff !important;
+  border: 1px solid #d6d3d1 !important;
+  color: #1c1917 !important;
 }
 
 .theme-beige .liquid-glass-button {
-  background: rgba(255, 253, 248, 0.9) !important;
-  border: 1px solid rgba(223, 213, 198, 0.9) !important;
-  color: #3f362c !important;
-  box-shadow: 0 2px 8px rgba(60, 45, 30, 0.05) !important;
-}
-
-.theme-beige .liquid-glass-button:hover {
   background: #ffffff !important;
-  color: #1f1913 !important;
+  border: 1px solid #d6d3d1 !important;
+  color: #1c1917 !important;
 }
 
 .theme-beige select option {
-  background: #fbf9f4 !important;
-  color: #29231c !important;
+  background: #ffffff !important;
+  color: #1c1917 !important;
 }
 
-.theme-beige .ambient-glow-1 {
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, rgba(245, 158, 11, 0.08) 50%, transparent 70%);
-}
-
-.theme-beige .ambient-glow-2 {
-  background: radial-gradient(circle, rgba(217, 119, 6, 0.12) 0%, rgba(180, 83, 9, 0.06) 50%, transparent 70%);
-}
-
-.theme-beige .ambient-glow-3 {
-  background: radial-gradient(circle, rgba(245, 208, 169, 0.2) 0%, rgba(234, 179, 8, 0.08) 50%, transparent 70%);
-}
-
-/* Midnight OLED Deep Theme */
+/* Midnight Deep Navy/Black Theme */
 .theme-midnight {
-  background-color: #000000 !important;
+  background-color: #020408 !important;
   color: #f8fafc !important;
 }
 
 .theme-midnight body,
 .theme-midnight #root {
-  background-color: #000000 !important;
+  background-color: #020408 !important;
   color: #f8fafc !important;
 }
 
 .theme-midnight .liquid-glass-input {
-  background: rgba(10, 10, 15, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(10, 15, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: #f8fafc;
 }
 
 .theme-midnight .liquid-glass-button {
-  background: rgba(15, 15, 22, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #f8fafc;
 }
 
 .theme-midnight .ambient-glow-1 {
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(30, 58, 138, 0.12) 0%, transparent 70%);
 }
 
 .theme-midnight .ambient-glow-2 {
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.12) 0%, transparent 70%);
 }
 
 .theme-midnight .ambient-glow-3 {
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+  background: none;
 }
 
-/* --- HIGH-CONTRAST DARK MODE TYPOGRAPHY --- */
-/* User request: "ganti warna font pada dark modenya mnjadi putih agar kontras dengan background" */
+/* High-Contrast Dark Mode Typography */
 html.dark:not(#audit-investasi-printable-document),
 body.dark:not(#audit-investasi-printable-document),
 .dark:not(#audit-investasi-printable-document) {
@@ -466,31 +390,25 @@ body.dark:not(#audit-investasi-printable-document),
   color: #94a3b8 !important;
 }
 
-/* Only force dark text on buttons/controls that have light backgrounds in dark mode */
 .dark button.text-slate-900,
 .dark button.text-slate-900 *,
 .dark button.text-slate-950,
 .dark button.text-slate-950 *,
 .dark button.text-black,
-.dark button.text-black *,
-.dark .badge-dark-text,
-.dark .text-force-dark {
+.dark button.text-black * {
   color: #0f172a !important;
 }
 
-/* Explicit high-contrast white text in dark mode */
 .dark h1,
 .dark h2,
 .dark h3,
 .dark h4,
 .dark h5,
 .dark h6,
-.dark .dark\:text-white,
 .dark .header-title-white {
   color: #ffffff !important;
 }
 
-/* Also apply to default dark mode when not in light/beige mode */
 :root:not(.theme-light):not(.theme-beige) .text-slate-400 {
   color: #cbd5e1;
 }
@@ -499,7 +417,7 @@ body.dark:not(#audit-investasi-printable-document),
   color: #94a3b8;
 }
 
-/* --- CLOCKWISE ROTATING LIQUID BEAM ANIMATION --- */
+/* Clockwise rotating liquid highlight */
 @keyframes borderBeamClockwise {
   0% {
     transform: translate(-50%, -50%) rotate(0deg);
@@ -514,21 +432,7 @@ body.dark:not(#audit-investasi-printable-document),
   will-change: transform;
 }
 
-@keyframes liquidClockwiseLoop {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-liquid-beam {
-  animation: liquidClockwiseLoop 4.5s linear infinite;
-  will-change: transform;
-}
-
-/* --- AUDIT INVESTASI PRINTABLE DOCUMENT: STRICT HIGH CONTRAST PALETTE --- */
+/* Printable Document */
 #audit-investasi-printable-document {
   background-color: #ffffff !important;
   color: #0f172a !important;
@@ -542,77 +446,3 @@ body.dark:not(#audit-investasi-printable-document),
 #audit-investasi-printable-document h6 {
   color: #0f172a !important;
 }
-
-#audit-investasi-printable-document .text-slate-950 {
-  color: #020617 !important;
-}
-
-#audit-investasi-printable-document .text-slate-900 {
-  color: #0f172a !important;
-}
-
-#audit-investasi-printable-document .text-slate-800 {
-  color: #1e293b !important;
-}
-
-#audit-investasi-printable-document .text-slate-700 {
-  color: #334155 !important;
-}
-
-#audit-investasi-printable-document .text-slate-600 {
-  color: #475569 !important;
-}
-
-#audit-investasi-printable-document .text-slate-500 {
-  color: #64748b !important;
-}
-
-#audit-investasi-printable-document .text-slate-400 {
-  color: #64748b !important;
-}
-
-#audit-investasi-printable-document .text-purple-950 {
-  color: #3b0764 !important;
-}
-
-#audit-investasi-printable-document .text-purple-900 {
-  color: #581c87 !important;
-}
-
-#audit-investasi-printable-document .text-purple-800 {
-  color: #6b21a8 !important;
-}
-
-#audit-investasi-printable-document .text-purple-700 {
-  color: #7e22ce !important;
-}
-
-#audit-investasi-printable-document .text-sky-950 {
-  color: #082f49 !important;
-}
-
-#audit-investasi-printable-document .text-sky-900 {
-  color: #0c4a6e !important;
-}
-
-#audit-investasi-printable-document .text-sky-800 {
-  color: #075985 !important;
-}
-
-#audit-investasi-printable-document .text-emerald-800 {
-  color: #065f46 !important;
-}
-
-#audit-investasi-printable-document .text-emerald-700 {
-  color: #047857 !important;
-}
-
-#audit-investasi-printable-document .text-rose-800 {
-  color: #9f1239 !important;
-}
-
-#audit-investasi-printable-document .text-rose-700 {
-  color: #be123c !important;
-}
-
-

@@ -1,5 +1,44 @@
 export type TransactionType = 'Income' | 'Expense' | 'Saldo Bulan Lalu' | 'Transfer Keluar' | 'Transfer Masuk';
 
+export type ActivePage =
+  | 'summary'      // Ringkasan
+  | 'cashflow'     // Input Cashflow / Mutasi
+  | 'budgeting'    // Dompet & Rekening
+  | 'portfolio'    // Portofolio & Aset
+  | 'accounts'     // Saldo Rekening
+  | 'calculator'   // Utility: Kalkulator Pensiun
+  | 'investing';   // Dashboard Jurnal Trading & Investasi (Tab INVESTING)
+
+export type TradeType = 'BUY' | 'SELL';
+export type TradeStatus = 'Realized' | 'Floating';
+
+export interface TradeRecord {
+  id: string;
+  rowIndex?: number; // 1-indexed row number in Google Sheet
+  type: TradeType;
+  asset: string; // Ticker e.g. NVDA, SPCX, GOLD, MSFT
+  nominalIdr: number; // Column C: Nominal (IDR)
+  kurs: number; // Column D: Kurs IDR-USD
+  jumlah: number; // Column E: Jumlah (Lot / Lembar)
+  entryDate: string; // Column F: YYYY-MM-DD
+  exitDate?: string; // Column G: YYYY-MM-DD (empty if Floating)
+  entryPrice: number; // Column H: USD or IDR
+  exitPrice: number; // Column I: USD or IDR
+  pnlPercent: number; // Column J: PnL (%)
+  spreadCost: number; // Column K: SPREAD 0.5% (negative)
+  labaBersih: number; // Column L: Laba Bersih in IDR
+  status: TradeStatus; // Column M: Realized | Floating
+  nilaiAset: number; // Column N: Nilai Aset in IDR
+}
+
+export interface ActiveAssetSummary {
+  asset: string; // Column P: ASSET
+  avgBuy: number; // Column Q: AVERAGE BUY
+  priceNow: number; // Column R: PRICE NOW
+  pnlPercent: number; // Column S: PnL (%)
+  valueTotalIdr: number; // Column T or S: VALUE TOTAL (IDR)
+}
+
 export interface Transaction {
   id: string;
   bulan: string;

@@ -147,14 +147,8 @@ export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
         {/* Header Bar */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-white/10 shrink-0">
           <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md relative overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(147, 51, 234, 0.9) 100%)',
-                boxShadow: '0 8px 20px -4px rgba(99, 102, 241, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.7)'
-              }}
-            >
-              <Sparkles className="w-5 h-5 text-white drop-shadow" />
+            <div className="w-10 h-10 rounded-2xl bg-slate-900 dark:bg-white/10 border border-slate-700 dark:border-white/15 flex items-center justify-center shadow-md">
+              <Sparkles className="w-5 h-5 text-slate-200" />
             </div>
             <div>
               <h3 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
@@ -163,7 +157,7 @@ export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
               <p className={`text-xs flex items-center gap-1.5 mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
-                    isGoogleConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                    isGoogleConnected ? 'bg-emerald-500' : 'bg-slate-400'
                   }`}
                 />
                 <span className="font-medium">
@@ -244,8 +238,8 @@ export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
                               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
                               : 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold'
                             : isDark
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
-                              : 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
+                              ? 'bg-slate-500/20 text-slate-300 border-slate-400/40'
+                              : 'bg-slate-100 text-slate-800 border-slate-300 font-bold'
                         }`}
                       >
                         {user ? 'Online' : 'Mode Offline'}
@@ -483,39 +477,6 @@ export const GlassMenuPopup: React.FC<GlassMenuPopupProps> = ({
               )}
             </div>
           </div>
-
-          {/* 3-IN-1 GEMINI API KEY & VERCEL QUICK ACCESS */}
-          {onOpenApiKeyModal && (
-            <button
-              onClick={() => {
-                onClose();
-                onOpenApiKeyModal();
-              }}
-              className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between transition active:scale-[0.99] cursor-pointer shadow-xs ${
-                isDark
-                  ? 'bg-gradient-to-r from-blue-950/40 via-purple-950/30 to-indigo-950/40 border-blue-500/30 hover:border-blue-400 text-white'
-                  : 'bg-gradient-to-r from-blue-50 via-purple-50 to-indigo-50 border-blue-200 hover:border-blue-300 text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
-                  <Key className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs">Google Gemini API Key (3-in-1)</span>
-                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-400/30">
-                      Universal
-                    </span>
-                  </div>
-                  <span className={`text-[11px] block truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Input manual user (BYOK), server default & Vercel deployment
-                  </span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-blue-400 pl-2">&gt;</span>
-            </button>
-          )}
 
           {/* SECTION: PILIHAN TEMA (TETAP ADA) */}
           {onSelectTheme && (

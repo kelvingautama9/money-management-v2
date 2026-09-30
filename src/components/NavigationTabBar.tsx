@@ -1,27 +1,16 @@
 import React from 'react';
-import { GlassSettings } from '../types';
+import { GlassSettings, ActivePage } from '../types';
 import { triggerHaptic } from '../lib/haptics';
 import {
   LayoutDashboard,
+  PlusCircle,
   PieChart,
   TrendingUp,
   Landmark,
-  Menu,
-  Plus
+  CandlestickChart
 } from 'lucide-react';
 
-export type ActivePage =
-  | 'summary'
-  | 'cashflow'
-  | 'budgeting'
-  | 'portfolio'
-  | 'accounts'
-  | 'journal'
-  | 'calculator'
-  | 'audit'
-  | 'analysis'
-  | 'sync'
-  | 'theme';
+export type { ActivePage };
 
 interface NavigationTabBarProps {
   activePage: ActivePage;
@@ -36,10 +25,7 @@ interface NavigationTabBarProps {
 export const NavigationTabBar: React.FC<NavigationTabBarProps> = ({
   activePage,
   onSelectPage,
-  settings,
-  onOpenMenu,
-  onOpenProjectManager,
-  onToggleTheme
+  settings
 }) => {
   const currentTheme = settings.themeMode || 'dark';
 
@@ -73,44 +59,45 @@ export const NavigationTabBar: React.FC<NavigationTabBarProps> = ({
     inactiveTextClass = 'text-slate-400 hover:text-slate-200';
   }
 
-  // 5 Main Navigation Items inside the Glass Pill (perfect odd symmetry & center balance)
-  const navTabs: { id: ActivePage | 'menu'; label: string; icon: React.ReactNode; isAction?: boolean }[] = [
+  // 5 Main Navigation Items
+  const navTabs: { id: ActivePage; label: string; icon: React.ReactNode }[] = [
     {
       id: 'summary',
-      label: 'Home',
+      label: 'Ringkasan',
       icon: <LayoutDashboard className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
     },
     {
+      id: 'cashflow',
+      label: 'Mutasi',
+      icon: <PlusCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+    },
+    {
       id: 'budgeting',
-      label: 'Budget',
+      label: 'Dompet',
       icon: <PieChart className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
     },
     {
       id: 'portfolio',
-      label: 'Invest',
+      label: 'Portofolio',
       icon: <TrendingUp className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
     },
     {
       id: 'accounts',
-      label: 'Dompet',
+      label: 'Saldo',
       icon: <Landmark className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
     },
     {
-      id: 'menu',
-      label: 'Menu',
-      icon: <Menu className="w-4 h-4 sm:w-4.5 sm:h-4.5" />,
-      isAction: true
+      id: 'investing',
+      label: 'Investing',
+      icon: <CandlestickChart className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
     }
   ];
 
-  const isCashflowActive = activePage === 'cashflow';
-
   return (
     <aside
-      aria-label="Split Glass Bottom Navigation Bar"
-      className="fixed bottom-3 sm:bottom-5 inset-x-0 z-40 flex items-center justify-center gap-2 sm:gap-3 px-3 pointer-events-none transition-all duration-300 pb-[max(0.25rem,env(safe-area-inset-bottom))]"
+      aria-label="Bottom Navigation Bar"
+      className="fixed bottom-3 sm:bottom-5 inset-x-0 z-40 flex items-center justify-center px-3 pointer-events-none transition-all duration-300 pb-[max(0.25rem,env(safe-area-inset-bottom))]"
     >
-      {/* 1. MAIN GLASS CAPSULE DOCK (Contains the 5 Navigation tabs with sliding liquid indicator) */}
       <div
         style={{
           background: pillBg,
@@ -129,33 +116,25 @@ export const NavigationTabBar: React.FC<NavigationTabBarProps> = ({
               key={tab.id}
               onClick={() => {
                 triggerHaptic('light');
-                if (tab.isAction) {
-                  onOpenMenu?.();
-                } else {
-                  onSelectPage(tab.id as ActivePage);
-                }
+                onSelectPage(tab.id);
               }}
               className={`relative flex items-center justify-center rounded-full py-2 px-3 sm:px-3.5 transition-all duration-200 focus:outline-none touch-manipulation group ${
                 isActive ? activeTextClass : inactiveTextClass
               }`}
             >
-              {/* Liquid Sliding Indicator Pill */}
               {isActive && (
                 <div
                   className={`absolute inset-0 rounded-full ${activePillBg} transition-all duration-300 animate-in fade-in zoom-in-95 duration-200`}
                 />
               )}
 
-              {/* Tab Content (Icon + dynamic label when active) */}
               <span className="relative z-10 flex items-center gap-1.5">
                 <span className="shrink-0 transition-transform duration-200 group-hover:scale-105">
                   {tab.icon}
                 </span>
 
                 {isActive && (
-                  <span
-                    className="text-xs font-bold tracking-tight whitespace-nowrap animate-in fade-in slide-in-from-left-1 duration-200"
-                  >
+                  <span className="text-xs font-bold tracking-tight whitespace-nowrap animate-in fade-in slide-in-from-left-1 duration-200">
                     {tab.label}
                   </span>
                 )}
@@ -164,34 +143,6 @@ export const NavigationTabBar: React.FC<NavigationTabBarProps> = ({
           );
         })}
       </div>
-
-      {/* 2. SPLIT GLASS FLOATING ACTION BUTTON (+) (Asymmetrical Modern Split Navigation from Image 4) */}
-      <button
-        onClick={() => {
-          triggerHaptic('medium');
-          onSelectPage('cashflow');
-        }}
-        aria-label="Input Transaksi Baru"
-        className={`pointer-events-auto relative w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white transition-all duration-200 active:scale-95 focus:outline-none touch-manipulation group ${
-          isCashflowActive
-            ? 'scale-105 ring-2 ring-rose-400/80 ring-offset-2 ring-offset-black/60 shadow-xl shadow-rose-500/50'
-            : 'hover:scale-105 hover:shadow-rose-500/40'
-        }`}
-        style={{
-          background: 'linear-gradient(135deg, #f43f5e 0%, #d946ef 50%, #6366f1 100%)',
-          boxShadow: isCashflowActive
-            ? '0 8px 24px -2px rgba(244, 63, 94, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.4)'
-            : '0 8px 20px -2px rgba(244, 63, 94, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.35)',
-          border: '1px solid rgba(255, 255, 255, 0.35)'
-        }}
-      >
-        {/* Soft Ambient Glow Halo behind the button */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-rose-500 to-fuchsia-500 blur-md opacity-40 group-hover:opacity-70 transition-opacity -z-10" />
-
-        <Plus className={`w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 ${
-          isCashflowActive ? 'rotate-90 scale-110' : 'group-hover:rotate-45'
-        }`} />
-      </button>
     </aside>
   );
 };

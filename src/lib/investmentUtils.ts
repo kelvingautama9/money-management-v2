@@ -35,7 +35,7 @@ export function getMonthlyInvestmentMetrics(
   const cleanMonth = (monthName || '').trim();
   const normalizedKey = cleanMonth.toUpperCase().replace(/[^A-Z]/g, '');
 
-  const historyList = Array.isArray(history) && history.length > 0 ? history : INITIAL_INVESTMENT_HISTORY;
+  const historyList = Array.isArray(history) ? history : [];
   const historyIndex = historyList.findIndex((h) => {
     const hKey = h.bulan.toUpperCase().replace(/[^A-Z]/g, '');
     return hKey.includes(normalizedKey) || normalizedKey.includes(hKey);
@@ -43,9 +43,9 @@ export function getMonthlyInvestmentMetrics(
   const historyRecord = historyIndex >= 0 ? historyList[historyIndex] : null;
 
   // Previous month baseline
-  const prevMonthIndex = historyIndex > 0 ? historyIndex - 1 : (historyList.length >= 2 ? historyList.length - 2 : -1);
+  const prevMonthIndex = historyIndex > 0 ? historyIndex - 1 : -1;
   const prevMonth = prevMonthIndex >= 0 ? historyList[prevMonthIndex] : null;
-  const prevNetWorth = prevMonth?.totalNetWorth || 51705076;
+  const prevNetWorth = prevMonth?.totalNetWorth || 0;
 
   // Dynamic DCA for active month
   let totalDCA = 0;
@@ -59,7 +59,7 @@ export function getMonthlyInvestmentMetrics(
   if (totalDCA === 0 && historyRecord?.dca !== undefined && historyRecord.dca > 0) {
     totalDCA = historyRecord.dca;
   }
-  if (totalDCA === 0) {
+  if (totalDCA === 0 && INITIAL_INVESTMENT_ASSETS_BY_MONTH[normalizedKey]) {
     const preset = INITIAL_INVESTMENT_ASSETS_BY_MONTH[normalizedKey];
     if (preset) {
       totalDCA = preset.reduce((sum, a) => sum + (Number(a.depositWd) || 0), 0);
@@ -72,22 +72,18 @@ export function getMonthlyInvestmentMetrics(
     isClosed = historyRecord.isClosed;
   } else if (historyIndex >= 0 && historyIndex < historyList.length - 1) {
     isClosed = true;
-  } else if (['APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS'].includes(normalizedKey)) {
-    isClosed = true;
   }
 
   const isPendingValuation = !isClosed;
 
   // Resolve assets breakdown for this month
   let baseAssets: InvestmentAsset[] = [];
-  if (rawAssets && rawAssets.length > 0 && normalizedKey === 'SEPTEMBER') {
+  if (rawAssets && rawAssets.length > 0) {
     baseAssets = rawAssets.map((a) => ({ ...a }));
-  } else if (INITIAL_INVESTMENT_ASSETS_BY_MONTH[normalizedKey]) {
+  } else if (INITIAL_INVESTMENT_ASSETS_BY_MONTH[normalizedKey] && INITIAL_INVESTMENT_ASSETS_BY_MONTH[normalizedKey].length > 0) {
     baseAssets = INITIAL_INVESTMENT_ASSETS_BY_MONTH[normalizedKey].map((a) => ({ ...a }));
-  } else if (rawAssets && rawAssets.length > 0) {
-    baseAssets = rawAssets.map((a) => ({ ...a }));
   } else {
-    baseAssets = (INITIAL_INVESTMENT_ASSETS_BY_MONTH['SEPTEMBER'] || []).map((a) => ({ ...a }));
+    baseAssets = [];
   }
 
   // Synchronize depositWd on Pluang / primary DCA asset

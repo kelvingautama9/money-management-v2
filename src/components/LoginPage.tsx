@@ -141,10 +141,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           onClick={() => setThemePreference('light')}
           className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
             themePreference === 'light'
-              ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+              ? 'bg-slate-900 text-white shadow-md'
               : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
-          title="Tema Light iOS"
+          title="Tema Light"
         >
           <Sun className="w-3.5 h-3.5" />
           <span className="hidden sm:inline text-[11px]">Light</span>
@@ -154,10 +154,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           onClick={() => setThemePreference('dark')}
           className={`p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
             themePreference === 'dark'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/30 border border-blue-400/40'
+              ? 'bg-slate-900 dark:bg-white/20 text-white shadow-md border border-slate-700 dark:border-white/30'
               : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
-          title="Tema Dark Liquid Glass"
+          title="Tema Dark"
         >
           <Moon className="w-3.5 h-3.5" />
           <span className="hidden sm:inline text-[11px]">Dark</span>
@@ -198,7 +198,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               initial={{ scale: 0.8, rotate: -8 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 200, damping: 14 }}
-              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-400 text-white shadow-lg shadow-blue-500/30 mb-1"
+              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-900 border border-slate-700 text-white shadow-lg mb-1"
             >
               <FileSpreadsheet className="w-7 h-7 text-white" />
             </motion.div>
@@ -258,13 +258,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 authMode === 'pin'
                   ? isLight
                     ? 'bg-white !text-slate-950 text-slate-950 shadow-sm border border-slate-200/90'
-                    : 'bg-amber-500/25 text-amber-300 border border-amber-400/40 shadow-sm'
+                    : 'bg-white/20 text-white border border-white/30 shadow-sm'
                   : isLight
                   ? '!text-slate-700 text-slate-700 hover:text-slate-950'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Code className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
+              <Code className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-800' : 'text-slate-200'}`} />
               <span className={isLight ? '!text-slate-950 text-slate-950 font-bold' : ''}>Dev Mode (0000)</span>
             </button>
           </div>
@@ -379,7 +379,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 className="space-y-4"
               >
                 <div className="text-center space-y-1">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-400/30 text-[11px] font-bold mb-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-white/15 text-[11px] font-bold mb-1">
                     <Code className="w-3 h-3" />
                     <span>Mode Pengembangan (UI Inspection)</span>
                   </div>
@@ -418,7 +418,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       handlePinComplete('0000');
                     }}
                     className={`text-[11px] font-semibold underline underline-offset-4 ${
-                      isLight ? '!text-amber-700 text-amber-700 hover:text-amber-800' : 'text-amber-400 hover:text-amber-300'
+                      isLight ? 'text-slate-800 hover:text-slate-950' : 'text-slate-300 hover:text-white'
                     }`}
                   >
                     Klik di sini untuk otomatis isi 0000
@@ -429,18 +429,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <button
                     onClick={() => handlePinComplete(pinCode || '0000')}
                     disabled={isVerifyingPin}
-                    className="w-full py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all duration-300 shadow-xl active:scale-[0.98] relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 !text-slate-950 text-slate-950 border border-amber-300/40 shadow-amber-500/20 cursor-pointer"
+                    className="w-full py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all duration-300 shadow-xl active:scale-[0.98] relative overflow-hidden bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 cursor-pointer"
                   >
-                    <span className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-transparent pointer-events-none" />
+                    <span className="absolute inset-0 bg-gradient-to-b from-white/15 via-transparent to-transparent pointer-events-none" />
                     {isVerifyingPin ? (
                       <>
-                        <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                        <span className="!text-slate-950 text-slate-950 font-bold">Memverifikasi Dev Mode...</span>
+                        <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                        <span className="text-white font-bold">Memverifikasi Dev Mode...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="w-4 h-4 text-slate-950" />
-                        <span className="!text-slate-950 text-slate-950 font-bold">Masuk Dev Mode (Kode: 0000)</span>
+                        <CheckCircle2 className="w-4 h-4 text-white" />
+                        <span className="text-white font-bold">Masuk Dev Mode (Kode: 0000)</span>
                       </>
                     )}
                   </button>

@@ -51,10 +51,10 @@ export interface SheetChipStyle {
 // 1. KATEGORI (Column B)
 export const CATEGORY_STYLES: Record<string, SheetChipStyle> = {
   'Salary': {
-    bg: 'bg-[#c2e7da] text-[#065f46] border border-[#a3d9c7]',
-    text: '#065f46',
-    rawBg: '#c2e7da',
-    rawText: '#065f46'
+    bg: 'bg-[#0f172a] text-[#f8fafc] border border-[#1e293b]',
+    text: '#f8fafc',
+    rawBg: '#0f172a',
+    rawText: '#f8fafc'
   },
   'Saldo Awal': {
     bg: 'bg-[#334155] text-[#f8fafc] border border-[#475569]',
@@ -63,22 +63,22 @@ export const CATEGORY_STYLES: Record<string, SheetChipStyle> = {
     rawText: '#f8fafc'
   },
   'Uang Bulanan': {
-    bg: 'bg-[#bae6fd] text-[#0369a1] border border-[#7dd3fc]',
-    text: '#0369a1',
-    rawBg: '#bae6fd',
-    rawText: '#0369a1'
+    bg: 'bg-[#1e293b] text-[#f1f5f9] border border-[#334155]',
+    text: '#f1f5f9',
+    rawBg: '#1e293b',
+    rawText: '#f1f5f9'
   },
   'Listrik': {
-    bg: 'bg-[#fef08a] text-[#854d0e] border border-[#fde047]',
-    text: '#854d0e',
-    rawBg: '#fef08a',
-    rawText: '#854d0e'
+    bg: 'bg-[#1e3a8a] text-[#ffffff] border border-[#172554]',
+    text: '#ffffff',
+    rawBg: '#1e3a8a',
+    rawText: '#ffffff'
   },
   'Transport': {
-    bg: 'bg-[#c7d2fe] text-[#3730a3] border border-[#a5b4fc]',
-    text: '#3730a3',
-    rawBg: '#c7d2fe',
-    rawText: '#3730a3'
+    bg: 'bg-[#0f172a] text-[#e2e8f0] border border-[#1e293b]',
+    text: '#e2e8f0',
+    rawBg: '#0f172a',
+    rawText: '#e2e8f0'
   },
   'Entertainment': {
     bg: 'bg-[#475569] text-[#ffffff] border border-[#64748b]',
@@ -87,22 +87,22 @@ export const CATEGORY_STYLES: Record<string, SheetChipStyle> = {
     rawText: '#ffffff'
   },
   'Dating': {
-    bg: 'bg-[#f472b6] text-[#ffffff] border border-[#ec4899]',
+    bg: 'bg-[#334155] text-[#ffffff] border border-[#475569]',
     text: '#ffffff',
-    rawBg: '#f472b6',
+    rawBg: '#334155',
     rawText: '#ffffff'
   },
   'Jajan': {
-    bg: 'bg-[#2e4732] text-[#f0fdf4] border border-[#3f6244]',
-    text: '#f0fdf4',
-    rawBg: '#2e4732',
-    rawText: '#f0fdf4'
+    bg: 'bg-[#1e293b] text-[#f8fafc] border border-[#334155]',
+    text: '#f8fafc',
+    rawBg: '#1e293b',
+    rawText: '#f8fafc'
   },
   'Transfer Internal': {
-    bg: 'bg-[#e2e8f0] text-[#1e293b] border border-[#cbd5e1]',
-    text: '#1e293b',
+    bg: 'bg-[#e2e8f0] text-[#0f172a] border border-[#cbd5e1]',
+    text: '#0f172a',
     rawBg: '#e2e8f0',
-    rawText: '#1e293b'
+    rawText: '#0f172a'
   },
   'Lain-lain': {
     bg: 'bg-[#e2e8f0] text-[#334155] border border-[#cbd5e1]',
@@ -115,28 +115,28 @@ export const CATEGORY_STYLES: Record<string, SheetChipStyle> = {
 // 2. AKUN (Column C)
 export const ACCOUNT_STYLES: Record<string, SheetChipStyle> = {
   'Bank BCA': {
-    bg: 'bg-[#1d4ed8] text-[#ffffff] border border-[#2563eb]',
+    bg: 'bg-[#0f172a] text-[#ffffff] border border-[#1e293b]',
     text: '#ffffff',
-    rawBg: '#1d4ed8',
+    rawBg: '#0f172a',
     rawText: '#ffffff'
   },
   'Seabank': {
-    bg: 'bg-[#fed7aa] text-[#9a3412] border border-[#fdba74]',
-    text: '#9a3412',
-    rawBg: '#fed7aa',
-    rawText: '#9a3412'
+    bg: 'bg-[#1e293b] text-[#f1f5f9] border border-[#334155]',
+    text: '#f1f5f9',
+    rawBg: '#1e293b',
+    rawText: '#f1f5f9'
   },
   'Investasi': {
-    bg: 'bg-[#15803d] text-[#ffffff] border border-[#16a34a]',
+    bg: 'bg-[#0284c7] text-[#ffffff] border border-[#0369a1]',
     text: '#ffffff',
-    rawBg: '#15803d',
+    rawBg: '#0284c7',
     rawText: '#ffffff'
   },
   'Blu BCA - Savings': {
-    bg: 'bg-[#bfdbfe] text-[#1e3a8a] border border-[#93c5fd]',
-    text: '#1e3a8a',
-    rawBg: '#bfdbfe',
-    rawText: '#1e3a8a'
+    bg: 'bg-[#1e3a8a] text-[#ffffff] border border-[#172554]',
+    text: '#ffffff',
+    rawBg: '#1e3a8a',
+    rawText: '#ffffff'
   },
   'Allo Bank': {
     bg: 'bg-[#334155] text-[#ffffff] border border-[#475569]',
@@ -145,43 +145,43 @@ export const ACCOUNT_STYLES: Record<string, SheetChipStyle> = {
     rawText: '#ffffff'
   },
   'Jago-Transport': {
-    bg: 'bg-[#f59e0b] text-[#451a03] font-bold border border-[#d97706]',
-    text: '#451a03',
-    rawBg: '#f59e0b',
-    rawText: '#451a03'
+    bg: 'bg-[#0f172a] text-[#f8fafc] border border-[#1e293b]',
+    text: '#f8fafc',
+    rawBg: '#0f172a',
+    rawText: '#f8fafc'
   },
   'Jago-Entertainment': {
-    bg: 'bg-[#ea580c] text-[#ffffff] border border-[#f97316]',
+    bg: 'bg-[#334155] text-[#ffffff] border border-[#475569]',
     text: '#ffffff',
-    rawBg: '#ea580c',
+    rawBg: '#334155',
     rawText: '#ffffff'
   },
   'Blu BCA - Date': {
-    bg: 'bg-[#93c5fd] text-[#1e3a8a] border border-[#60a5fa]',
-    text: '#1e3a8a',
-    rawBg: '#93c5fd',
-    rawText: '#1e3a8a'
+    bg: 'bg-[#1e293b] text-[#f1f5f9] border border-[#334155]',
+    text: '#f1f5f9',
+    rawBg: '#1e293b',
+    rawText: '#f1f5f9'
   },
   'Cash': {
-    bg: 'bg-[#a7f3d0] text-[#065f46] border border-[#6ee7b7]',
-    text: '#065f46',
-    rawBg: '#a7f3d0',
-    rawText: '#065f46'
+    bg: 'bg-[#e2e8f0] text-[#0f172a] border border-[#cbd5e1]',
+    text: '#0f172a',
+    rawBg: '#e2e8f0',
+    rawText: '#0f172a'
   }
 };
 
 // 3. TIPE (Column D)
 export const TYPE_STYLES: Record<string, SheetChipStyle> = {
   'Income': {
-    bg: 'bg-[#15803d] text-[#ffffff] border border-[#16a34a]',
+    bg: 'bg-[#0f172a] text-[#ffffff] border border-[#1e293b]',
     text: '#ffffff',
-    rawBg: '#15803d',
+    rawBg: '#0f172a',
     rawText: '#ffffff'
   },
   'Expense': {
-    bg: 'bg-[#dc2626] text-[#ffffff] border border-[#ef4444]',
+    bg: 'bg-[#991b1b] text-[#ffffff] border border-[#7f1d1d]',
     text: '#ffffff',
-    rawBg: '#dc2626',
+    rawBg: '#991b1b',
     rawText: '#ffffff'
   },
   'Saldo Bulan Lalu': {
@@ -191,16 +191,16 @@ export const TYPE_STYLES: Record<string, SheetChipStyle> = {
     rawText: '#1e293b'
   },
   'Transfer Keluar': {
-    bg: 'bg-[#fee2e2] text-[#b91c1c] border border-[#fca5a5]',
-    text: '#b91c1c',
+    bg: 'bg-[#fee2e2] text-[#991b1b] border border-[#fca5a5]',
+    text: '#991b1b',
     rawBg: '#fee2e2',
-    rawText: '#b91c1c'
+    rawText: '#991b1b'
   },
   'Transfer Masuk': {
-    bg: 'bg-[#dcfce7] text-[#15803d] border border-[#86efac]',
-    text: '#15803d',
-    rawBg: '#dcfce7',
-    rawText: '#15803d'
+    bg: 'bg-[#f1f5f9] text-[#0f172a] border border-[#cbd5e1]',
+    text: '#0f172a',
+    rawBg: '#f1f5f9',
+    rawText: '#0f172a'
   }
 };
 
@@ -208,12 +208,12 @@ export const TYPE_STYLES: Record<string, SheetChipStyle> = {
 export function getAmountCellStyle(tipe?: string): { className: string; inlineStyle?: React.CSSProperties } {
   if (tipe === 'Expense') {
     return {
-      className: 'font-mono font-bold text-center px-3 py-1 rounded-md',
+      className: 'font-mono font-bold text-center px-3 py-1 rounded-md text-white',
       inlineStyle: {
-        backgroundColor: '#dc2626', // Solid red Google Sheets
+        backgroundColor: '#991b1b', // Dark red for spending
         color: '#ffffff',
-        border: '1px solid #b91c1c',
-        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.2)'
+        border: '1px solid #7f1d1d',
+        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25)'
       }
     };
   }
@@ -222,23 +222,23 @@ export function getAmountCellStyle(tipe?: string): { className: string; inlineSt
     return {
       className: 'font-mono font-bold text-center px-3 py-1 rounded-md',
       inlineStyle: {
-        backgroundColor: '#86efac', // Soft green Google Sheets
-        color: '#064e3b',
-        border: '1px solid #4ade80',
-        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+        backgroundColor: '#0f172a',
+        color: '#ffffff',
+        border: '1px solid #1e293b',
+        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)'
       }
     };
   }
 
   if (tipe === 'Transfer Keluar') {
     return {
-      className: 'font-mono font-semibold text-center px-3 py-1 rounded-md text-[#b91c1c] bg-rose-500/10 border border-rose-500/20'
+      className: 'font-mono font-semibold text-center px-3 py-1 rounded-md text-[#991b1b] bg-red-500/10 border border-red-500/20'
     };
   }
 
   if (tipe === 'Transfer Masuk') {
     return {
-      className: 'font-mono font-semibold text-center px-3 py-1 rounded-md text-[#15803d] bg-emerald-500/10 border border-emerald-500/20'
+      className: 'font-mono font-semibold text-center px-3 py-1 rounded-md text-[#0f172a] dark:text-[#f8fafc] bg-slate-500/10 border border-slate-500/20'
     };
   }
 

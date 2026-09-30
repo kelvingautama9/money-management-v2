@@ -1,17 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { GlassSettings, Transaction, BudgetCategory, EmergencyFund, InvestmentAsset } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
-import {
-  FinancialAnalysisData,
-  getCachedMonthAnalysis,
-  buildDeterministicMetricsPayload,
-  requestGeminiFinancialAnalysis,
-  requestGeminiFinancialAnalysisStream,
-  AiStreamEvent,
-  getStoredModelPreference
-} from '../lib/geminiFinancialService';
-import { AiAnalysisModelBar } from './AiAnalysisModelBar';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -24,14 +14,11 @@ import {
   Wallet,
   ArrowLeft,
   Calendar,
-  Sparkles,
   PieChart,
   CheckCircle2,
   AlertCircle,
-  Zap,
-  Building2,
-  Globe,
-  FileSpreadsheet,
+  AlertTriangle,
+  Lightbulb,
   Shield,
   Compass,
   BarChart3
@@ -63,8 +50,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
   assets = [],
   totalInvestment = 0,
   currentSheetName,
-  onBack,
-  onOpenApiKeyModal
+  onBack
 }) => {
   const isDark = settings?.themeMode !== 'light' && settings?.themeMode !== 'beige';
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -94,84 +80,17 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
 
   const emergencyPct = safeEmergency.target > 0 ? ((safeEmergency.current / safeEmergency.target) * 100).toFixed(1) : '0';
 
-  // AI Analysis State
-  const [aiData, setAiData] = useState<FinancialAnalysisData | null>(() => {
-    return getCachedMonthAnalysis(currentSheetName);
+  // 100% Deterministic Over-budget & Audit Analysis (No tokens, instant)
+  const overBudgetBudgets = safeBudgets.filter((b) => {
+    const monthly = b.budgeting || b.targetBulanan || 0;
+    const actual = b.actualSpend || 0;
+    return monthly > 0 && actual > monthly;
   });
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // Real-Time Server-Sent Events (SSE) Streaming State
-  const [streamLogs, setStreamLogs] = useState<string>('');
-  const [streamStatus, setStreamStatus] = useState<string>('');
-  const [streamTtft, setStreamTtft] = useState<number | null>(null);
-  const [streamModel, setStreamModel] = useState<string>('');
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
-
-  const runAiAnalysis = useCallback(
-    async (overrideModel?: string) => {
-      setIsAnalyzing(true);
-      setIsStreaming(true);
-      setStreamLogs('');
-      setStreamStatus('Menghubungkan ke Gemini Flash (Streaming)...');
-      setStreamTtft(null);
-
-      try {
-        const payload = buildDeterministicMetricsPayload(
-          currentSheetName,
-          totalAset,
-          totalIncome,
-          totalExpense,
-          safeTransactions,
-          safeBudgets,
-          [],
-          [],
-          safeEmergency
-        );
-
-        const result = await requestGeminiFinancialAnalysisStream(
-          currentSheetName,
-          payload,
-          (ev: AiStreamEvent) => {
-            if (ev.type === 'status') {
-              setStreamStatus(ev.message || 'Memproses...');
-              if (ev.model) setStreamModel(ev.model);
-            } else if (ev.type === 'ttft') {
-              if (ev.ms !== undefined) setStreamTtft(ev.ms);
-              if (ev.model) setStreamModel(ev.model);
-            } else if (ev.type === 'chunk' && ev.text) {
-              setStreamLogs((prev) => (prev + ev.text).slice(-1500));
-            } else if (ev.type === 'fallback') {
-              setStreamStatus(ev.message || 'Mengalihkan ke model cadangan...');
-            } else if (ev.type === 'complete' && ev.data) {
-              setAiData(ev.data);
-              setStreamStatus(`Analisis selesai (${ev.modelUsed || 'Gemini Flash'})`);
-            }
-          },
-          overrideModel
-        );
-
-        setAiData(result);
-      } catch (err) {
-        console.error('Failed to run AI analysis stream:', err);
-      } finally {
-        setIsAnalyzing(false);
-        setTimeout(() => {
-          setIsStreaming(false);
-        }, 1200);
-      }
-    },
-    [currentSheetName, totalAset, totalIncome, totalExpense, safeTransactions, safeBudgets, safeEmergency]
-  );
-
-  // Auto-fetch if not cached or sheet changes
-  useEffect(() => {
-    const cached = getCachedMonthAnalysis(currentSheetName);
-    if (cached) {
-      setAiData(cached);
-    } else {
-      runAiAnalysis();
-    }
-  }, [currentSheetName, runAiAnalysis]);
+  const totalOverBudgetAmount = overBudgetBudgets.reduce((sum, b) => {
+    const monthly = b.budgeting || b.targetBulanan || 0;
+    const actual = b.actualSpend || 0;
+    return sum + (actual - monthly);
+  }, 0);
 
   const handleExportPdf = async () => {
     const element = document.getElementById('audit-financial-printable-area');
@@ -740,81 +659,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
           </div>
         </div>
 
-        {/* AI Model Control Bar */}
-        <AiAnalysisModelBar
-          isDark={isDark}
-          modelUsed={aiData?.modelUsed}
-          fallbackOccurred={aiData?.fallbackOccurred}
-          analyzedAt={aiData?.timestamp}
-          isAnalyzing={isAnalyzing}
-          onTriggerAnalysis={runAiAnalysis}
-          onOpenApiKeyModal={onOpenApiKeyModal}
-        />
-
-        {/* LIVE SERVER-SENT EVENTS (SSE) STREAMING TERMINAL / TYPING EFFECT */}
-        {(isStreaming || isAnalyzing) && (
-          <div
-            className={`p-4 rounded-2xl border transition-all animate-in fade-in zoom-in-95 duration-200 ${
-              isDark
-                ? 'bg-slate-950/90 border-blue-500/40 text-slate-200 shadow-2xl shadow-blue-950/30'
-                : 'bg-slate-900 border-blue-400 text-slate-100 shadow-xl'
-            }`}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 text-xs flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <span className="font-mono font-extrabold uppercase tracking-wider text-emerald-400 text-[11px]">
-                  LIVE SERVER-SENT EVENTS (SSE) STREAM
-                </span>
-                <span className="text-slate-500">•</span>
-                <span className="text-slate-300 font-medium text-[11px] truncate max-w-[280px]">
-                  {streamStatus || 'Menerima kata per kata real-time...'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {streamTtft !== null ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
-                    <Zap className="w-3 h-3 text-emerald-400 animate-pulse" />
-                    TTFT: {streamTtft} ms
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-slate-300 text-[10px] font-mono">
-                    Mengukur TTFT...
-                  </span>
-                )}
-                <span className="text-[10px] font-mono text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-md border border-blue-500/30 font-semibold">
-                  {streamModel || 'Gemini Flash'}
-                </span>
-              </div>
-            </div>
-
-            {/* Real-time Typing Console */}
-            <div className="mt-3 p-3.5 rounded-xl bg-black/70 font-mono text-[11px] sm:text-xs text-emerald-300/90 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap break-words border border-white/5 select-none scrollbar-thin">
-              {streamLogs ? (
-                <>
-                  {streamLogs}
-                  <span className="inline-block w-2 h-3.5 bg-emerald-400 ml-1 animate-pulse align-middle" />
-                </>
-              ) : (
-                <div className="flex items-center gap-2 text-slate-400 py-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
-                  <span>// Menghubungkan ke Gemini Live Streaming... (TTFT ~200-400ms)</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2 px-0.5">
-              <span>Streaming respon audit kata per kata secara instan.</span>
-              <span className="font-mono text-emerald-400 font-semibold">Sticky Model Active</span>
-            </div>
-          </div>
-        )}
-
-        {/* Executive Verdict & Recommendations */}
+        {/* Executive Verdict & Recommendations (100% Data-Driven & Zero Token AI) */}
         <div
           style={
             isDark
@@ -828,69 +673,130 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
                   border: '1px solid #bfdbfe'
                 }
           }
-          className="p-6 rounded-3xl print-card space-y-3 shadow-xs"
+          className="p-6 rounded-3xl print-card space-y-4 shadow-xs"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-sky-300' : 'text-blue-900'}`}>
               <ShieldCheck className="w-4 h-4 text-blue-500" />
-              Kesimpulan Eksekutif & Rekomendasi Audit
+              Ringkasan Eksekutif & Hasil Audit Finansial
             </h3>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
-              {aiData?.modelUsed ? `AI Powered (${aiData.modelUsed})` : 'AI Grounded Analysis'}
+            <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border font-mono ${
+              overBudgetBudgets.length > 0
+                ? isDark
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-amber-100 text-amber-900 border-amber-300'
+                : isDark
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+            }`}>
+              {overBudgetBudgets.length > 0 ? '⚠️ Perlu Perhatian Anggaran' : '✅ Arus Kas & Anggaran Solven'}
             </span>
           </div>
 
-          {aiData?.executiveSummaryNarrative && (
-            <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-sky-200 leading-relaxed font-medium">
-              💡 {aiData.executiveSummaryNarrative}
-            </div>
-          )}
+          {/* Quick Concise Data-Driven Narrative */}
+          <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed font-medium ${
+            overBudgetBudgets.length > 0
+              ? isDark
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                : 'bg-amber-50/90 border-amber-200 text-amber-950'
+              : isDark
+              ? 'bg-blue-500/10 border-blue-500/20 text-sky-200'
+              : 'bg-white border-blue-200 text-blue-950 shadow-xs'
+          }`}>
+            💡 <strong className="font-bold">Ringkasan Audit {currentSheetName}:</strong> Arus kas masuk tercatat sebesar{' '}
+            <strong className="font-mono">{formatRupiah(totalIncome)}</strong> dan realisasi belanja sebesar{' '}
+            <strong className="font-mono">{formatRupiah(totalExpense)}</strong>, membukukan surplus bersih sebesar{' '}
+            <strong className="font-mono">{formatRupiah(netSavings)}</strong> (Savings Rate {savingsRate}%).{' '}
+            {overBudgetBudgets.length > 0 ? (
+              <span>
+                <strong className={isDark ? 'text-amber-300 font-bold' : 'text-amber-900 font-extrabold'}>
+                  Peringatan Over-Budget:
+                </strong>{' '}
+                Terdeteksi over-budget pada pos{' '}
+                <strong>{overBudgetBudgets.map((b) => b.nama).join(', ')}</strong> dengan total kelebihan +{formatRupiah(totalOverBudgetAmount)}. Disarankan segera mengerem dan menghemat belanja pada pos tersebut untuk menjaga likuiditas kas.
+              </span>
+            ) : (
+              <span>Seluruh pos kantong belanja berjalan disiplin dalam batas rencana anggaran bulanan.</span>
+            )}
+          </div>
 
-          <ul className={`space-y-2 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-            <li className="flex items-start gap-2">
+          <ul className={`space-y-2.5 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            {/* 1. Savings Efficiency */}
+            <li className="flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-              <span>
+              <div>
                 <strong className={isDark ? 'text-white' : 'text-slate-900'}>
-                  {aiData?.financialAudit?.savingsEfficiency?.title || 'Efisiensi Tabungan'}:
+                  Efisiensi Tabungan (Savings Rate {savingsRate}%):
                 </strong>{' '}
-                {aiData?.financialAudit?.savingsEfficiency?.text ? (
-                  <span>{aiData.financialAudit.savingsEfficiency.text}</span>
-                ) : (
-                  <>
-                    Rasio tabungan Anda tercatat <span className="font-bold text-emerald-400">{savingsRate}%</span>, menghasilkan surplus bersih sebesar <span className="font-mono font-bold">{formatRupiah(netSavings)}</span>.
-                  </>
-                )}
-              </span>
+                <span>
+                  Surplus kas bersih periode ini mencapai <span className="font-mono font-bold text-emerald-500">{formatRupiah(netSavings)}</span>.{' '}
+                  {Number(savingsRate) >= 20
+                    ? 'Tingkat tabungan di atas standar minimum sehat 20%.'
+                    : 'Rasio tabungan di bawah 20%, disarankan menekan pengeluaran tersier agar rasio tabungan meningkat.'}
+                </span>
+              </div>
             </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-              <span>
+
+            {/* 2. Budget Control & Over-budget check */}
+            <li className="flex items-start gap-2.5">
+              {overBudgetBudgets.length > 0 ? (
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              )}
+              <div>
                 <strong className={isDark ? 'text-white' : 'text-slate-900'}>
-                  {aiData?.financialAudit?.budgetControl?.title || 'Kontrol Anggaran'}:
+                  Kontrol Anggaran & Peringatan Belanja:
                 </strong>{' '}
-                {aiData?.financialAudit?.budgetControl?.text ? (
-                  <span>{aiData.financialAudit.budgetControl.text}</span>
+                {overBudgetBudgets.length > 0 ? (
+                  <span>
+                    <strong className={isDark ? 'text-amber-300' : 'text-amber-800'}>
+                      Terdeteksi over-budget pada {overBudgetBudgets.length} pos
+                    </strong>{' '}
+                    ({overBudgetBudgets.map((b) => `${b.nama} [terpakai ${formatRupiah(b.actualSpend || 0)}]`).join(', ')}). Disarankan membatasi pengeluaran non-primer pada pos tersebut sebesar +{formatRupiah(totalOverBudgetAmount)}.
+                  </span>
                 ) : (
-                  <>
-                    Serapan total pos belanja tercatat <span className="font-bold text-amber-400">{budgetAbsorptionPct}%</span> dengan sisa cadangan aman sebesar <span className="font-mono font-bold">{formatRupiah(totalBudgetSisa)}</span>.
-                  </>
+                  <span>
+                    Serapan pos belanja terkendali pada <span className="font-bold text-blue-500">{budgetAbsorptionPct}%</span> dengan sisa cadangan saldo aman sebesar <span className="font-mono font-bold">{formatRupiah(totalBudgetSisa)}</span>.
+                  </span>
                 )}
-              </span>
+              </div>
             </li>
-            <li className="flex items-start gap-2">
+
+            {/* 3. Top Expenses Summary */}
+            {topExpenses.length > 0 && (
+              <li className="flex items-start gap-2.5">
+                <PieChart className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+                    Pos Pengeluaran Terbesar:
+                  </strong>{' '}
+                  <span>
+                    Pengeluaran tertinggi dipimpin oleh{' '}
+                    {topExpenses.slice(0, 3).map((t, idx) => (
+                      <span key={idx}>
+                        <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>
+                          {t.kategori || t.catatan}
+                        </strong>{' '}
+                        ({formatRupiah(t.jumlah)}){idx < Math.min(topExpenses.length, 3) - 1 ? ', ' : '.'}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              </li>
+            )}
+
+            {/* 4. Emergency Fund Priority */}
+            <li className="flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>
+              <div>
                 <strong className={isDark ? 'text-white' : 'text-slate-900'}>
-                  {aiData?.financialAudit?.emergencyFundPriority?.title || 'Prioritas Dana Darurat'}:
+                  Kesiapan Dana Darurat:
                 </strong>{' '}
-                {aiData?.financialAudit?.emergencyFundPriority?.text ? (
-                  <span>{aiData.financialAudit.emergencyFundPriority.text}</span>
-                ) : (
-                  <>
-                    Posisi dana darurat saat ini mencapai <span className="font-bold text-purple-400">{emergencyPct}%</span> ({formatRupiah(safeEmergency.current)} dari target {formatRupiah(safeEmergency.target)}).
-                  </>
-                )}
-              </span>
+                <span>
+                  Posisi saat ini terisi <span className="font-bold text-purple-400">{emergencyPct}%</span> ({formatRupiah(safeEmergency.current)} dari target {formatRupiah(safeEmergency.target)}). Lanjutkan penyisihan dari surplus bulanan {formatRupiah(Math.max(0, netSavings))} hingga target 100% tercapai.
+                </span>
+              </div>
             </li>
           </ul>
         </div>

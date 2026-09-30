@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { GlassContainer } from './GlassContainer';
-import { GlassSettings, InvestmentAsset, InvestmentHistory, Transaction } from '../types';
+import { GlassSettings, InvestmentAsset, InvestmentHistory, Transaction, BudgetCategory, AccountBalance, EmergencyFund } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
 import { getMonthlyInvestmentMetrics } from '../lib/investmentUtils';
@@ -23,9 +23,10 @@ import {
   FileDown,
   Printer,
   ShieldCheck,
+  ChevronRight,
   PieChart as PieChartIcon
 } from 'lucide-react';
-import { InvestmentAuditReportPreviewModal } from './InvestmentAuditReportPreviewModal';
+import { UnifiedMonthlyReportModal } from './UnifiedMonthlyReportModal';
 
 interface InvestmentPortfolioProps {
   assets: InvestmentAsset[];
@@ -35,6 +36,13 @@ interface InvestmentPortfolioProps {
   currentSheetName?: string;
   cashStandby?: number;
   transactions?: Transaction[];
+  totalAset?: number;
+  totalIncome?: number;
+  totalExpense?: number;
+  sisaSaldoIncome?: number;
+  budgets?: BudgetCategory[];
+  accounts?: AccountBalance[];
+  emergencyFund?: EmergencyFund;
   onAddAsset?: (asset: InvestmentAsset) => void;
   onEditAsset?: (oldName: string, asset: InvestmentAsset) => void;
   onDeleteAsset?: (name: string) => void;
@@ -50,6 +58,13 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   currentSheetName = 'September',
   cashStandby = 0,
   transactions = [],
+  totalAset,
+  totalIncome,
+  totalExpense,
+  sisaSaldoIncome,
+  budgets = [],
+  accounts = [],
+  emergencyFund,
   onAddAsset,
   onEditAsset,
   onDeleteAsset,
@@ -193,66 +208,33 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div>
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center">
-                <LineChart className="w-4 h-4 text-sky-400" />
+              <div className="w-7 h-7 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center">
+                <LineChart className="w-4 h-4 text-slate-200" />
               </div>
               <h3 className="text-base font-bold text-white tracking-tight">
                 Portofolio Multi-Aset & Rekap PnL
               </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Pertumbuhan Positif
-              </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
               Monitoring performa investasi, alokasi broker, dan valuasi aset
             </p>
           </div>
 
-          {/* Action Buttons: Audit Investasi + Kalkulator Pensiun + Add Broker + Tabs */}
+          {/* Action Buttons: Ekspor Laporan Bulanan (PDF) + Add Broker (Focused on Real Active Assets) */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Audit Investasi Button */}
-            {onOpenSmartAnalysis && (
-              <button
-                id="btn-audit-investasi-portfolio"
-                onClick={() => {
-                  triggerHaptic('medium');
-                  onOpenSmartAnalysis();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-purple-500/25 border border-white/20 transition-all active:scale-95 cursor-pointer"
-              >
-                <Activity className="w-3.5 h-3.5 text-purple-200" />
-                <span>Audit Investasi</span>
-              </button>
-            )}
-
-            {/* Export PDF / Cetak Laporan Audit */}
+            {/* Single Consolidated Action Button: Ekspor Laporan Bulanan (PDF) */}
             <button
               id="btn-export-pdf-invest-portfolio"
               onClick={() => {
-                triggerHaptic('light');
+                triggerHaptic('medium');
                 setIsAuditModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs transition-all active:scale-95 cursor-pointer"
-              title="Ekspor PDF & Cetak Laporan Audit Investasi"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm border border-slate-700 transition-all active:scale-95 cursor-pointer"
+              title="Ekspor Laporan Bulanan (PDF) Portofolio & Keuangan"
             >
-              <FileDown className="w-3.5 h-3.5 text-purple-300" />
-              <span className="hidden sm:inline">Export PDF / Cetak</span>
-              <span className="sm:hidden">PDF</span>
+              <FileDown className="w-3.5 h-3.5 text-slate-300" />
+              <span>Ekspor Laporan (PDF)</span>
             </button>
-
-            {/* Kalkulator Dana Pensiun & Target Button */}
-            {onOpenCalculator && (
-              <button
-                onClick={() => {
-                  triggerHaptic('medium');
-                  onOpenCalculator();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 border border-white/20 transition-all active:scale-95"
-              >
-                <Calculator className="w-3.5 h-3.5 text-emerald-200" />
-                <span>Kalkulator Pensiun & Target</span>
-              </button>
-            )}
 
             {/* Add Asset / Broker Button */}
             <button
@@ -267,21 +249,21 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
         </div>
 
         {/* Total Valuasi Portofolio Hero Banner */}
-        <div className="my-5 p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-indigo-500/10 dark:from-sky-950/40 dark:via-blue-950/25 dark:to-indigo-950/40 border border-sky-400/30 dark:border-sky-500/25 relative overflow-hidden">
+        <div className="my-5 p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-100/90 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-300">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                   Total Valuasi Portofolio • {currentSheetName}
                 </span>
                 {isClosed ? (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 inline-flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" />
-                    Sudah Closing (Closed)
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-white/15 inline-flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                    Sudah Closing
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                    Bulan Berjalan (Pending Closing)
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/15">
+                    Bulan Berjalan
                   </span>
                 )}
               </div>
@@ -290,46 +272,35 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                   {formatRupiah(totalCurrentInvestment)}
                 </span>
                 {totalDCA > 0 ? (
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-300 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 inline-flex items-center gap-1">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-white/10 px-2.5 py-0.5 rounded-full border border-slate-300 dark:border-white/15 inline-flex items-center gap-1">
                     +{formatRupiah(totalDCA)} Setoran DCA
                   </span>
-                ) : (
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-500/10 px-2.5 py-0.5 rounded-full border border-slate-500/20 inline-flex items-center gap-1">
-                    Rp 0 Setoran DCA
-                  </span>
-                )}
+                ) : null}
                 {isPendingValuation ? (
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 text-sky-600 dark:text-sky-300 bg-sky-500/15 border-sky-500/30">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-200/80 dark:bg-white/10 border-slate-300 dark:border-white/15">
                     Rp 0 (0.00%) Menunggu Closing Akhir Bulan
                   </span>
                 ) : (
                   <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 ${
                     pureProfit >= 0
-                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border-emerald-500/30'
-                      : 'text-rose-600 dark:text-rose-400 bg-rose-500/15 border-rose-500/30'
+                      ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                      : 'text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/20'
                   }`}>
                     {pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) Murni Return
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
                 {isPendingValuation
                   ? 'Setoran DCA dialokasikan aman sebagai modal pokok baru. Estimasi return pasar aktif setelah update saldo akhir bulan.'
                   : totalDCA > 0
-                  ? `Setoran DCA ${formatRupiah(totalDCA)} dialokasikan aman sebagai modal mandiri. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni mencerminkan pertumbuhan organik aset pasar (periode ${currentSheetName} sudah closing).`
-                  : `Tidak ada setoran DCA pada periode ${currentSheetName}. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni mencerminkan kinerja pasar periode ${currentSheetName} yang telah di-closing.`}
+                  ? `Setoran DCA ${formatRupiah(totalDCA)} dialokasikan sebagai modal. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni pertumbuhan organik aset.`
+                  : `Tidak ada setoran DCA periode ${currentSheetName}. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni mencerminkan kinerja pasar.`}
               </p>
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 self-start md:self-center">
-              <button
-                onClick={() => setIsAuditModalOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 border border-purple-500/30 text-purple-600 dark:text-purple-300 font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <FileDown className="w-3.5 h-3.5" />
-                <span>Audit & PDF</span>
-              </button>
-              <span className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium text-[11px]">
+              <span className="px-3 py-1.5 rounded-xl bg-slate-200/80 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-300 font-semibold text-xs">
                 {activeAssets.length} Broker Terdaftar
               </span>
             </div>
@@ -339,75 +310,88 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
         {/* Compact Broker & Asset Cards (Optimized 2-column mobile grid) */}
         <div className="space-y-2 mb-6">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-300">Daftar Broker & Aset Investasi ({currentSheetName})</span>
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-300">Daftar Broker & Aset Investasi ({currentSheetName})</span>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Alokasi Total: 100%</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
-            {activeAssets.map((asset) => {
-              const allocationPct = totalCurrentInvestment > 0
-                ? ((asset.nilaiAkhirBulan / totalCurrentInvestment) * 100).toFixed(1)
-                : '0';
+          {activeAssets.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              {activeAssets.map((asset) => {
+                const allocationPct = totalCurrentInvestment > 0
+                  ? ((asset.nilaiAkhirBulan / totalCurrentInvestment) * 100).toFixed(1)
+                  : '0';
 
-              return (
-                <div
-                  key={asset.nama}
-                  className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/10 relative group hover:border-sky-500/30 transition-all flex flex-col justify-between"
-                >
-                  <div className="flex items-start justify-between gap-1 mb-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div className="shrink-0 scale-90 sm:scale-100">
-                        {getAssetIcon(asset.nama)}
+                return (
+                  <div
+                    key={asset.nama}
+                    className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 relative group hover:border-slate-400 dark:hover:border-white/20 transition-all flex flex-col justify-between"
+                  >
+                    <div className="flex items-start justify-between gap-1 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="shrink-0 scale-90 sm:scale-100">
+                          {getAssetIcon(asset.nama)}
+                        </div>
+                        <span className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white truncate" title={asset.nama}>
+                          {asset.nama}
+                        </span>
                       </div>
-                      <span className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white truncate" title={asset.nama}>
-                        {asset.nama}
+
+                      <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleOpenEdit(asset)}
+                          className="p-1 rounded-md bg-slate-200 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/15 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
+                          title="Edit Aset / Broker"
+                        >
+                          <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(asset.nama)}
+                          className="p-1 rounded-md bg-slate-200 dark:bg-white/5 hover:bg-red-500/20 text-slate-600 dark:text-slate-400 hover:text-red-500 transition"
+                          title="Hapus Aset / Broker"
+                        >
+                          <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="my-1">
+                      <span className="text-xs sm:text-base font-bold text-slate-900 dark:text-white font-mono block tracking-tight truncate">
+                        {formatRupiah(asset.nilaiAkhirBulan)}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleOpenEdit(asset)}
-                        className="p-1 rounded-md bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition"
-                        title="Edit Aset / Broker"
-                      >
-                        <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(asset.nama)}
-                        className="p-1 rounded-md bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition"
-                        title="Hapus Aset / Broker"
-                      >
-                        <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                      </button>
+                    <div className="pt-1.5 border-t border-slate-200 dark:border-white/5 flex items-center justify-between text-[9px] sm:text-[10px]">
+                      <span className="text-slate-500 dark:text-slate-400">Porsi:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-300 bg-slate-200 dark:bg-white/10 px-1.5 py-0.2 rounded border border-slate-300 dark:border-white/15">
+                        {allocationPct}%
+                      </span>
                     </div>
                   </div>
-
-                  <div className="my-1">
-                    <span className="text-xs sm:text-base font-bold text-slate-900 dark:text-white font-mono block tracking-tight truncate">
-                      {formatRupiah(asset.nilaiAkhirBulan)}
-                    </span>
-                  </div>
-
-                  <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[9px] sm:text-[10px]">
-                    <span className="text-slate-400">Porsi:</span>
-                    <span className="font-bold text-sky-300 bg-sky-500/10 px-1.5 py-0.2 rounded border border-sky-500/20">
-                      {allocationPct}%
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-6 rounded-2xl bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-center space-y-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Belum ada broker atau aset terdaftar untuk periode {currentSheetName}.</p>
+              <button
+                onClick={handleOpenAdd}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5 text-white" />
+                <span>Tambah Broker / Aset Pertama</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Combined Analytics: Tren Net Worth & Alokasi Portofolio in 1 Single View */}
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Left: Tren Net Worth (7 cols on lg) */}
-          <div className="lg:col-span-7 p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+          <div className="lg:col-span-7 p-4 sm:p-5 rounded-2xl bg-slate-100/90 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 flex flex-col justify-between">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <div>
                 <div className="flex items-center gap-1.5">
-                  <LineChart className="w-4 h-4 text-sky-400" />
+                  <LineChart className="w-4 h-4 text-slate-700 dark:text-slate-300" />
                   <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
                     Tren Pertumbuhan Portofolio (2026)
                   </span>
@@ -416,8 +400,8 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                   Pertumbuhan nilai valuasi bersih historis MoM
                 </p>
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
-                <Award className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1 text-[11px] text-slate-800 dark:text-slate-300 bg-slate-200 dark:bg-white/10 px-2.5 py-1 rounded-full border border-slate-300 dark:border-white/15 shrink-0">
+                <Award className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                 <span>Realized YTD: <strong>{formatRupiah(totalProfit2026)}</strong></span>
               </div>
             </div>
@@ -427,8 +411,8 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="netWorthGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#475569" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#475569" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="bulan" stroke="#94a3b8" fontSize={11} tickLine={false} />
@@ -444,15 +428,15 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                       if (active && payload && payload.length) {
                         const data = payload[0].payload as any;
                         return (
-                          <div className="p-3 rounded-xl bg-slate-900/95 border border-white/20 backdrop-blur-md text-xs shadow-xl">
-                            <p className="font-bold text-white mb-1">{data.bulan}</p>
-                            <p className="text-sky-300 font-mono">Net Worth: {formatRupiah(data.netWorth)}</p>
+                          <div className="p-3 rounded-xl bg-slate-900/95 border border-white/20 backdrop-blur-md text-xs shadow-xl text-white">
+                            <p className="font-bold mb-1">{data.bulan}</p>
+                            <p className="text-slate-300 font-mono">Net Worth: {formatRupiah(data.netWorth)}</p>
                             {data.isPending ? (
-                              <p className="text-sky-400 font-medium mt-0.5">
+                              <p className="text-slate-400 font-medium mt-0.5">
                                 MoM Profit: Rp 0 (Bulan Berjalan)
                               </p>
                             ) : (
-                              <p className={`font-mono mt-0.5 ${data.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              <p className={`font-mono mt-0.5 ${data.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                 MoM Profit: {data.profit >= 0 ? `+${formatRupiah(data.profit)}` : formatRupiah(data.profit)} ({data.pnl >= 0 ? `+${data.pnl}%` : `${data.pnl}%`})
                               </p>
                             )}
@@ -476,11 +460,11 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
           </div>
 
           {/* Right: Alokasi Portofolio (5 cols on lg) */}
-          <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+          <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-slate-100/90 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 flex flex-col justify-between">
             <div className="flex items-center justify-between gap-2 mb-3">
               <div>
                 <div className="flex items-center gap-1.5">
-                  <PieChartIcon className="w-4 h-4 text-indigo-400" />
+                  <PieChartIcon className="w-4 h-4 text-slate-700 dark:text-slate-300" />
                   <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
                     Alokasi Aset • {currentSheetName}
                   </span>
@@ -489,7 +473,7 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                   Porsi instrumen & broker aktif
                 </p>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-white/15">
                 Total: {formatRupiah(totalCurrentInvestment)}
               </span>
             </div>
@@ -728,16 +712,53 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
         </div>
       )}
 
-      {/* Modal Preview for PDF Export & Printing */}
-      <InvestmentAuditReportPreviewModal
+      {/* Secondary Drawer / Card: Simulasi Jangka Panjang (Kalkulator Pensiun & FIRE) */}
+      {onOpenCalculator && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-white/10 border border-slate-300 dark:border-white/15 flex items-center justify-center text-slate-800 dark:text-slate-200 shrink-0">
+              <Calculator className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 dark:text-white text-sm block">
+                Simulasi Jangka Panjang (Kalkulator Pensiun & FIRE)
+              </span>
+              <p className="text-slate-600 dark:text-slate-400 text-xs mt-0.5">
+                Proyeksikan akumulasi aset pensiun dan target kebebasan finansial jangka panjang (10–25 tahun).
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              triggerHaptic('medium');
+              onOpenCalculator();
+            }}
+            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white/10 dark:hover:bg-white/20 border border-slate-700 dark:border-white/15 text-white font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer shrink-0"
+          >
+            <span>Buka Kalkulator Simulasi</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Unified 1-Page Monthly Report Modal (Ekspor PDF & Cetak) */}
+      <UnifiedMonthlyReportModal
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
         currentSheetName={currentSheetName}
+        totalAset={totalAset ?? (activeAssets.reduce((s, a) => s + (a.nilaiAkhirBulan || 0), 0) + cashStandby)}
+        totalIncome={totalIncome ?? 0}
+        totalExpense={totalExpense ?? 0}
+        sisaSaldoIncome={sisaSaldoIncome ?? 0}
+        cashStandbyDanaDarurat={cashStandby}
+        totalInvestment={activeAssets.reduce((s, a) => s + (a.nilaiAkhirBulan || 0), 0)}
+        transactions={transactions}
+        budgets={budgets}
+        accounts={accounts}
         assets={activeAssets}
         history={history}
-        cashStandby={cashStandby}
+        emergencyFund={emergencyFund}
         settings={settings}
-        transactions={transactions}
       />
     </div>
   );

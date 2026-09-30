@@ -8,7 +8,6 @@ import {
 } from '../types';
 import { formatRupiah } from '../lib/sheetsApi';
 import { triggerHaptic } from '../lib/haptics';
-import { getCachedMonthAnalysis } from '../lib/geminiFinancialService';
 import {
   FileDown,
   Printer,
@@ -71,7 +70,7 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
   const safeBudgets = Array.isArray(budgets) ? budgets : [];
   const safeAccounts = Array.isArray(accounts) ? accounts : [];
-  const safeEmergency = emergencyFund || { current: 436550, target: 12000000, kekurangan: 11563450, persentase: 3.6 };
+  const safeEmergency = emergencyFund || { current: 0, target: 12000000, kekurangan: -12000000, persentase: 0 };
 
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? ((netSavings / totalIncome) * 100).toFixed(1) : '0';
@@ -597,7 +596,14 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
 
             {/* 5. CATATAN & REKOMENDASI AUDIT FINANSIAL */}
             {(() => {
-              const aiAnalysis = getCachedMonthAnalysis(currentSheetName);
+              const overBudgets = safeBudgets.filter(
+                (b) => (b.budgeting || b.targetBulanan || 0) > 0 && (b.actualSpend || 0) > (b.budgeting || b.targetBulanan || 0)
+              );
+              const totalOver = overBudgets.reduce(
+                (sum, b) => sum + ((b.actualSpend || 0) - (b.budgeting || b.targetBulanan || 0)),
+                0
+              );
+
               return (
                 <div className="p-4 rounded-xl border border-slate-300 bg-slate-50 text-xs space-y-2">
                   <div className="flex items-center justify-between font-bold text-slate-900">
@@ -605,18 +611,27 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
                       <CheckCircle2 className="w-4 h-4 text-blue-600" />
                       Catatan Evaluasi & Kesimpulan Audit Finansial
                     </span>
-                    {aiAnalysis?.modelUsed && (
-                      <span className="text-[10px] font-mono text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                        AI: {aiAnalysis.modelUsed}
-                      </span>
-                    )}
+                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      100% Berbasis Data
+                    </span>
                   </div>
 
-                  {aiAnalysis?.executiveSummaryNarrative && (
-                    <div className="p-2.5 rounded-lg bg-blue-50/80 border border-blue-200 text-blue-900 font-medium text-[11px] leading-relaxed">
-                      💡 {aiAnalysis.executiveSummaryNarrative}
-                    </div>
-                  )}
+                  <div className={`p-2.5 rounded-lg border font-medium text-[11px] leading-relaxed ${
+                    overBudgets.length > 0
+                      ? 'bg-amber-50 border-amber-200 text-amber-950'
+                      : 'bg-blue-50/80 border-blue-200 text-blue-900'
+                  }`}>
+                    💡 <strong>Evaluasi Arus Kas:</strong> Surplus tabungan bersih sebesar{' '}
+                    <strong className="font-mono">{formatRupiah(netSavings)}</strong> (Savings Rate {savingsRate}%).{' '}
+                    {overBudgets.length > 0 ? (
+                      <span>
+                        <strong>Peringatan Over-Budget:</strong> Terdeteksi pos belanja melebihi rencana (
+                        {overBudgets.map((b) => b.nama).join(', ')} dengan total selisih +{formatRupiah(totalOver)}). Disarankan segera menghemat pengeluaran pada pos tersebut.
+                      </span>
+                    ) : (
+                      <span>Seluruh pos anggaran terkendali dalam batas plafon yang direncanakan.</span>
+                    )}
+                  </div>
 
                   <ul className="list-disc pl-4 space-y-1 text-slate-700">
                     <li>
@@ -628,9 +643,13 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
                     <li>
                       Cadangan dana darurat sebesar <strong>{formatRupiah(safeEmergency.current)}</strong> ({safeEmergency.persentase}% dari target {formatRupiah(safeEmergency.target)}).
                     </li>
-                    {aiAnalysis?.financialAudit?.budgetControl?.text && (
-                      <li className="text-slate-800">
-                        <strong>Rekomendasi Kontrol:</strong> {aiAnalysis.financialAudit.budgetControl.text}
+                    {overBudgets.length > 0 ? (
+                      <li className="text-amber-900 font-semibold">
+                        <strong>Rekomendasi Kontrol:</strong> Batasi belanja diskresioner pada {overBudgets.map((b) => b.nama).join(', ')} untuk mencegah defisit cadangan saldo.
+                      </li>
+                    ) : (
+                      <li className="text-emerald-800 font-semibold">
+                        <strong>Rekomendasi Kontrol:</strong> Pertahankan disiplin anggaran; alokasikan sisa dana ke dana darurat atau instrumen DCA investasi.
                       </li>
                     )}
                   </ul>

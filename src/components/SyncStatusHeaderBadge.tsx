@@ -48,20 +48,17 @@ export const SyncStatusHeaderBadge: React.FC<SyncStatusHeaderBadgeProps> = ({
 
   const isLight = settings.themeMode === 'light' || settings.themeMode === 'beige';
   const isDevMode = user?.isDevMode === true;
+  const isConnected = Boolean(user && !isDevMode && spreadsheetId && !spreadsheetId.startsWith('1x_SheetsID'));
 
   return (
     <div className="relative">
       {/* Clickable Status Pill */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border shadow-sm select-none ${
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border shadow-sm select-none cursor-pointer ${
           isSyncing
             ? 'bg-blue-500/15 border-blue-400/40 text-blue-300 animate-pulse'
-            : isDevMode
-            ? isLight
-              ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
-              : 'bg-amber-500/15 border-amber-400/30 text-amber-300 hover:bg-amber-500/25'
-            : user
+            : isConnected
             ? isLight
               ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
               : 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25'
@@ -69,22 +66,20 @@ export const SyncStatusHeaderBadge: React.FC<SyncStatusHeaderBadgeProps> = ({
             ? 'bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100'
             : 'bg-rose-500/15 border-rose-400/30 text-rose-300 hover:bg-rose-500/25'
         }`}
-        title="Klik untuk melihat detail status sinkronisasi Google Sheets"
+        title="Klik untuk melihat detail status koneksi Google Sheets"
       >
         {/* Pulsing Dot */}
         <span className="relative flex h-2.5 w-2.5 shrink-0">
           {isSyncing ? (
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-          ) : isDevMode ? (
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-          ) : user ? (
+          ) : isConnected ? (
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
           ) : (
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
           )}
           <span
             className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-              isSyncing ? 'bg-blue-500' : isDevMode ? 'bg-amber-500' : user ? 'bg-emerald-500' : 'bg-rose-500'
+              isSyncing ? 'bg-blue-500' : isConnected ? 'bg-emerald-500' : 'bg-rose-500'
             }`}
           />
         </span>
@@ -94,11 +89,11 @@ export const SyncStatusHeaderBadge: React.FC<SyncStatusHeaderBadgeProps> = ({
           <span className="font-bold tracking-tight text-[11px] sm:text-xs">
             {isSyncing
               ? 'Menyinkronkan...'
+              : isConnected
+              ? 'Google Sheets Tersambung'
               : isDevMode
-              ? 'Dev Mode (Rp 0)'
-              : user
-              ? 'Tersinkronisasi'
-              : 'Perlu Login'}
+              ? 'Dev Mode (Terputus - Rp 0)'
+              : 'Google Sheets Terputus'}
           </span>
           <span className="hidden md:inline opacity-70 text-[10px]">
             • {sheetName} ({formatLastSync()})

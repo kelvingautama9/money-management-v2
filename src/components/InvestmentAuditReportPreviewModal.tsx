@@ -21,18 +21,7 @@ import {
   Eye,
   Activity,
   CheckCircle2,
-  Info,
-  Globe,
-  Target,
-  Zap,
-  Compass,
-  Scale,
-  Landmark,
-  Percent,
-  ArrowUpRight,
-  Shield,
-  Clock,
-  PieChart
+  Info
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -93,7 +82,7 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
 
   const totalRealizedProfit = safeHistory
     .filter((h) => !h.bulan.toLowerCase().includes('est') && h.netProfitMoM !== undefined)
-    .reduce((s, h) => s + (h.netProfitMoM || 0), 0) || 1148790;
+    .reduce((s, h) => s + (h.netProfitMoM || 0), 0);
 
   // USD Hedge
   const usdHedgingAssets = safeAssets.filter((a) => {
@@ -596,152 +585,7 @@ export const InvestmentAuditReportPreviewModal: React.FC<InvestmentAuditReportPr
             </div>
           </div>
 
-          {/* 5. RECOMMENDED STOCK PICKS (MARKET PICKS: REAL-TIME FAIR VALUE & FUNDAMENTAL) */}
-          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-200">
-              <div className="flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-purple-700" />
-                <h3 style={{ color: '#0f172a' }} className="text-xs font-black uppercase tracking-wider text-slate-900">
-                  Rekomendasi Koleksi Saham & Indeks Unggulan (Market Picks)
-                </h3>
-              </div>
-              <span style={{ color: '#581c87' }} className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200 flex items-center gap-1">
-                <Globe className="w-3 h-3 text-purple-600" />
-                Live Real-Time Market Picks
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-              {(aiData?.recommendedStockPicks && aiData.recommendedStockPicks.length > 0
-                ? aiData.recommendedStockPicks
-                : [
-                    {
-                      ticker: 'GOOGL',
-                      name: 'Alphabet Inc.',
-                      category: 'Big Tech / AI & Cloud Infrastructure',
-                      action: 'Akumulasi DCA',
-                      currentPrice: '$178.50',
-                      fairValue: '$210.00',
-                      valuationDiscountPct: 'Undervalued 15.0% dari Fair Value',
-                      valuationStatus: 'undervalued',
-                      fairValueAnalysis: 'Forward P/E ~20.5x, berada 15.0% di bawah estimasi konsensus analis ($210), margin of safety solid.',
-                      fundamental: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional 32%, free cash flow tahunan melampaui $60 Miliar, neraca kas prima.',
-                      fundamentalHighlights: 'Pertumbuhan pendapatan Google Cloud +29% YoY, margin operasional 32%, free cash flow tahunan melampaui $60 Miliar.',
-                      investmentPortion: '20% - 25% dari alokasi DCA',
-                      timeHorizon: 'Long Term (2 - 5 tahun)',
-                      timeHorizonType: 'long_term',
-                      timeHorizonDuration: '2 - 5 tahun',
-                      catalyst: 'Monetisasi infrastruktur AI enterprise Gemini dan dominasi Google Cloud.',
-                      riskLevel: 'Moderat',
-                      financialPlannerVerdict: 'Kandidat prima untuk pilar pertumbuhan agresif-terukur dengan neraca kas terkuat di dunia.'
-                    },
-                    {
-                      ticker: 'VOO',
-                      name: 'Vanguard S&P 500 ETF',
-                      category: 'Indeks Pasar Luas AS',
-                      action: 'Koleksi Bertahap',
-                      currentPrice: '$525.00',
-                      fairValue: '$560.00',
-                      valuationDiscountPct: 'Undervalued 6.25% dari Fair Value',
-                      valuationStatus: 'undervalued',
-                      fairValueAnalysis: 'Forward P/E ~21x dengan rasio Sharpe jangka panjang 0.85, diskon valuasi moderat terhadap target indeks broad market.',
-                      fundamental: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat konstituen >18%, diversifikasi ke 500 emiten terbesar AS.',
-                      fundamentalHighlights: 'Expense ratio ultra-rendah (0.03%), return on equity (ROE) agregat konstituen >18%, diversifikasi ke 500 emiten terbesar AS.',
-                      investmentPortion: '40% - 50% dari alokasi DCA',
-                      timeHorizon: 'Long Term (3 - 10 tahun)',
-                      timeHorizonType: 'long_term',
-                      timeHorizonDuration: '3 - 10 tahun',
-                      catalyst: 'Fondasi inti penyerap DCA rutin dengan risiko kejatuhan emiten individual minimal.',
-                      riskLevel: 'Rendah',
-                      financialPlannerVerdict: 'Pilar utama portofolio untuk menyerap akumulasi DCA jangka panjang dengan risiko struktural minimal.'
-                    },
-                    {
-                      ticker: 'SCHD',
-                      name: 'Schwab U.S. Dividend Equity ETF',
-                      category: 'Kualitas Dividen & Defensif',
-                      action: 'Koleksi Bertahap',
-                      currentPrice: '$82.00',
-                      fairValue: '$92.00',
-                      valuationDiscountPct: 'Undervalued 10.8% dari Fair Value',
-                      valuationStatus: 'undervalued',
-                      fairValueAnalysis: 'Dividend yield ~3.4% dengan P/E ~16.2x, menawarkan diskon valuasi defensif ~11% di bawah valuasi historis.',
-                      fundamental: 'Menyaring emiten dengan rekam jejak dividen bertumbuh minimal 10 tahun berturut-turut, debt-to-equity sehat, dan ROE konsisten.',
-                      fundamentalHighlights: 'Menyaring emiten dengan rekam jejak dividen bertumbuh minimal 10 tahun berturut-turut, debt-to-equity sehat, dan ROE konsisten.',
-                      investmentPortion: '15% - 20% dari alokasi DCA',
-                      timeHorizon: 'Mid to Long Term (1 - 3 tahun)',
-                      timeHorizonType: 'mid_term',
-                      timeHorizonDuration: '1 - 3 tahun',
-                      catalyst: 'Arus kas dividen pasif teratur dan beta rendah (0.78) penangkal volatilitas pasar.',
-                      riskLevel: 'Rendah',
-                      financialPlannerVerdict: 'Penyeimbang ideal porsi USD Valas BCA dan aset kripto Anda yang berfluktuasi tinggi.'
-                    }
-                  ]
-              ).map((pick, idx) => {
-                const isUndervalued = (pick.valuationStatus === 'undervalued') || (pick.valuationDiscountPct?.toLowerCase().includes('under'));
-
-                return (
-                  <div key={pick.ticker + idx} className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col justify-between space-y-2">
-                    <div>
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span style={{ color: '#581c87' }} className="font-mono font-black text-sm text-purple-900">{pick.ticker}</span>
-                        <span style={{ color: '#6b21a8' }} className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
-                          {pick.action}
-                        </span>
-                      </div>
-                      <div style={{ color: '#0f172a' }} className="text-[11px] font-bold text-slate-900 leading-tight">{pick.name}</div>
-                      <div style={{ color: '#64748b' }} className="text-[9px] text-slate-500 mb-1.5">{pick.category} • Risiko: <strong style={{ color: '#0f172a' }}>{pick.riskLevel}</strong></div>
-
-                      <div className="space-y-1.5 text-[10px] leading-relaxed">
-                        {/* Live Price & Fair Value */}
-                        <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                          <div className="flex justify-between font-mono font-bold text-[10px] mb-0.5">
-                            <span>Harga: {pick.currentPrice || '$178.50'}</span>
-                            <span style={{ color: '#6b21a8' }}>Fair Value: {pick.fairValue || '$210.00'}</span>
-                          </div>
-                          <span className={`inline-block text-[9px] font-bold px-1.5 py-0.2 rounded mb-1 ${
-                            isUndervalued ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                          }`}>
-                            {pick.valuationDiscountPct || (isUndervalued ? 'Undervalued dari Fair Value' : 'Fairly Valued')}
-                          </span>
-                          {pick.fairValueAnalysis && (
-                            <p style={{ color: '#334155' }} className="text-[9px] leading-tight text-slate-700">
-                              {pick.fairValueAnalysis}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Fundamental */}
-                        <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
-                          <strong style={{ color: '#1e293b' }} className="text-slate-800 block text-[9px] uppercase">Fundamental:</strong>
-                          <span style={{ color: '#334155' }} className="text-[9px] leading-tight text-slate-700">
-                            {pick.fundamental || pick.fundamentalHighlights}
-                          </span>
-                        </div>
-
-                        {/* Saran Porsi & Jangka Waktu */}
-                        <div className="grid grid-cols-2 gap-1 text-[9px]">
-                          <div className="p-1 rounded bg-purple-50/70 border border-purple-200">
-                            <span className="text-purple-800 font-bold block">Porsi:</span>
-                            <span className="font-semibold text-purple-950 truncate block">{pick.investmentPortion || '20% - 25% DCA'}</span>
-                          </div>
-                          <div className="p-1 rounded bg-sky-50/70 border border-sky-200">
-                            <span className="text-sky-800 font-bold block">Horizon:</span>
-                            <span className="font-semibold text-sky-950 truncate block">{pick.timeHorizon || 'Long Term'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ color: '#3b0764' }} className="pt-1.5 border-t border-slate-200 text-[9px] text-purple-950 font-medium italic">
-                      <strong style={{ color: '#3b0764' }}>CFP Verdict:</strong> {pick.financialPlannerVerdict || `Alokasikan ${pick.investmentPortion || '20% - 25%'} DCA secara bertahap.`}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 6. REBALANCING & GLOBAL HEDGE SIGNALS */}
+          {/* 5. REBALANCING & GLOBAL HEDGE SIGNALS */}
           <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
             <h4 style={{ color: '#0f172a' }} className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider">
               <Activity className="w-4 h-4 text-purple-600" />

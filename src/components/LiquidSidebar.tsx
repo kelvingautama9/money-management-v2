@@ -27,7 +27,9 @@ import {
   X,
   Layers,
   ArrowRight,
-  Menu
+  Menu,
+  BarChart3,
+  CandlestickChart
 } from 'lucide-react';
 
 interface LiquidSidebarProps {
@@ -101,105 +103,62 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
     {
       id: 'summary' as ActivePage,
       label: 'Ringkasan',
-      sublabel: 'Executive Overview',
+      sublabel: 'Executive Cockpit',
       icon: LayoutDashboard,
-      badge: 'Utama',
-      color: 'from-blue-500/20 to-indigo-500/20',
-      activeText: isDark ? 'text-blue-300' : 'text-blue-600',
-      iconColor: isDark ? 'text-blue-400' : 'text-blue-500'
+      badge: undefined,
+      color: 'from-slate-500/20 to-slate-600/20',
+      activeText: isDark ? 'text-white' : 'text-slate-900',
+      iconColor: isDark ? 'text-slate-200' : 'text-slate-800'
     },
     {
       id: 'cashflow' as ActivePage,
-      label: 'Input Cashflow',
-      sublabel: 'Mutasi & Auto-Sync',
+      label: 'Input Cashflow / Mutasi',
+      sublabel: 'Catat & Riwayat Mutasi',
       icon: PlusCircle,
-      badge: '+ Baru',
-      color: 'from-emerald-500/20 to-teal-500/20',
-      activeText: isDark ? 'text-emerald-300' : 'text-emerald-600',
-      iconColor: isDark ? 'text-emerald-400' : 'text-emerald-500'
+      badge: txCount > 0 ? `${txCount}` : undefined,
+      color: 'from-slate-500/20 to-slate-600/20',
+      activeText: isDark ? 'text-white' : 'text-slate-900',
+      iconColor: isDark ? 'text-slate-200' : 'text-slate-800'
     },
     {
       id: 'budgeting' as ActivePage,
-      label: 'Dompet Budgeting',
-      sublabel: '4 Kantong Keuangan',
+      label: 'Dompet & Rekening',
+      sublabel: 'Kantong & Alokasi Anggaran',
       icon: PieChart,
-      badge: '4 Pos',
-      color: 'from-amber-500/20 to-orange-500/20',
-      activeText: isDark ? 'text-amber-300' : 'text-amber-600',
-      iconColor: isDark ? 'text-amber-400' : 'text-amber-500'
+      badge: undefined,
+      color: 'from-slate-500/20 to-slate-600/20',
+      activeText: isDark ? 'text-white' : 'text-slate-900',
+      iconColor: isDark ? 'text-slate-200' : 'text-slate-800'
     },
     {
       id: 'portfolio' as ActivePage,
       label: 'Portofolio & Aset',
-      sublabel: 'Investasi & Valas',
+      sublabel: 'Investasi & Dana Darurat',
       icon: TrendingUp,
-      badge: '+2.1%',
-      color: 'from-sky-500/20 to-cyan-500/20',
-      activeText: isDark ? 'text-sky-300' : 'text-sky-600',
-      iconColor: isDark ? 'text-sky-400' : 'text-sky-500'
+      badge: undefined,
+      color: 'from-slate-500/20 to-slate-600/20',
+      activeText: isDark ? 'text-white' : 'text-slate-900',
+      iconColor: isDark ? 'text-slate-200' : 'text-slate-800'
     },
     {
       id: 'accounts' as ActivePage,
       label: 'Saldo Rekening',
-      sublabel: 'Dompet & Antar Bank',
+      sublabel: 'Bank, E-Wallet & Transfer',
       icon: Landmark,
-      badge: '9 Akun',
-      color: 'from-purple-500/20 to-pink-500/20',
-      activeText: isDark ? 'text-purple-300' : 'text-purple-600',
-      iconColor: isDark ? 'text-purple-400' : 'text-purple-500'
-    },
-    {
-      id: 'journal' as ActivePage,
-      label: 'Jurnal & Rekap',
-      sublabel: 'Database Transaksi',
-      icon: FileSpreadsheet,
-      badge: txCount > 0 ? `${txCount}` : undefined,
-      color: 'from-indigo-500/20 to-blue-500/20',
-      activeText: isDark ? 'text-indigo-300' : 'text-indigo-600',
-      iconColor: isDark ? 'text-indigo-400' : 'text-indigo-500'
-    }
-  ];
-
-  const quickTools = [
-    {
-      id: 'audit' as ActivePage,
-      label: 'Audit Financial',
-      sublabel: 'Ekspor PDF & Neraca',
-      icon: FileText,
-      badge: 'Audit',
-      color: 'from-blue-500/20 to-cyan-500/20',
-      activeText: isDark ? 'text-blue-300' : 'text-blue-600',
-      iconColor: isDark ? 'text-blue-400' : 'text-blue-500'
-    },
-    {
-      id: 'analysis' as ActivePage,
-      label: 'Audit Investasi',
-      sublabel: 'Audit Aset & Rebalancing',
-      icon: Sparkles,
-      badge: 'Audit',
-      color: 'from-purple-500/20 to-pink-500/20',
-      activeText: isDark ? 'text-purple-300' : 'text-purple-600',
-      iconColor: isDark ? 'text-purple-400' : 'text-purple-500'
-    },
-    {
-      id: 'sync' as ActivePage,
-      label: 'Singkron Google Sheet',
-      sublabel: 'Mutasi & Live Data',
-      icon: FolderSync,
-      badge: 'Live',
-      color: 'from-indigo-500/20 to-blue-500/20',
-      activeText: isDark ? 'text-indigo-300' : 'text-indigo-600',
-      iconColor: isDark ? 'text-indigo-400' : 'text-indigo-500'
-    },
-    {
-      id: 'theme' as ActivePage,
-      label: 'Custom Theme',
-      sublabel: 'Liquid Glass & Presets',
-      icon: Sliders,
       badge: undefined,
-      color: 'from-amber-500/20 to-yellow-500/20',
-      activeText: isDark ? 'text-amber-300' : 'text-amber-600',
-      iconColor: isDark ? 'text-amber-400' : 'text-amber-500'
+      color: 'from-slate-500/20 to-slate-600/20',
+      activeText: isDark ? 'text-white' : 'text-slate-900',
+      iconColor: isDark ? 'text-slate-200' : 'text-slate-800'
+    },
+    {
+      id: 'investing' as ActivePage,
+      label: 'Jurnal Investing',
+      sublabel: 'Summary Tab INVESTING',
+      icon: CandlestickChart,
+      badge: 'INVEST',
+      color: 'from-slate-500/20 to-slate-600/20',
+      activeText: isDark ? 'text-white' : 'text-slate-900',
+      iconColor: isDark ? 'text-slate-200' : 'text-slate-800'
     }
   ];
 
@@ -219,13 +178,10 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
                     <h2 className="text-sm font-bold tracking-tight truncate text-slate-900 dark:text-white">
                       Budgeting
                     </h2>
-                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-400/25 shrink-0">
-                      PRO
-                    </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${user ? 'bg-emerald-500 shadow-xs shadow-emerald-500/40' : 'bg-amber-400'}`} />
-                    <span className="truncate">{user ? 'Cloud Sheets Active' : 'Offline / Standalone'}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${user ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                    <span className="truncate">{user ? 'Cloud Sheets Active' : 'Standalone Mode'}</span>
                   </p>
                 </div>
 
@@ -359,14 +315,14 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
                         className="absolute inset-0 rounded-2xl pointer-events-none"
                         style={{
                           background: isDark
-                            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(147, 51, 234, 0.3) 100%)'
-                            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 246, 255, 0.95) 100%)',
+                            ? 'rgba(255, 255, 255, 0.14)'
+                            : 'rgba(15, 23, 42, 0.08)',
                           border: isDark
-                            ? '1px solid rgba(147, 197, 253, 0.45)'
-                            : '1px solid rgba(203, 213, 225, 0.8)',
+                            ? '1px solid rgba(255, 255, 255, 0.25)'
+                            : '1px solid rgba(203, 213, 225, 0.9)',
                           boxShadow: isDark
-                            ? '0 8px 24px -4px rgba(59, 130, 246, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3)'
-                            : '0 8px 20px -4px rgba(99, 102, 241, 0.12), inset 0 1.5px 1px rgba(255, 255, 255, 1)'
+                            ? '0 4px 14px -2px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
+                            : '0 4px 12px -2px rgba(15, 23, 42, 0.06), inset 0 1.5px 1px rgba(255, 255, 255, 1)'
                         }}
                       />
                     )}
@@ -420,192 +376,99 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
             </div>
           </div>
 
-          {/* Quick Tools & Utilities Group */}
-          <div>
+          {/* Aksi Utama: Ekspor Laporan Bulanan (PDF) */}
+          <div className="pt-2">
+            <button
+              id="sidebar-btn-export-pdf"
+              onClick={() => {
+                triggerHaptic('medium');
+                onOpenReport();
+                if (inMobileDrawer) onCloseMobile();
+              }}
+              title="Ekspor Laporan Bulanan (PDF) & Cetak"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group text-left active:scale-[0.98] cursor-pointer ${
+                isDark
+                  ? 'bg-blue-600/25 hover:bg-blue-600/35 border border-blue-400/35 text-white shadow-lg shadow-blue-500/15'
+                  : 'bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-950 shadow-sm'
+              } ${collapsed && !inMobileDrawer ? 'justify-center px-2' : ''}`}
+            >
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+              }`}>
+                <FileText className="w-4.5 h-4.5" />
+              </div>
+              {(!collapsed || inMobileDrawer) && (
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-xs font-bold truncate ${isDark ? 'text-white' : 'text-blue-950'}`}>
+                      Ekspor Laporan (PDF)
+                    </span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                      PDF
+                    </span>
+                  </div>
+                  <span className={`text-[10px] truncate block mt-0.5 ${isDark ? 'text-slate-300' : 'text-blue-700'}`}>
+                    Cetak & Laporan Bulanan
+                  </span>
+                </div>
+              )}
+            </button>
+          </div>
+
+          {/* Quick Tools & Utilities */}
+          <div className="pt-3">
             {(!collapsed || inMobileDrawer) && (
               <span className={`text-[10px] font-bold uppercase tracking-wider px-3 block mb-1.5 ${
-                isDark ? 'text-slate-300' : 'text-slate-500'
+                isDark ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                Alat & Laporan
+                Utilitas & Pengaturan
               </span>
             )}
 
             <div className="space-y-1">
-              {/* Kalkulator Investasi (Pindahan dari Halaman Utama - Isi Lengkap & Active State) */}
-              {(() => {
-                const isCalcActive = activePage === 'calculator';
-                return (
-                  <button
-                    onClick={() => {
-                      triggerHaptic('light');
-                      onSelectPage('calculator');
-                      if (inMobileDrawer) onCloseMobile();
-                    }}
-                    title="Kalkulator Investasi (Dana Pensiun & 4% Rule)"
-                    className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group text-left ${
-                      isCalcActive
-                        ? isDark
-                          ? '!text-white text-white-force font-bold'
-                          : 'text-slate-900 font-bold'
-                        : isDark
-                          ? 'text-slate-200 hover:!text-white hover:text-white-force hover:bg-white/10'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                    } ${collapsed && !inMobileDrawer ? 'justify-center px-2' : ''}`}
-                  >
-                    {/* Active Sliding Liquid Glass Pill Background */}
-                    {isCalcActive && (
-                      <motion.div
-                        layoutId="active-sidebar-pill"
-                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                        className="absolute inset-0 rounded-2xl pointer-events-none"
-                        style={{
-                          background: isDark
-                            ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.25) 100%)'
-                            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(254, 243, 199, 0.95) 100%)',
-                          border: isDark
-                            ? '1px solid rgba(251, 191, 36, 0.5)'
-                            : '1px solid rgba(245, 158, 11, 0.5)',
-                          boxShadow: isDark
-                            ? '0 8px 24px -4px rgba(245, 158, 11, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3)'
-                            : '0 8px 20px -4px rgba(245, 158, 11, 0.15), inset 0 1.5px 1px rgba(255, 255, 255, 1)'
-                        }}
-                      />
-                    )}
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  onOpenCalculator();
+                  if (inMobileDrawer) onCloseMobile();
+                }}
+                title="Kalkulator Pensiun & Target Finansial"
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl transition-all duration-200 group text-left cursor-pointer ${
+                  isDark ? 'text-slate-300 hover:text-white hover:bg-white/10' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                } ${collapsed && !inMobileDrawer ? 'justify-center px-2' : ''}`}
+              >
+                <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-white/5 flex items-center justify-center shrink-0">
+                  <Calculator className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                </div>
+                {(!collapsed || inMobileDrawer) && (
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium truncate block">Kalkulator Pensiun</span>
+                    <span className="text-[10px] text-slate-400 truncate block">Simulasi Aturan 4%</span>
+                  </div>
+                )}
+              </button>
 
-                    {/* Left Icon with subtle 3D highlight */}
-                    <div
-                      className={`relative z-10 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 ${
-                        isCalcActive
-                          ? 'scale-105 bg-amber-500/25 dark:bg-amber-500/30'
-                          : 'group-hover:scale-105 bg-amber-500/10 dark:bg-white/10'
-                      }`}
-                    >
-                      <Calculator className={`w-4.5 h-4.5 ${isCalcActive ? 'text-amber-500 dark:text-amber-400' : isDark ? 'text-amber-400 group-hover:text-amber-300' : 'text-amber-600'}`} />
-                    </div>
-
-                    {/* Text labels (hidden when collapsed) */}
-                    {(!collapsed || inMobileDrawer) && (
-                      <div className="relative z-10 flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className={`text-xs truncate ${
-                            isCalcActive
-                              ? isDark ? '!text-white text-white-force font-bold' : 'text-slate-900 font-bold'
-                              : isDark ? 'text-slate-100 group-hover:!text-white font-medium' : 'text-slate-800 font-semibold'
-                          }`}>
-                            Kalkulator Investasi
-                          </span>
-                          <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 border transition-colors ${
-                              isCalcActive
-                                ? 'bg-amber-500 !text-white text-white-force border-amber-500 shadow-xs'
-                                : isDark
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                                  : 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
-                            }`}
-                          >
-                            4% Rule
-                          </span>
-                        </div>
-                        <span className={`text-[10px] truncate block ${
-                          isDark ? 'text-slate-300 group-hover:text-slate-100' : 'text-slate-500'
-                        }`}>
-                          Dana Pensiun & 4% Rule
-                        </span>
-                      </div>
-                    )}
-                  </button>
-                );
-              })()}
-
-              {quickTools.map((tool) => {
-                const Icon = tool.icon;
-                const isToolActive = activePage === tool.id;
-
-                return (
-                  <button
-                    key={tool.id}
-                    onClick={() => {
-                      triggerHaptic('light');
-                      onSelectPage(tool.id);
-                      if (inMobileDrawer) onCloseMobile();
-                    }}
-                    title={tool.label}
-                    className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group text-left ${
-                      isToolActive
-                        ? isDark
-                          ? '!text-white text-white-force font-bold'
-                          : 'text-slate-900 font-bold'
-                        : isDark
-                          ? 'text-slate-200 hover:!text-white hover:text-white-force hover:bg-white/10'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                    } ${collapsed && !inMobileDrawer ? 'justify-center px-2' : ''}`}
-                  >
-                    {/* Active Sliding Liquid Glass Pill Background */}
-                    {isToolActive && (
-                      <motion.div
-                        layoutId="active-sidebar-pill"
-                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                        className="absolute inset-0 rounded-2xl pointer-events-none"
-                        style={{
-                          background: isDark
-                            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(147, 51, 234, 0.3) 100%)'
-                            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 246, 255, 0.95) 100%)',
-                          border: isDark
-                            ? '1px solid rgba(147, 197, 253, 0.45)'
-                            : '1px solid rgba(203, 213, 225, 0.8)',
-                          boxShadow: isDark
-                            ? '0 8px 24px -4px rgba(59, 130, 246, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3)'
-                            : '0 8px 20px -4px rgba(99, 102, 241, 0.12), inset 0 1.5px 1px rgba(255, 255, 255, 1)'
-                        }}
-                      />
-                    )}
-
-                    {/* Left Icon with subtle 3D highlight */}
-                    <div
-                      className={`relative z-10 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 ${
-                        isToolActive
-                          ? 'scale-105 bg-blue-500/20 dark:bg-white/20'
-                          : 'group-hover:scale-105'
-                      }`}
-                    >
-                      <Icon className={`w-4.5 h-4.5 ${isToolActive ? tool.iconColor : isDark ? 'text-slate-300 group-hover:text-white' : 'text-slate-500'}`} />
-                    </div>
-
-                    {/* Text labels (hidden when collapsed) */}
-                    {(!collapsed || inMobileDrawer) && (
-                      <div className="relative z-10 flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className={`text-xs truncate ${
-                            isToolActive
-                              ? isDark ? '!text-white text-white-force font-bold' : 'text-slate-900 font-bold'
-                              : isDark ? 'text-slate-100 group-hover:!text-white font-medium' : 'text-slate-700 font-medium'
-                          }`}>
-                            {tool.label}
-                          </span>
-                          {tool.badge && (
-                            <span
-                              className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 border transition-colors ${
-                                isToolActive
-                                  ? 'bg-blue-600 !text-white text-white-force border-blue-600 shadow-xs'
-                                  : isDark
-                                    ? 'bg-white/15 !text-white text-white-force border-white/20'
-                                    : 'bg-slate-100 text-slate-700 border-slate-200/80'
-                              }`}
-                            >
-                              {tool.badge}
-                            </span>
-                          )}
-                        </div>
-                        <span className={`text-[10px] truncate block ${
-                          isDark ? 'text-slate-300 group-hover:text-slate-100' : 'text-slate-400'
-                        }`}>
-                          {tool.sublabel}
-                        </span>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  onOpenProjectManager();
+                  if (inMobileDrawer) onCloseMobile();
+                }}
+                title="Pengaturan Google Sheet"
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl transition-all duration-200 group text-left cursor-pointer ${
+                  isDark ? 'text-slate-300 hover:text-white hover:bg-white/10' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                } ${collapsed && !inMobileDrawer ? 'justify-center px-2' : ''}`}
+              >
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-white/5 flex items-center justify-center shrink-0">
+                  <FolderSync className="w-4 h-4 text-indigo-400" />
+                </div>
+                {(!collapsed || inMobileDrawer) && (
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium truncate block">Pengaturan Sheet</span>
+                    <span className="text-[10px] text-slate-400 truncate block">ID Spreadsheet & Tab</span>
+                  </div>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -644,7 +507,7 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
               />
 
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-slate-800 dark:bg-white/10 border border-slate-700 dark:border-white/15 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
                   {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'K'}
                 </div>
                 <div className="min-w-0">
@@ -670,7 +533,7 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
                   title="Ganti Tema (Light / Dark)"
                   className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 border border-transparent dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 transition"
                 >
-                  {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}
+                  {isDark ? <Sun className="w-3.5 h-3.5 text-slate-200" /> : <Moon className="w-3.5 h-3.5 text-slate-800" />}
                 </button>
 
                 <button

@@ -61,6 +61,9 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
   const [formSaldoAwal, setFormSaldoAwal] = useState('');
   const [formTotalSaldo, setFormTotalSaldo] = useState('');
 
+  const isLight = settings.themeMode === 'light' || settings.themeMode === 'beige';
+  const isDark = !isLight;
+
   // Total All Assets synchronized exactly with Home Net Worth (totalAset)
   const totalAllAssets = typeof totalNetWorth === 'number' && totalNetWorth > 0
     ? totalNetWorth
@@ -179,121 +182,151 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
       {/* Top Banner KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <GlassContainer settings={settings} className="p-4 sm:p-5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             Total Kas Likuid Siap Pakai
           </span>
-          <h3 className="text-xl sm:text-2xl font-black text-white font-mono">{formatRupiah(totalLiquidCash)}</h3>
-          <p className="text-[11px] text-emerald-400 mt-1">Rekening Bank, Kantong Budget, & E-Wallet</p>
+          <h3 className={`text-xl sm:text-2xl font-black font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>{formatRupiah(totalLiquidCash)}</h3>
+          <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Rekening Bank, Kantong Budget, & E-Wallet</p>
         </GlassContainer>
 
         <GlassContainer settings={settings} className="p-4 sm:p-5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             Total Kekayaan Seluruh Rekening
           </span>
-          <h3 className="text-xl sm:text-2xl font-black text-sky-300 font-mono">{formatRupiah(totalAllAssets)}</h3>
-          <p className="text-[11px] text-slate-400 mt-1">Termasuk Saldo Portofolio Investasi</p>
+          <h3 className={`text-xl sm:text-2xl font-black font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>{formatRupiah(totalAllAssets)}</h3>
+          <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Termasuk Saldo Portofolio Investasi</p>
         </GlassContainer>
 
         <GlassContainer settings={settings} className="p-4 sm:p-5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             Jumlah Rekening & Wallet
           </span>
-          <h3 className="text-xl sm:text-2xl font-black text-purple-300 font-mono">{accounts.length} Akun</h3>
-          <p className="text-[11px] text-slate-400 mt-1">Tersinkronisasi dengan Google Sheet</p>
+          <h3 className={`text-xl sm:text-2xl font-black font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>{accounts.length} Akun</h3>
+          <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Tersinkronisasi dengan Google Sheet</p>
         </GlassContainer>
       </div>
 
       {/* Grid of Accounts & Balances */}
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-          <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+          <h3 className={`text-base sm:text-lg font-bold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
             Daftar Saldo Per Rekening & Wallet
           </h3>
 
           <button
             onClick={handleOpenAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs self-start sm:self-auto transition-all active:scale-95"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold text-xs self-start sm:self-auto transition-all active:scale-95 shadow-sm cursor-pointer ${
+              isLight
+                ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                : 'bg-white hover:bg-slate-100 text-slate-900'
+            }`}
           >
-            <Plus className="w-3.5 h-3.5 text-emerald-400" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Tambah Rekening / Wallet</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5">
-          {accounts.map((acc) => {
-            const isInvestasi = acc.nama.toLowerCase().includes('investasi');
-            const percentOfLiquid =
-              totalLiquidCash > 0 ? ((acc.totalSaldo / totalLiquidCash) * 100).toFixed(1) : '0';
+        {accounts.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5">
+            {accounts.map((acc) => {
+              const isInvestasi = acc.nama.toLowerCase().includes('investasi');
+              const percentOfLiquid =
+                totalLiquidCash > 0 ? ((acc.totalSaldo / totalLiquidCash) * 100).toFixed(1) : '0';
 
-            return (
-              <GlassContainer
-                key={acc.nama}
-                settings={settings}
-                className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col justify-between relative group hover:border-white/25 transition-all"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-1 mb-1.5 sm:mb-2">
-                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                      <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 shrink-0">
-                        {getAccountIcon(acc.nama)}
+              return (
+                <div
+                  key={acc.nama}
+                  className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-150 flex flex-col justify-between relative group ${
+                    isLight
+                      ? 'bg-slate-50/90 hover:bg-white border-slate-200/90 hover:border-slate-300 shadow-xs'
+                      : 'bg-white/[0.04] hover:bg-white/[0.07] border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-1 mb-1.5 sm:mb-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                        <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border shrink-0 ${
+                          isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-white/5 border border-white/10'
+                        }`}>
+                          {getAccountIcon(acc.nama)}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className={`font-bold text-xs sm:text-sm truncate ${isLight ? 'text-slate-900' : 'text-white'}`} title={acc.nama}>{acc.nama}</h4>
+                          <span className={`text-[9px] sm:text-[10px] block truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {isInvestasi ? 'Aset Investasi' : 'Operasional'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-white text-xs sm:text-sm truncate" title={acc.nama}>{acc.nama}</h4>
-                        <span className="text-[9px] sm:text-[10px] text-slate-400 block truncate">
-                          {isInvestasi ? 'Aset Investasi' : 'Operasional'}
-                        </span>
+
+                      <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleOpenEdit(acc)}
+                          className={`p-1 rounded-md transition ${isLight ? 'hover:bg-slate-200 text-slate-500 hover:text-slate-800' : 'bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white'}`}
+                          title="Edit Rekening / Wallet"
+                        >
+                          <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(acc.nama)}
+                          className={`p-1 rounded-md transition ${isLight ? 'hover:bg-rose-100 text-slate-500 hover:text-rose-600' : 'bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400'}`}
+                          title="Hapus Rekening / Wallet"
+                        >
+                          <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleOpenEdit(acc)}
-                        className="p-1 rounded-md bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition"
-                        title="Edit Rekening / Wallet"
-                      >
-                        <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(acc.nama)}
-                        className="p-1 rounded-md bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition"
-                        title="Hapus Rekening / Wallet"
-                      >
-                        <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                      </button>
+                    <div className="my-1.5 sm:my-2">
+                      <span className={`text-[9px] sm:text-[10px] uppercase font-bold tracking-wider block mb-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Saldo Berjalan
+                      </span>
+                      <span className={`text-sm sm:text-lg font-bold font-mono block tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {formatRupiah(acc.totalSaldo)}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="my-1.5 sm:my-2">
-                    <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-0.5">
-                      Saldo Berjalan
-                    </span>
-                    <span className="text-sm sm:text-lg font-bold font-mono text-white block tracking-tight truncate">
-                      {formatRupiah(acc.totalSaldo)}
-                    </span>
+                  <div className={`pt-1.5 sm:pt-2 border-t flex items-center justify-between text-[9px] sm:text-[10px] ${
+                    isLight ? 'border-slate-200 text-slate-500' : 'border-white/5 text-slate-400'
+                  }`}>
+                    <span className="truncate">Awal: {formatRupiah(acc.saldoAwal ?? 0)}</span>
+                    {!isInvestasi && <span className={`${isLight ? 'text-sky-700' : 'text-sky-300'} font-medium shrink-0 ml-1`}>{percentOfLiquid}%</span>}
                   </div>
                 </div>
-
-                <div className="pt-1.5 sm:pt-2 border-t border-white/5 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-400">
-                  <span className="truncate">Awal: {formatRupiah(acc.saldoAwal ?? 0)}</span>
-                  {!isInvestasi && <span className="text-sky-300 font-medium shrink-0 ml-1">{percentOfLiquid}%</span>}
-                </div>
-              </GlassContainer>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-8 rounded-3xl border border-white/10 bg-white/[0.03] text-center space-y-3">
+            <Landmark className="w-10 h-10 mx-auto text-purple-400 opacity-60" />
+            <h4 className="text-sm font-bold text-white">Belum Ada Rekening Terdaftar</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Daftarkan rekening bank, dompet digital, atau pos kas tunai untuk melacak saldo dan mutasi secara akurat.
+            </p>
+            <button
+              onClick={handleOpenAdd}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Tambah Rekening Pertama</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Internal Transfer Card */}
       <GlassContainer settings={settings} className="p-5">
-        <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/10">
-          <ArrowRightLeft className="w-4 h-4 text-sky-400" />
-          <h4 className="text-sm font-bold text-white tracking-tight">
+        <div className={`flex items-center gap-2 mb-3 pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+          <ArrowRightLeft className={`w-4 h-4 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
+          <h4 className={`text-sm font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
             Transfer Internal Antar Rekening & Kantong
           </h4>
         </div>
 
         {transferSuccess && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs flex items-center gap-2">
+          <div className={`mb-4 p-3 rounded-xl border text-xs flex items-center gap-2 ${
+            isLight ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300'
+          }`}>
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{transferSuccess}</span>
           </div>
@@ -302,14 +335,18 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         <form onSubmit={handleExecuteTransfer} className="space-y-3 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-slate-300 block mb-1 font-medium">Dari Rekening Sumber:</label>
+              <label className={`block mb-1 font-medium ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Dari Rekening Sumber:</label>
               <select
                 value={fromAcc}
                 onChange={(e) => setFromAcc(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:border-sky-400 focus:outline-none"
+                className={`w-full p-2.5 rounded-xl border outline-none cursor-pointer transition ${
+                  isLight
+                    ? 'bg-white border-slate-300 text-slate-900 focus:border-slate-800'
+                    : 'bg-white/5 border-white/15 text-white focus:border-slate-400'
+                }`}
               >
                 {accounts.map((a) => (
-                  <option key={a.nama} value={a.nama} className="bg-slate-900 text-white">
+                  <option key={a.nama} value={a.nama} className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>
                     {a.nama} ({formatRupiah(a.totalSaldo)})
                   </option>
                 ))}
@@ -317,14 +354,18 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
             </div>
 
             <div>
-              <label className="text-slate-300 block mb-1 font-medium">Ke Rekening Tujuan:</label>
+              <label className={`block mb-1 font-medium ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Ke Rekening Tujuan:</label>
               <select
                 value={toAcc}
                 onChange={(e) => setToAcc(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:border-sky-400 focus:outline-none"
+                className={`w-full p-2.5 rounded-xl border outline-none cursor-pointer transition ${
+                  isLight
+                    ? 'bg-white border-slate-300 text-slate-900 focus:border-slate-800'
+                    : 'bg-white/5 border-white/15 text-white focus:border-slate-400'
+                }`}
               >
                 {accounts.map((a) => (
-                  <option key={a.nama} value={a.nama} className="bg-slate-900 text-white">
+                  <option key={a.nama} value={a.nama} className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>
                     {a.nama}
                   </option>
                 ))}
@@ -334,25 +375,33 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-slate-300 block mb-1 font-medium">Nominal Transfer (Rp):</label>
+              <label className={`block mb-1 font-medium ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Nominal Transfer (Rp):</label>
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="Contoh: 150000"
-                className="w-full p-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:border-sky-400 focus:outline-none"
+                className={`w-full p-2.5 rounded-xl border outline-none transition ${
+                  isLight
+                    ? 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-slate-800'
+                    : 'bg-white/5 border-white/15 text-white placeholder:text-slate-500 focus:border-slate-400'
+                }`}
                 required
               />
             </div>
 
             <div>
-              <label className="text-slate-300 block mb-1 font-medium">Catatan (Opsional):</label>
+              <label className={`block mb-1 font-medium ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Catatan (Opsional):</label>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Misal: Top up kantong transport"
-                className="w-full p-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:border-sky-400 focus:outline-none"
+                className={`w-full p-2.5 rounded-xl border outline-none transition ${
+                  isLight
+                    ? 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-slate-800'
+                    : 'bg-white/5 border-white/15 text-white placeholder:text-slate-500 focus:border-slate-400'
+                }`}
               />
             </div>
           </div>
@@ -361,9 +410,13 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-500/25 transition active:scale-95 disabled:opacity-50"
+              className={`px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer ${
+                isLight
+                  ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                  : 'bg-white hover:bg-slate-100 text-slate-900'
+              }`}
             >
-              {isSubmitting ? 'Memproses Transfer...' : 'Kirim Transfer Internal'}
+              {isSubmitting ? 'Memproses Transfer...' : 'Eksekusi Transfer'}
             </button>
           </div>
         </form>
