@@ -621,7 +621,7 @@ export const FinancialReportPreviewModal: React.FC<FinancialReportPreviewModalPr
                       ? 'bg-amber-50 border-amber-200 text-amber-950'
                       : 'bg-blue-50/80 border-blue-200 text-blue-900'
                   }`}>
-                    💡 <strong>Evaluasi Arus Kas:</strong> Surplus tabungan bersih sebesar{' '}
+                    <strong>Evaluasi Arus Kas:</strong> Surplus tabungan bersih sebesar{' '}
                     <strong className="font-mono">{formatRupiah(netSavings)}</strong> (Savings Rate {savingsRate}%).{' '}
                     {overBudgets.length > 0 ? (
                       <span>

@@ -155,7 +155,7 @@ export const LiquidSidebar: React.FC<LiquidSidebarProps> = ({
       label: 'Jurnal Investing',
       sublabel: 'Summary Tab INVESTING',
       icon: CandlestickChart,
-      badge: 'INVEST',
+      badge: undefined,
       color: 'from-slate-500/20 to-slate-600/20',
       activeText: isDark ? 'text-white' : 'text-slate-900',
       iconColor: isDark ? 'text-slate-200' : 'text-slate-800'

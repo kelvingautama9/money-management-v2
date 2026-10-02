@@ -297,18 +297,22 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
             })}
           </div>
         ) : (
-          <div className="p-8 rounded-3xl border border-white/10 bg-white/[0.03] text-center space-y-3">
-            <Landmark className="w-10 h-10 mx-auto text-purple-400 opacity-60" />
-            <h4 className="text-sm font-bold text-white">Belum Ada Rekening Terdaftar</h4>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+          <div className={`p-8 rounded-2xl border text-center space-y-3 ${
+            isLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/[0.03] border-white/10 text-slate-400'
+          }`}>
+            <Landmark className="w-8 h-8 mx-auto text-slate-400" />
+            <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Belum Ada Rekening Terdaftar</h4>
+            <p className="text-xs max-w-sm mx-auto">
               Daftarkan rekening bank, dompet digital, atau pos kas tunai untuk melacak saldo dan mutasi secara akurat.
             </p>
             <button
               onClick={handleOpenAdd}
-              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
+              className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5 ${
+                isLight ? 'bg-slate-900 hover:bg-slate-800 text-white' : 'bg-white hover:bg-slate-100 text-slate-900'
+              }`}
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Tambah Rekening Pertama</span>
+              <span>Tambah Rekening Pertama</span>
             </button>
           </div>
         )}

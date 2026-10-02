@@ -126,7 +126,12 @@ export const LiquidHeader: React.FC<LiquidHeaderProps> = ({
       {/* Center / Right Controls */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Month Selector Pill (Visible on tablet/desktop to avoid mobile redundancy with GoogleSheetMonthTabBar) */}
-        {availableSheets.length > 0 && onSelectMonth ? (
+        {activePage === 'investing' ? (
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-500/30 text-xs font-bold text-sky-700 dark:text-sky-300">
+            <Calendar className="w-3.5 h-3.5 text-sky-500" />
+            <span>Tab: INVESTMENT</span>
+          </div>
+        ) : availableSheets.length > 0 && onSelectMonth ? (
           <div className="relative hidden md:flex items-center">
             <div className="flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-slate-100/80 dark:bg-white/10 border border-slate-200 dark:border-white/15 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-sm">
               <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />

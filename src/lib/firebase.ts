@@ -207,6 +207,14 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
       return null;
     }
 
+    if (error?.code === 'auth/unauthorized-domain') {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'domain Anda';
+      const msg = `Domain "${currentHost}" belum diotorisasi di Firebase Authentication. Buka Firebase Console > Authentication > Settings > Authorized domains, lalu tambahkan domain "${currentHost}".`;
+      const enhancedError = new Error(msg);
+      (enhancedError as any).code = 'auth/unauthorized-domain';
+      throw enhancedError;
+    }
+
     console.error('Google Sign-in error:', error);
     throw error;
   } finally {

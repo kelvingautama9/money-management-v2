@@ -46,7 +46,9 @@ import {
   syncAddAccountToSheet,
   syncAssetToSheet,
   syncBudgetToSheet,
-  reconcileBudgetMetrics
+  reconcileBudgetMetrics,
+  findSpreadsheetByName,
+  listUserSpreadsheets
 } from './lib/sheetsApi';
 import { triggerHaptic } from './lib/haptics';
 
@@ -78,13 +80,14 @@ import { ProjectSyncManagerModal } from './components/ProjectSyncManagerModal';
 import { RetirementInvestmentCalculator } from './components/RetirementInvestmentCalculator';
 import { InvestingJournalPage } from './components/investing/InvestingJournalPage';
 import {
-  INITIAL_INVESTING_TRADES,
-  DEFAULT_ACTIVE_ASSETS,
   fetchInvestingSheetTrades,
   appendInvestingTrade,
   updateInvestingTrade,
   deleteInvestingTrade,
-  ensureInvestingTabExists
+  ensureInvestingTabExists,
+  activeSummariesToInvestmentAssets,
+  syncActiveAssetToInvestingSheet,
+  deleteActiveAssetFromInvestingSheet
 } from './lib/investingSheetsService';
 import {
   DEFAULT_MONTH_SHEETS,
@@ -159,6 +162,9 @@ export default function App() {
   });
   const [sheetName, setSheetName] = useState<string>(() => {
     return localStorage.getItem('kelvin_financial_sheet_name') || 'SEPTEMBER';
+  });
+  const [spreadsheetTitle, setSpreadsheetTitle] = useState<string>(() => {
+    return localStorage.getItem('kelvin_financial_spreadsheet_title') || 'INVESTMENT';
   });
   const [availableSheets, setAvailableSheets] = useState<string[]>(() => {
     const persisted = getPersistedUser();
@@ -296,29 +302,16 @@ export default function App() {
   });
 
   // --- JURNAL INVESTING (TAB INVESTING) STATE ---
-  const [investingTrades, setInvestingTrades] = useState<TradeRecord[]>(() => {
-    const persisted = getPersistedUser();
-    if (!persisted || persisted.isDevMode) return [];
-    try {
-      const saved = localStorage.getItem('kelvin_financial_investing_trades');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return INITIAL_INVESTING_TRADES;
-  });
-  const [investingTabTitle, setInvestingTabTitle] = useState<string>('INVESTING');
+  const [investingTrades, setInvestingTrades] = useState<TradeRecord[]>([]);
+  const [hasInvestingTab, setHasInvestingTab] = useState<boolean>(false);
+  const [investingTabTitle, setInvestingTabTitle] = useState<string>('INVESTMENT');
   const [investingSheetId, setInvestingSheetId] = useState<number | undefined>(undefined);
   const [isInvestingSyncing, setIsInvestingSyncing] = useState(false);
-  const [investingActiveSummaries, setInvestingActiveSummaries] = useState<ActiveAssetSummary[]>(() => {
-    const persisted = getPersistedUser();
-    if (!persisted || persisted.isDevMode) return [];
-    return DEFAULT_ACTIVE_ASSETS;
-  });
+  const [investingActiveSummaries, setInvestingActiveSummaries] = useState<ActiveAssetSummary[]>([]);
 
   const isDevMode = (user as any)?.isDevMode === true;
-  const isZeroState = !user || isDevMode;
+  const isSheetDisconnected = !spreadsheetId || spreadsheetId.startsWith('1x_SheetsID');
+  const isZeroState = !user || isDevMode || isSheetDisconnected;
 
   const activeSummary = useMemo<SheetSummary | undefined>(() => {
     if (isZeroState) return undefined;
@@ -380,11 +373,16 @@ export default function App() {
             }
           }
           const invMatch =
-            titles.find((t) => t.toUpperCase() === 'INVESTING') ||
             titles.find((t) => t.toUpperCase() === 'INVESTMENT') ||
+            titles.find((t) => t.toUpperCase() === 'INVESTING') ||
             titles.find((t) => t.toLowerCase().includes('invest'));
           if (invMatch) {
+            setHasInvestingTab(true);
             setInvestingTabTitle(invMatch);
+          } else {
+            setHasInvestingTab(false);
+            setInvestingTrades([]);
+            setInvestingActiveSummaries([]);
           }
           setSyncNotice(`Tab Google Sheet terdeteksi (${titles.length} tab): ${titles.join(', ')}`);
         }
@@ -461,13 +459,7 @@ export default function App() {
   // 3. Dynamic Budget Status Calculation
   const budgets: BudgetCategory[] = useMemo(() => {
     if (isZeroState) {
-      return customBudgets.map((initBudget) => ({
-        ...initBudget,
-        actualSpend: 0,
-        totalSaldo: 0,
-        sisa: 0,
-        keterangan: '-'
-      }));
+      return [];
     }
     return customBudgets.map((initBudget) => {
       const budgetLower = initBudget.nama.toLowerCase();
@@ -549,14 +541,10 @@ export default function App() {
 
   // 4. Dynamic Account Balances (Calculated from transactions and Google Sheet summary)
   const accounts: AccountBalance[] = useMemo(() => {
-    const accountNames = customAccountsList;
     if (isZeroState) {
-      return accountNames.map((accName) => ({
-        nama: accName,
-        totalSaldo: 0,
-        spendBulanIniPercent: 0
-      }));
+      return [];
     }
+    const accountNames = customAccountsList;
 
     return accountNames.map((accName) => {
       // 1. Flexible lookup in activeSummary.accountBalances
@@ -651,8 +639,8 @@ export default function App() {
     if (isZeroState) {
       return {
         current: 0,
-        target: 12000000,
-        kekurangan: -12000000,
+        target: 0,
+        kekurangan: 0,
         persentase: 0
       };
     }
@@ -749,6 +737,10 @@ export default function App() {
     return closedMonthsProfit;
   }, [history, isZeroState]);
 
+  const activeTransactions = useMemo(() => (isZeroState ? [] : transactions), [isZeroState, transactions]);
+  const activeAssets = useMemo(() => (isZeroState ? [] : assets), [isZeroState, assets]);
+  const activeHistory = useMemo(() => (isZeroState ? [] : history), [isZeroState, history]);
+
   // --- Handlers for Google Sheets Sync & Auth ---
   const handleGoogleLogin = async () => {
     try {
@@ -832,6 +824,11 @@ export default function App() {
     setTransactions([]);
     setSheetSummaries({});
     setAssets([]);
+    setHistory([]);
+    setCustomBudgets([]);
+    setCustomAccountsList([]);
+    setInvestingTrades([]);
+    setInvestingActiveSummaries([]);
     setAvailableSheets([sheetName || 'SEPTEMBER']);
     setLastSynced(null);
     setSyncNotice('Telah keluar dari akun. Semua data tersimpan telah dinolkan untuk privasi.');
@@ -1091,33 +1088,113 @@ export default function App() {
   };
 
   // --- JURNAL INVESTING (TAB INVESTING) HANDLERS ---
-  const handleRefreshInvestingTrades = useCallback(async () => {
-    const cleanId = extractSpreadsheetId(spreadsheetId);
+  const handleRefreshInvestingTrades = useCallback(async (customSpreadsheetId?: string, silent: boolean = false) => {
+    const targetId = customSpreadsheetId || spreadsheetId;
+    const cleanId = extractSpreadsheetId(targetId);
     if (!cleanId || cleanId.startsWith('1x_SheetsID')) return;
     const token = await getAccessToken();
     if (!token) return;
 
     try {
-      setIsInvestingSyncing(true);
-      const { tabTitle, sheetId, trades, activeSummaries } = await fetchInvestingSheetTrades(cleanId, token);
+      if (!silent) setIsInvestingSyncing(true);
+      const { tabTitle, sheetId, trades, activeSummaries } = await fetchInvestingSheetTrades(
+        cleanId,
+        token,
+        investingTabTitle
+      );
+      setHasInvestingTab(true);
       setInvestingTabTitle(tabTitle);
       if (sheetId !== undefined) {
         setInvestingSheetId(sheetId);
       }
       setInvestingTrades(trades);
-      if (activeSummaries && activeSummaries.length > 0) {
-        setInvestingActiveSummaries(activeSummaries);
-      }
+      setInvestingActiveSummaries(activeSummaries || []);
       try {
         localStorage.setItem('kelvin_financial_investing_trades', JSON.stringify(trades));
       } catch (e) {}
-      setSyncNotice(`Jurnal Investing berhasil disinkronkan (${trades.length} entri dari tab ${tabTitle})`);
+
+      // Synchronize active portfolio assets from Google Sheets!
+      if (activeSummaries && activeSummaries.length > 0) {
+        const mappedAssets = activeSummariesToInvestmentAssets(activeSummaries, trades);
+        setAssets(mappedAssets);
+        try {
+          localStorage.setItem('kelvin_financial_custom_assets', JSON.stringify(mappedAssets));
+        } catch (e) {}
+      }
+
+      if (!silent) {
+        setSyncNotice(`Jurnal & Portofolio Aset berhasil disinkronkan (${trades.length} trade, ${activeSummaries.length} aset dari tab ${tabTitle})`);
+      }
     } catch (err: any) {
-      console.warn('Catatan tab INVESTING:', err);
+      setHasInvestingTab(false);
+      setInvestingTrades([]);
+      setInvestingActiveSummaries([]);
+      if (!silent) console.warn('Catatan tab INVESTING:', err);
+    } finally {
+      if (!silent) setIsInvestingSyncing(false);
+    }
+  }, [spreadsheetId, investingTabTitle]);
+
+  // Direct connect to a specific spreadsheet ID or URL
+  const handleConnectDirectSpreadsheet = useCallback(async (idOrUrl: string, title: string = 'INVESTMENT') => {
+    const cleanId = extractSpreadsheetId(idOrUrl);
+    if (!cleanId) {
+      alert('Masukkan ID atau link Google Spreadsheet yang valid.');
+      return;
+    }
+    setSpreadsheetId(cleanId);
+    setSpreadsheetTitle(title);
+    try {
+      localStorage.setItem('kelvin_financial_sheet_id', cleanId);
+      localStorage.setItem('kelvin_financial_spreadsheet_title', title);
+    } catch (e) {}
+
+    triggerHaptic('success');
+    setSyncNotice(`Menghubungkan ke project Google Sheet "${title}"...`);
+    await handleRefreshSpreadsheetTabs(cleanId);
+    await handleRefreshInvestingTrades(cleanId, false);
+  }, [handleRefreshSpreadsheetTabs, handleRefreshInvestingTrades]);
+
+  // Auto-discover "INVESTMENT" spreadsheet from Google Drive
+  const handleAutoDiscoverInvestmentSpreadsheet = useCallback(async (): Promise<boolean> => {
+    const token = await getAccessToken();
+    if (!token) return false;
+    try {
+      setIsInvestingSyncing(true);
+      const files = await listUserSpreadsheets(token);
+      if (files && files.length > 0) {
+        // Priority 1: Exact match "INVESTMENT"
+        let matched = files.find((f) => f.name.toUpperCase().trim() === 'INVESTMENT');
+        // Priority 2: Contains "INVESTMENT"
+        if (!matched) {
+          matched = files.find((f) => f.name.toUpperCase().includes('INVESTMENT'));
+        }
+        // Priority 3: Contains "INVEST"
+        if (!matched) {
+          matched = files.find((f) => f.name.toUpperCase().includes('INVEST'));
+        }
+
+        if (matched) {
+          setSpreadsheetId(matched.id);
+          setSpreadsheetTitle(matched.name);
+          try {
+            localStorage.setItem('kelvin_financial_sheet_id', matched.id);
+            localStorage.setItem('kelvin_financial_spreadsheet_title', matched.name);
+          } catch (e) {}
+
+          await handleRefreshSpreadsheetTabs(matched.id);
+          await handleRefreshInvestingTrades(matched.id, false);
+          setSyncNotice(`Project "${matched.name}" dari Google Drive berhasil terhubung real-time.`);
+          return true;
+        }
+      }
+    } catch (e: any) {
+      console.warn('Auto-discovery error:', e);
     } finally {
       setIsInvestingSyncing(false);
     }
-  }, [spreadsheetId]);
+    return false;
+  }, [handleRefreshSpreadsheetTabs, handleRefreshInvestingTrades]);
 
   const handleAddInvestingTrade = async (trade: TradeRecord) => {
     const cleanId = extractSpreadsheetId(spreadsheetId);
@@ -1137,7 +1214,7 @@ export default function App() {
         }
         triggerHaptic('success');
         // Refresh to ensure real-time consistency with Google Sheets
-        await handleRefreshInvestingTrades();
+        await handleRefreshInvestingTrades(cleanId, true);
       } catch (e: any) {
         console.error('Failed to append trade to sheet:', e);
         throw e;
@@ -1160,7 +1237,7 @@ export default function App() {
         await updateInvestingTrade(cleanId, investingTabTitle, trade.rowIndex, trade, token);
         triggerHaptic('success');
         // Refresh to ensure real-time consistency with Google Sheets
-        await handleRefreshInvestingTrades();
+        await handleRefreshInvestingTrades(cleanId, true);
       } catch (e: any) {
         console.error('Failed to update trade in sheet:', e);
         throw e;
@@ -1183,7 +1260,7 @@ export default function App() {
         await deleteInvestingTrade(cleanId, investingTabTitle, trade.rowIndex, investingSheetId, token);
         triggerHaptic('warning');
         // Refresh to ensure real-time consistency with Google Sheets
-        await handleRefreshInvestingTrades();
+        await handleRefreshInvestingTrades(cleanId, true);
       } catch (e: any) {
         console.error('Failed to delete trade in sheet:', e);
         throw e;
@@ -1198,14 +1275,14 @@ export default function App() {
 
     try {
       setIsInvestingSyncing(true);
-      const tabInfo = await ensureInvestingTabExists(cleanId, token);
+      const tabInfo = await ensureInvestingTabExists(cleanId, token, investingTabTitle || 'INVESTMENT');
       setInvestingTabTitle(tabInfo.title);
       setInvestingSheetId(tabInfo.sheetId);
       for (const t of investingTrades) {
         await appendInvestingTrade(cleanId, tabInfo.title, t, token);
       }
       setSyncNotice(`Tab ${tabInfo.title} berhasil dibuat di Google Sheet dengan format lengkap.`);
-      await handleRefreshInvestingTrades();
+      await handleRefreshInvestingTrades(cleanId, false);
     } catch (e: any) {
       console.error('Failed to create investing tab:', e);
       throw e;
@@ -1214,12 +1291,44 @@ export default function App() {
     }
   };
 
-  // Auto-sync tab INVESTING when user navigates to the investing page
+  // Auto-discover "INVESTMENT" Google Spreadsheet from user's Drive if not yet linked
   useEffect(() => {
-    if (activePage === 'investing' && user && spreadsheetId && !spreadsheetId.startsWith('1x_SheetsID')) {
-      handleRefreshInvestingTrades();
+    if (user && !isDevMode && (spreadsheetId.startsWith('1x_SheetsID') || !spreadsheetId)) {
+      handleAutoDiscoverInvestmentSpreadsheet();
     }
-  }, [activePage, user, spreadsheetId, handleRefreshInvestingTrades]);
+  }, [user, isDevMode, spreadsheetId, handleAutoDiscoverInvestmentSpreadsheet]);
+
+  // REAL-TIME AUTO-SYNC: Poll every 10 seconds and on window focus when on the investing or portfolio page
+  useEffect(() => {
+    if (activePage !== 'investing' && activePage !== 'portfolio') return;
+    const cleanId = extractSpreadsheetId(spreadsheetId);
+    if (!cleanId || cleanId.startsWith('1x_SheetsID') || !user || isDevMode) return;
+
+    // Initial load
+    handleRefreshInvestingTrades(cleanId, false);
+
+    // 10s Live Polling
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        handleRefreshInvestingTrades(cleanId, true);
+      }
+    }, 10000);
+
+    const onFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        handleRefreshInvestingTrades(cleanId, true);
+      }
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [activePage, spreadsheetId, user, isDevMode, handleRefreshInvestingTrades]);
 
   // --- Synchronize Active Month from Google Sheets ---
   const handleSyncFromSheets = async (overrideId?: string, overrideSheet?: string) => {
@@ -1607,16 +1716,23 @@ export default function App() {
     try {
       localStorage.setItem('kelvin_financial_custom_assets', JSON.stringify(next));
     } catch (e) {}
-    setSyncNotice(`Aset "${newAsset.nama}" tersimpan lokal di portofolio.`);
+    setSyncNotice(`Aset "${newAsset.nama}" tersimpan di portofolio.`);
 
     // Live Google Sheets synchronization for investment assets
     const token = await getAccessToken();
     const cleanId = extractSpreadsheetId(spreadsheetId);
     if (token && cleanId && !cleanId.startsWith('1x_SheetsID')) {
       try {
-        await syncAssetToSheet(cleanId, sheetName, '', newAsset, token);
-        setLastSynced(new Date());
-        setSyncNotice(`Aset investasi "${newAsset.nama}" berhasil tersingkron ke Google Sheet tab ${sheetName}.`);
+        if (hasInvestingTab) {
+          await syncActiveAssetToInvestingSheet(cleanId, investingTabTitle, '', newAsset, token);
+          setLastSynced(new Date());
+          setSyncNotice(`Aset investasi "${newAsset.nama}" berhasil tersingkron ke Google Sheet (${investingTabTitle} kolom P~T).`);
+          await handleRefreshInvestingTrades(cleanId, true);
+        } else {
+          await syncAssetToSheet(cleanId, sheetName, '', newAsset, token);
+          setLastSynced(new Date());
+          setSyncNotice(`Aset investasi "${newAsset.nama}" berhasil tersingkron ke Google Sheet tab ${sheetName}.`);
+        }
       } catch (err: any) {
         console.warn('Gagal sinkron aset baru ke Google Sheets:', err);
       }
@@ -1648,22 +1764,41 @@ export default function App() {
     const cleanId = extractSpreadsheetId(spreadsheetId);
     if (token && cleanId && !cleanId.startsWith('1x_SheetsID')) {
       try {
-        await syncAssetToSheet(cleanId, sheetName, oldName, updatedAsset, token);
-        setLastSynced(new Date());
-        setSyncNotice(`Perubahan aset "${updatedAsset.nama}" (${formatRupiah(updatedAsset.nilaiAkhirBulan)}) berhasil tersingkron ke Google Sheets.`);
+        if (hasInvestingTab) {
+          await syncActiveAssetToInvestingSheet(cleanId, investingTabTitle, oldName, updatedAsset, token);
+          setLastSynced(new Date());
+          setSyncNotice(`Perubahan aset "${updatedAsset.nama}" (${formatRupiah(updatedAsset.nilaiAkhirBulan)}) berhasil tersingkron ke Google Sheets.`);
+          await handleRefreshInvestingTrades(cleanId, true);
+        } else {
+          await syncAssetToSheet(cleanId, sheetName, oldName, updatedAsset, token);
+          setLastSynced(new Date());
+          setSyncNotice(`Perubahan aset "${updatedAsset.nama}" (${formatRupiah(updatedAsset.nilaiAkhirBulan)}) berhasil tersingkron ke Google Sheets.`);
+        }
       } catch (err: any) {
         console.warn('Gagal sinkron edit aset ke Google Sheets:', err);
       }
     }
   };
 
-  const handleDeleteAsset = (name: string) => {
+  const handleDeleteAsset = async (name: string) => {
     const next = assets.filter((a) => a.nama !== name);
     setAssets(next);
     try {
       localStorage.setItem('kelvin_financial_custom_assets', JSON.stringify(next));
     } catch (e) {}
     setSyncNotice(`Aset "${name}" berhasil dihapus dari portofolio.`);
+
+    const token = await getAccessToken();
+    const cleanId = extractSpreadsheetId(spreadsheetId);
+    if (token && cleanId && !cleanId.startsWith('1x_SheetsID') && hasInvestingTab) {
+      try {
+        await deleteActiveAssetFromInvestingSheet(cleanId, investingTabTitle, name, token);
+        setLastSynced(new Date());
+        await handleRefreshInvestingTrades(cleanId, true);
+      } catch (e) {
+        console.warn('Gagal menghapus aset dari Google Sheets:', e);
+      }
+    }
   };
 
   // --- Account CRUD Handlers ---
@@ -1965,22 +2100,24 @@ export default function App() {
                 </div>
               )}
 
-              {/* 1 Compact Button Pilihan Bulan Google Sheet */}
-              <div className="animate-in fade-in duration-200">
-                <GoogleSheetMonthTabBar
-                  currentSheet={sheetName}
-                  onSelectSheet={handleSelectMonth}
-                  availableSheets={availableSheets}
-                  onAddNewSheet={handleAddNewSheet}
-                  onRefreshTabs={handleRefreshSpreadsheetTabs}
-                  isGoogleConnected={Boolean(user)}
-                  user={user}
-                  isSyncing={isSyncing}
-                  onSyncCurrentSheet={handleSyncFromSheets}
-                  settings={glassSettings}
-                  txCountsByMonth={txCountsByMonth}
-                />
-              </div>
+              {/* 1 Compact Button Pilihan Bulan Google Sheet (Only on monthly budgeting pages) */}
+              {activePage !== 'investing' && activePage !== 'calculator' && (
+                <div className="animate-in fade-in duration-200">
+                  <GoogleSheetMonthTabBar
+                    currentSheet={sheetName}
+                    onSelectSheet={handleSelectMonth}
+                    availableSheets={availableSheets}
+                    onAddNewSheet={handleAddNewSheet}
+                    onRefreshTabs={handleRefreshSpreadsheetTabs}
+                    isGoogleConnected={Boolean(user)}
+                    user={user}
+                    isSyncing={isSyncing}
+                    onSyncCurrentSheet={handleSyncFromSheets}
+                    settings={glassSettings}
+                    txCountsByMonth={txCountsByMonth}
+                  />
+                </div>
+              )}
 
               {/* Smooth Animated Page Transitions Container */}
               <AnimatePresence mode="wait">
@@ -2005,9 +2142,9 @@ export default function App() {
                         settings={glassSettings}
                         budgets={budgets}
                         accounts={accounts}
-                        transactions={transactions}
-                        assets={assets}
-                        history={history}
+                        transactions={activeTransactions}
+                        assets={activeAssets}
+                        history={activeHistory}
                         emergencyFund={emergencyFund}
                         onNavigate={setActivePage}
                         onSyncGoogleSheets={handleSyncFromSheets}
@@ -2027,7 +2164,7 @@ export default function App() {
                       <CashflowInputPage
                         settings={glassSettings}
                         onAddTransaction={handleAddTransaction}
-                        transactions={transactions}
+                        transactions={activeTransactions}
                         onEditTransaction={handleEditTransaction}
                         onDeleteTransaction={handleDeleteTransaction}
                         onSyncGoogleSheet={handleSyncFromSheets}
@@ -2052,19 +2189,6 @@ export default function App() {
                         onDeleteBudget={handleDeleteBudget}
                         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
                       />
-
-                      {/* Spending vs Envelope Detailed Insight */}
-                      <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs text-slate-400 leading-relaxed">
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
-                          <PieChart className="w-4 h-4 text-amber-500" />
-                          Mekanisme Rolling Budget & Sinking Fund
-                        </h4>
-                        <p>
-                          Setiap pos di atas mengadopsi prinsip amplop finansial (*Envelope Budgeting*): Saldo bulan lalu yang
-                          belum terserap otomatis diakumulasikan (*rolled-over*) bersama jatah alokasi gaji bulan baru,
-                          menghasilkan total plafon belanja yang aman tanpa risiko defisit.
-                        </p>
-                      </div>
                     </div>
                   )}
 
@@ -2072,13 +2196,13 @@ export default function App() {
                   {activePage === 'portfolio' && (
                     <div className="space-y-6">
                       <InvestmentPortfolio
-                        assets={assets}
-                        history={history}
+                        assets={activeAssets}
+                        history={activeHistory}
                         settings={glassSettings}
                         totalProfit2026={totalProfit2026}
                         currentSheetName={sheetName}
                         cashStandby={cashStandbyDanaDarurat}
-                        transactions={transactions}
+                        transactions={activeTransactions}
                         totalAset={totalAset}
                         totalIncome={totalPemasukan}
                         totalExpense={totalPengeluaran}
@@ -2086,6 +2210,15 @@ export default function App() {
                         budgets={budgets}
                         accounts={accounts}
                         emergencyFund={emergencyFund}
+                        sheetConnected={Boolean(user && !isDevMode && spreadsheetId && !spreadsheetId.startsWith('1x_SheetsID') && hasInvestingTab)}
+                        spreadsheetTitle={spreadsheetTitle || 'INVESTMENT'}
+                        currentSpreadsheetId={spreadsheetId}
+                        tabTitle={investingTabTitle}
+                        isSyncing={isInvestingSyncing}
+                        lastSynced={lastSynced}
+                        onRefresh={() => handleRefreshInvestingTrades(undefined, false)}
+                        onAutoDiscoverProject={handleAutoDiscoverInvestmentSpreadsheet}
+                        onConnectSpreadsheet={(idOrUrl) => handleConnectDirectSpreadsheet(idOrUrl, 'INVESTMENT')}
                         onAddAsset={handleAddAsset}
                         onEditAsset={handleEditAsset}
                         onDeleteAsset={handleDeleteAsset}
@@ -2103,7 +2236,7 @@ export default function App() {
                         accounts={accounts}
                         settings={glassSettings}
                         onTransfer={handleInternalTransfer}
-                        transactions={transactions}
+                        transactions={activeTransactions}
                         totalNetWorth={totalAset}
                         totalInvestment={totalInvestment}
                         onAddAccount={handleAddAccount}
@@ -2132,16 +2265,19 @@ export default function App() {
                         trades={investingTrades}
                         activeSummaries={investingActiveSummaries}
                         isDark={isDark}
-                        sheetConnected={Boolean(user && !isDevMode && spreadsheetId && !spreadsheetId.startsWith('1x_SheetsID'))}
-                        spreadsheetTitle={sheetName ? `Project Google Sheet` : 'Financial Project'}
+                        sheetConnected={Boolean(user && !isDevMode && spreadsheetId && !spreadsheetId.startsWith('1x_SheetsID') && hasInvestingTab)}
+                        spreadsheetTitle={spreadsheetTitle || 'INVESTMENT'}
                         tabTitle={investingTabTitle}
                         isSyncing={isInvestingSyncing}
-                        onRefreshFromSheet={handleRefreshInvestingTrades}
+                        onRefreshFromSheet={() => handleRefreshInvestingTrades(undefined, false)}
                         onAddTrade={handleAddInvestingTrade}
                         onEditTrade={handleEditInvestingTrade}
                         onDeleteTrade={handleDeleteInvestingTrade}
                         onCreateInvestingTab={handleCreateInvestingTab}
                         onOpenProjectManager={() => setIsProjectManagerOpen(true)}
+                        currentSpreadsheetId={spreadsheetId}
+                        onConnectSpreadsheet={handleConnectDirectSpreadsheet}
+                        onAutoDiscoverProject={handleAutoDiscoverInvestmentSpreadsheet}
                         settings={glassSettings}
                       />
                     </div>

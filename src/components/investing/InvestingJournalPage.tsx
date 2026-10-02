@@ -40,6 +40,9 @@ interface InvestingJournalPageProps {
   onDeleteTrade: (trade: TradeRecord) => Promise<void>;
   onCreateInvestingTab?: () => Promise<void>;
   onOpenProjectManager?: () => void;
+  currentSpreadsheetId?: string;
+  onConnectSpreadsheet?: (spreadsheetIdOrUrl: string, title?: string) => Promise<void>;
+  onAutoDiscoverProject?: () => Promise<boolean>;
   settings?: GlassSettings;
 }
 
@@ -48,15 +51,18 @@ export const InvestingJournalPage: React.FC<InvestingJournalPageProps> = ({
   activeSummaries = [],
   isDark = true,
   sheetConnected = false,
-  spreadsheetTitle = 'Portofolio Sheet',
-  tabTitle = 'INVESTING',
+  spreadsheetTitle = 'INVESTMENT',
+  tabTitle = 'INVESTMENT',
   isSyncing = false,
   onRefreshFromSheet,
   onAddTrade,
   onEditTrade,
   onDeleteTrade,
   onCreateInvestingTab,
-  onOpenProjectManager
+  onOpenProjectManager,
+  currentSpreadsheetId = '',
+  onConnectSpreadsheet,
+  onAutoDiscoverProject
 }) => {
   // Modal states
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
@@ -64,8 +70,49 @@ export const InvestingJournalPage: React.FC<InvestingJournalPageProps> = ({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingTrade, setDeletingTrade] = useState<TradeRecord | null>(null);
 
+  // Quick direct connect input state
+  const [manualInputUrl, setManualInputUrl] = useState('');
+  const [isConnectingManual, setIsConnectingManual] = useState(false);
+  const [isSearchingDrive, setIsSearchingDrive] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>(() => {
+    return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  });
+
   // Filter state linked across Heatmap, Active Summary, and Ledger table
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+
+  // Handle direct connect
+  const handleConnectDirect = async () => {
+    if (!manualInputUrl.trim() || !onConnectSpreadsheet) return;
+    try {
+      setIsConnectingManual(true);
+      await onConnectSpreadsheet(manualInputUrl.trim(), 'INVESTMENT');
+      setManualInputUrl('');
+      setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    } catch (e: any) {
+      alert('Gagal menghubungkan: ' + (e?.message || 'Periksa URL spreadsheet'));
+    } finally {
+      setIsConnectingManual(false);
+    }
+  };
+
+  // Handle auto-discover from Drive
+  const handleTriggerAutoDiscover = async () => {
+    if (!onAutoDiscoverProject) return;
+    try {
+      setIsSearchingDrive(true);
+      const found = await onAutoDiscoverProject();
+      if (!found) {
+        alert('File spreadsheet dengan nama "INVESTMENT" tidak ditemukan di Google Drive Anda. Silakan masukkan link spreadsheet Anda pada kotak input di bawah.');
+      } else {
+        setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      }
+    } catch (e: any) {
+      alert('Gagal mencari di Google Drive: ' + (e?.message || 'Error'));
+    } finally {
+      setIsSearchingDrive(false);
+    }
+  };
 
   // If disconnected or in Dev Mode, strictly enforce 0 across all calculations as requested
   const displayTrades = sheetConnected ? trades : [];
@@ -184,25 +231,30 @@ export const InvestingJournalPage: React.FC<InvestingJournalPageProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-black text-sm uppercase tracking-wider font-mono">
-                  {sheetConnected ? 'GOOGLE SHEETS TERSAMBUNG (REAL-TIME AKTIF)' : 'GOOGLE SHEETS TERPUTUS / DISCONNECTED'}
+                  {sheetConnected ? 'GOOGLE SHEETS TERSAMBUNG (REAL-TIME AKTIF)' : 'PROJECT GOOGLE SHEET "INVESTMENT" TERPUTUS / DISCONNECTED'}
                 </span>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
                   sheetConnected
                     ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
                     : 'bg-rose-500/15 border-rose-500/30 text-rose-400'
                 }`}>
-                  {sheetConnected ? `Tab: ${tabTitle}` : 'Default Nilai: 0'}
+                  {sheetConnected ? `Project: ${spreadsheetTitle} • Tab: ${tabTitle}` : 'Default Nilai: 0 (Terputus)'}
                 </span>
+                {sheetConnected && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    Live Polling 10d • Update: {lastSyncTime}
+                  </span>
+                )}
               </div>
 
               <p className={`text-xs mt-1 leading-relaxed ${sheetConnected ? (isDark ? 'text-emerald-200/90' : 'text-emerald-800') : (isDark ? 'text-rose-200/90' : 'text-rose-800')}`}>
                 {sheetConnected ? (
                   <>
-                    Data tersinkronisasi dua arah secara langsung dengan tab Google Sheet <strong>{tabTitle}</strong>. Setiap penambahan, pengubahan, atau penghapusan data otomatis diperbarui ke Google Spreadsheet.
+                    Data tersinkronisasi dua arah secara langsung dengan Google Sheet project <strong>"{spreadsheetTitle}"</strong> (Tab: <strong>{tabTitle}</strong>). Setiap perubahan di Google Sheets atau web otomatis diperbarui secara real-time.
                   </>
                 ) : (
                   <>
-                    Aplikasi dalam status <strong>terputus (offline/Dev Mode)</strong>. Sesuai instruksi sistem, seluruh angka, persentase return, dan valuasi diatur ke <strong>0 (Rp 0 & 0.00%)</strong>. Sambungkan spreadsheet Anda untuk memuat data riil.
+                    Aplikasi dalam status <strong>terputus (offline/Dev Mode)</strong>. Seluruh angka, laba/rugi, dan persentase diatur ke <strong>0</strong>. Hubungkan project Google Sheet <strong>"INVESTMENT"</strong> Anda di bawah agar sinkronisasi real-time aktif.
                   </>
                 )}
               </p>
@@ -215,7 +267,10 @@ export const InvestingJournalPage: React.FC<InvestingJournalPageProps> = ({
               <>
                 {onRefreshFromSheet && (
                   <button
-                    onClick={onRefreshFromSheet}
+                    onClick={async () => {
+                      await onRefreshFromSheet();
+                      setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                    }}
                     disabled={isSyncing}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition active:scale-95 bg-emerald-600 hover:bg-emerald-500 border-emerald-400 text-white shadow-md cursor-pointer disabled:opacity-50"
                   >
@@ -223,34 +278,107 @@ export const InvestingJournalPage: React.FC<InvestingJournalPageProps> = ({
                     <span>{isSyncing ? 'Menyinkronkan...' : 'Tarik Data Live'}</span>
                   </button>
                 )}
-              </>
-            ) : (
-              <>
                 {onOpenProjectManager && (
                   <button
                     onClick={onOpenProjectManager}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border text-xs font-bold transition active:scale-95 bg-rose-600 hover:bg-rose-500 border-rose-400 text-white shadow-md shadow-rose-600/30 cursor-pointer"
-                  >
-                    <Wifi className="w-3.5 h-3.5" />
-                    <span>Sambungkan Google Sheets</span>
-                  </button>
-                )}
-                {onRefreshFromSheet && (
-                  <button
-                    onClick={onRefreshFromSheet}
-                    disabled={isSyncing}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition active:scale-95 cursor-pointer ${
-                      isDark ? 'bg-white/10 hover:bg-white/15 border-white/15 text-slate-200' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition active:scale-95 cursor-pointer ${
+                      isDark ? 'bg-white/10 hover:bg-white/15 border-white/15 text-slate-300' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                     }`}
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                    <span>Coba Sambungkan Ulang</span>
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Ganti File</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {onAutoDiscoverProject && (
+                  <button
+                    onClick={handleTriggerAutoDiscover}
+                    disabled={isSearchingDrive}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border text-xs font-bold transition active:scale-95 bg-emerald-600 hover:bg-emerald-500 border-emerald-400 text-white shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSearchingDrive ? 'animate-spin' : ''}`} />
+                    <span>{isSearchingDrive ? 'Mencari file INVESTMENT...' : 'Cari File INVESTMENT di Drive'}</span>
+                  </button>
+                )}
+                {onOpenProjectManager && (
+                  <button
+                    onClick={onOpenProjectManager}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition active:scale-95 bg-rose-600 hover:bg-rose-500 border-rose-400 text-white shadow-md shadow-rose-600/30 cursor-pointer"
+                  >
+                    <Wifi className="w-3.5 h-3.5" />
+                    <span>Project Manager</span>
                   </button>
                 )}
               </>
             )}
           </div>
         </div>
+
+        {/* QUICK CONNECT INPUT AREA (Displayed when disconnected or manually requested) */}
+        {!sheetConnected && (
+          <div className="mt-4 pt-4 border-t border-rose-500/20 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            {/* Option 1: Auto-Detect from Google Drive */}
+            <div className={`p-3 rounded-xl border flex flex-col justify-between gap-2 ${
+              isDark ? 'bg-black/20 border-white/10 text-slate-300' : 'bg-white/60 border-rose-200 text-slate-700'
+            }`}>
+              <div>
+                <span className="font-bold flex items-center gap-1.5 text-rose-400">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  1. Deteksi Otomatis dari Google Drive
+                </span>
+                <p className="text-[11px] mt-1 text-slate-400 leading-normal">
+                  Sistem akan memindai Google Drive akun Anda untuk mencari file spreadsheet yang berjudul <strong>"INVESTMENT"</strong> dan menghubungkannya secara otomatis.
+                </p>
+              </div>
+              <button
+                onClick={handleTriggerAutoDiscover}
+                disabled={isSearchingDrive}
+                className="self-start px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSearchingDrive ? 'animate-spin' : ''}`} />
+                <span>{isSearchingDrive ? 'Memindai Drive...' : 'Temukan & Sambungkan INVESTMENT'}</span>
+              </button>
+            </div>
+
+            {/* Option 2: Paste Direct Link / ID */}
+            <div className={`p-3 rounded-xl border flex flex-col justify-between gap-2 ${
+              isDark ? 'bg-black/20 border-white/10 text-slate-300' : 'bg-white/60 border-rose-200 text-slate-700'
+            }`}>
+              <div>
+                <span className="font-bold flex items-center gap-1.5 text-rose-400">
+                  <ExternalLink className="w-4 h-4" />
+                  2. Tempel Link / ID Spreadsheet INVESTMENT
+                </span>
+                <p className="text-[11px] mt-1 text-slate-400 leading-normal">
+                  Buka file Google Sheet INVESTMENT Anda, salin URL dari bilah browser, lalu tempel di bawah ini:
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <input
+                  type="text"
+                  placeholder="https://docs.google.com/spreadsheets/d/... atau ID file"
+                  value={manualInputUrl}
+                  onChange={(e) => setManualInputUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleConnectDirect();
+                  }}
+                  className={`flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-mono outline-none ${
+                    isDark ? 'bg-black/40 border-white/15 text-white placeholder-slate-500 focus:border-rose-400' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-rose-500'
+                  }`}
+                />
+                <button
+                  onClick={handleConnectDirect}
+                  disabled={!manualInputUrl.trim() || isConnectingManual}
+                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shrink-0 cursor-pointer disabled:opacity-40"
+                >
+                  {isConnectingManual ? 'Menghubungkan...' : 'Hubungkan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Top Title Cockpit */}

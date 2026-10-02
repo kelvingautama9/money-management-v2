@@ -624,20 +624,9 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
               {/* Kategori & Akun */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className={`text-[11px] font-bold block ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
-                      Kategori Pos (Google Sheet)
-                    </label>
-                    <span
-                      style={{
-                        backgroundColor: getCategoryStyle(selectedCategory).rawBg,
-                        color: getCategoryStyle(selectedCategory).rawText
-                      }}
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm"
-                    >
-                      <span>{selectedCategory}</span>
-                    </span>
-                  </div>
+                  <label className={`text-[11px] font-bold block mb-1 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
+                    Kategori Pos (Google Sheet)
+                  </label>
                   <select
                     value={selectedCategory}
                     onChange={(e) => handleSelectCategory(e.target.value)}
@@ -652,20 +641,9 @@ export const CashflowInputPage: React.FC<CashflowInputPageProps> = ({
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className={`text-[11px] font-bold block ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
-                      Rekening / Dompet (Google Sheet)
-                    </label>
-                    <span
-                      style={{
-                        backgroundColor: getAccountStyle(selectedAccount).rawBg,
-                        color: getAccountStyle(selectedAccount).rawText
-                      }}
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm"
-                    >
-                      <span>{selectedAccount}</span>
-                    </span>
-                  </div>
+                  <label className={`text-[11px] font-bold block mb-1 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
+                    Rekening / Dompet (Google Sheet)
+                  </label>
                   <select
                     value={selectedAccount}
                     onChange={(e) => setSelectedAccount(e.target.value)}

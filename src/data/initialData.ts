@@ -26,61 +26,12 @@ export const INITIAL_TRANSACTIONS_BY_MONTH: Record<string, Transaction[]> = {};
 
 export const INITIAL_SUMMARY_BY_MONTH: Record<string, { totalAset: number; cashStandby: number; totalInvestment: number }> = {};
 
-export const INITIAL_BUDGETS: BudgetCategory[] = [
-  {
-    id: 'budget-1',
-    nama: 'Listrik & Utilitas',
-    saldoAwal: 0,
-    budgeting: 300000,
-    totalSaldo: 300000,
-    actualSpend: 0,
-    sisa: 300000,
-    keterangan: 'Siap digunakan',
-    targetBulanan: 300000,
-    akunTerkait: 'Allo Bank'
-  },
-  {
-    id: 'budget-2',
-    nama: 'Transport & Bensin',
-    saldoAwal: 0,
-    budgeting: 200000,
-    totalSaldo: 200000,
-    actualSpend: 0,
-    sisa: 200000,
-    keterangan: 'Siap digunakan',
-    targetBulanan: 200000,
-    akunTerkait: 'Jago-Transport'
-  },
-  {
-    id: 'budget-3',
-    nama: 'Entertainment & Hiburan',
-    saldoAwal: 0,
-    budgeting: 150000,
-    totalSaldo: 150000,
-    actualSpend: 0,
-    sisa: 150000,
-    keterangan: 'Siap digunakan',
-    targetBulanan: 150000,
-    akunTerkait: 'Jago-Entertainment'
-  },
-  {
-    id: 'budget-4',
-    nama: 'Kebutuhan Pokok & Belanja',
-    saldoAwal: 0,
-    budgeting: 500000,
-    totalSaldo: 500000,
-    actualSpend: 0,
-    sisa: 500000,
-    keterangan: 'Siap digunakan',
-    targetBulanan: 500000,
-    akunTerkait: 'Bank BCA'
-  }
-];
+export const INITIAL_BUDGETS: BudgetCategory[] = [];
 
 export const INITIAL_EMERGENCY_FUND: EmergencyFund = {
   current: 0,
-  target: 12000000,
-  kekurangan: -12000000,
+  target: 0,
+  kekurangan: 0,
   persentase: 0
 };
 

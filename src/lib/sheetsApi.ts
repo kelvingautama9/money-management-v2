@@ -1,7 +1,19 @@
-import { Transaction, SheetSummary } from '../types';
+import { Transaction, SheetSummary, InvestmentAsset } from '../types';
 import { normalizeMonthTitleCase } from './sheetStyles';
 
 export { normalizeMonthTitleCase };
+
+export function getStandardAssetColor(name: string, index: number = 0): string {
+  const n = (name || '').toLowerCase();
+  if (n.includes('pluang') || n.includes('saham') || n.includes('reksadana')) return '#38bdf8'; // Sky
+  if (n.includes('valas') || n.includes('usd') || n.includes('bca')) return '#34d399'; // Emerald
+  if (n.includes('usdt') || n.includes('binance') || n.includes('kripto') || n.includes('crypto')) return '#fbbf24'; // Amber
+  if (n.includes('bibit')) return '#10b981';
+  if (n.includes('ajaib')) return '#06b6d4';
+  if (n.includes('gold') || n.includes('emas')) return '#eab308';
+  const palette = ['#38bdf8', '#34d399', '#fbbf24', '#a855f7', '#f43f5e', '#6366f1', '#14b8a6'];
+  return palette[index % palette.length];
+}
 
 /**
  * Extracts Google Spreadsheet ID from a URL or raw ID string.
@@ -904,6 +916,30 @@ export async function listUserSpreadsheets(
 
   const data = await res.json();
   return data.files || [];
+}
+
+/**
+ * Searches user Google Drive for a spreadsheet matching a name (e.g. 'INVESTMENT').
+ */
+export async function findSpreadsheetByName(
+  namePattern: string,
+  accessToken: string
+): Promise<{ id: string; name: string; webViewLink?: string } | null> {
+  try {
+    const files = await listUserSpreadsheets(accessToken);
+    if (!files || files.length === 0) return null;
+    const target = namePattern.toUpperCase().trim();
+    // 1. Exact match
+    const exact = files.find((f) => f.name.toUpperCase().trim() === target);
+    if (exact) return exact;
+    // 2. Contains match
+    const contains = files.find((f) => f.name.toUpperCase().includes(target));
+    if (contains) return contains;
+    return null;
+  } catch (err) {
+    console.warn('findSpreadsheetByName failed:', err);
+    return null;
+  }
 }
 
 /**

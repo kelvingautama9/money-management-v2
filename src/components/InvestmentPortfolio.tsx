@@ -24,7 +24,10 @@ import {
   Printer,
   ShieldCheck,
   ChevronRight,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  RefreshCw,
+  FileSpreadsheet,
+  AlertCircle
 } from 'lucide-react';
 import { UnifiedMonthlyReportModal } from './UnifiedMonthlyReportModal';
 
@@ -43,6 +46,15 @@ interface InvestmentPortfolioProps {
   budgets?: BudgetCategory[];
   accounts?: AccountBalance[];
   emergencyFund?: EmergencyFund;
+  sheetConnected?: boolean;
+  spreadsheetTitle?: string;
+  currentSpreadsheetId?: string;
+  tabTitle?: string;
+  isSyncing?: boolean;
+  lastSynced?: Date | null;
+  onRefresh?: () => void;
+  onAutoDiscoverProject?: () => void;
+  onConnectSpreadsheet?: (idOrUrl: string) => void;
   onAddAsset?: (asset: InvestmentAsset) => void;
   onEditAsset?: (oldName: string, asset: InvestmentAsset) => void;
   onDeleteAsset?: (name: string) => void;
@@ -65,6 +77,15 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   budgets = [],
   accounts = [],
   emergencyFund,
+  sheetConnected = false,
+  spreadsheetTitle = 'INVESTMENT',
+  currentSpreadsheetId = '',
+  tabTitle = 'INVESTMENT',
+  isSyncing = false,
+  lastSynced = null,
+  onRefresh,
+  onAutoDiscoverProject,
+  onConnectSpreadsheet,
   onAddAsset,
   onEditAsset,
   onDeleteAsset,
@@ -72,6 +93,8 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   onOpenCalculator
 }) => {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [inputSheetId, setInputSheetId] = useState('');
+  const [showChangeSheet, setShowChangeSheet] = useState(false);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -85,8 +108,20 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
 
   // Dynamic month-synchronized investment metrics (handles DCA, closing returns, and broker balances)
   const monthlyMetrics = useMemo(() => {
+    if (!sheetConnected) {
+      return {
+        assets: [],
+        totalCurrentInvestment: 0,
+        totalDCA: 0,
+        isPendingValuation: false,
+        isClosed: false,
+        pureProfit: 0,
+        purePnl: 0,
+        prevNetWorth: 0
+      };
+    }
     return getMonthlyInvestmentMetrics(currentSheetName, assets, history, transactions);
-  }, [currentSheetName, assets, history, transactions]);
+  }, [sheetConnected, currentSheetName, assets, history, transactions]);
 
   const activeAssets = monthlyMetrics.assets;
   const totalCurrentInvestment = monthlyMetrics.totalCurrentInvestment;
@@ -96,26 +131,33 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
   const pureProfit = monthlyMetrics.pureProfit;
   const purePnl = monthlyMetrics.purePnl;
   const prevNetWorth = monthlyMetrics.prevNetWorth;
+  const displayProfit2026 = sheetConnected ? totalProfit2026 : 0;
 
-  const pieData = activeAssets.map((a) => ({
-    name: a.nama,
-    value: a.nilaiAkhirBulan,
-    color: a.warna
-  }));
+  const pieData = useMemo(() => {
+    if (!sheetConnected) return [];
+    return activeAssets.map((a) => ({
+      name: a.nama,
+      value: a.nilaiAkhirBulan,
+      color: a.warna
+    }));
+  }, [sheetConnected, activeAssets]);
 
-  const chartData = history.map((h, i) => {
-    const isSelectedMonth =
-      h.bulan.toLowerCase().replace(/[^a-z]/g, '') === currentSheetName.toLowerCase().replace(/[^a-z]/g, '') ||
-      currentSheetName.toLowerCase().includes(h.bulan.toLowerCase().replace(/[^a-z]/g, ''));
-    const isPending = !h.isClosed && h.bulan.toLowerCase().includes('september');
-    return {
-      bulan: h.bulan,
-      netWorth: isSelectedMonth ? totalCurrentInvestment : h.totalNetWorth,
-      profit: isSelectedMonth ? (isPendingValuation ? 0 : pureProfit) : h.netProfitMoM,
-      pnl: isSelectedMonth ? (isPendingValuation ? 0 : purePnl) : h.pnlPercent,
-      isPending
-    };
-  });
+  const chartData = useMemo(() => {
+    if (!sheetConnected) return [];
+    return history.map((h, i) => {
+      const isSelectedMonth =
+        h.bulan.toLowerCase().replace(/[^a-z]/g, '') === currentSheetName.toLowerCase().replace(/[^a-z]/g, '') ||
+        currentSheetName.toLowerCase().includes(h.bulan.toLowerCase().replace(/[^a-z]/g, ''));
+      const isPending = !h.isClosed && h.bulan.toLowerCase().includes('september');
+      return {
+        bulan: h.bulan,
+        netWorth: isSelectedMonth ? totalCurrentInvestment : h.totalNetWorth,
+        profit: isSelectedMonth ? (isPendingValuation ? 0 : pureProfit) : h.netProfitMoM,
+        pnl: isSelectedMonth ? (isPendingValuation ? 0 : purePnl) : h.pnlPercent,
+        isPending
+      };
+    });
+  }, [sheetConnected, history, currentSheetName, totalCurrentInvestment, isPendingValuation, pureProfit, purePnl]);
 
   const getAssetIcon = (nama: string) => {
     const n = nama.toLowerCase();
@@ -248,61 +290,127 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
           </div>
         </div>
 
+        {/* Google Sheets Sync Bar */}
+        {sheetConnected ? (
+          <div className="mt-4 p-3 rounded-xl bg-slate-100/90 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <span className="text-slate-600 dark:text-slate-300 truncate">
+                File: <strong className="text-slate-900 dark:text-white font-medium">{spreadsheetTitle || 'INVESTMENT'}</strong> • Tab: <strong className="text-slate-900 dark:text-white font-medium">{tabTitle || 'INVESTMENT'}</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+              <button
+                onClick={() => onRefresh && onRefresh()}
+                disabled={isSyncing}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 text-xs font-medium transition cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Sinkron...' : 'Sync'}</span>
+              </button>
+              <button
+                onClick={() => setShowChangeSheet(!showChangeSheet)}
+                className="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 text-xs font-medium transition cursor-pointer"
+              >
+                {showChangeSheet ? 'Tutup' : 'Ganti File'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 p-3.5 rounded-xl bg-slate-100/90 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+              <span className="text-slate-700 dark:text-slate-300 font-medium">
+                Google Sheet Portofolio belum terhubung
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Link / ID Google Sheet..."
+                value={inputSheetId}
+                onChange={(e) => setInputSheetId(e.target.value)}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 text-slate-900 dark:text-white text-xs placeholder:text-slate-400 focus:outline-none w-48 font-mono"
+              />
+              <button
+                onClick={() => {
+                  if (inputSheetId.trim() && onConnectSpreadsheet) {
+                    onConnectSpreadsheet(inputSheetId.trim());
+                    setInputSheetId('');
+                  }
+                }}
+                className="px-3 py-1 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold transition cursor-pointer shrink-0"
+              >
+                Hubungkan
+              </button>
+              {onAutoDiscoverProject && (
+                <button
+                  onClick={() => onAutoDiscoverProject()}
+                  disabled={isSyncing}
+                  className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-white/15 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-200 dark:hover:bg-white/10 transition cursor-pointer shrink-0"
+                >
+                  Cari File
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Change Sheet Collapsible Dropdown */}
+        {showChangeSheet && (
+          <div className="mt-2 p-3 rounded-xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200 dark:border-white/15 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs">
+            <input
+              type="text"
+              placeholder="Tempel ID atau Link Google Spreadsheet baru..."
+              value={inputSheetId}
+              onChange={(e) => setInputSheetId(e.target.value)}
+              className="flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-xs placeholder:text-slate-400 focus:outline-none font-mono"
+            />
+            <button
+              onClick={() => {
+                if (inputSheetId.trim() && onConnectSpreadsheet) {
+                  onConnectSpreadsheet(inputSheetId.trim());
+                  setInputSheetId('');
+                  setShowChangeSheet(false);
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-xs transition cursor-pointer"
+            >
+              Simpan & Hubungkan
+            </button>
+          </div>
+        )}
+
         {/* Total Valuasi Portofolio Hero Banner */}
-        <div className="my-5 p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-100/90 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+        <div className="my-5 p-4 sm:p-5 rounded-2xl bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                  Total Valuasi Portofolio • {currentSheetName}
-                </span>
-                {isClosed ? (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-white/15 inline-flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                    Sudah Closing
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/15">
-                    Bulan Berjalan
-                  </span>
-                )}
-              </div>
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
+                Valuasi Portofolio • {currentSheetName}
+              </span>
               <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
-                <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
+                <span className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
                   {formatRupiah(totalCurrentInvestment)}
                 </span>
-                {totalDCA > 0 ? (
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-white/10 px-2.5 py-0.5 rounded-full border border-slate-300 dark:border-white/15 inline-flex items-center gap-1">
-                    +{formatRupiah(totalDCA)} Setoran DCA
+                {totalDCA > 0 && (
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                    +{formatRupiah(totalDCA)} DCA
                   </span>
-                ) : null}
-                {isPendingValuation ? (
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-200/80 dark:bg-white/10 border-slate-300 dark:border-white/15">
-                    Rp 0 (0.00%) Menunggu Closing Akhir Bulan
-                  </span>
-                ) : (
-                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+                )}
+                {pureProfit !== 0 && (
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
                     pureProfit >= 0
-                      ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                      : 'text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/20'
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                      : 'text-rose-600 dark:text-rose-400 bg-rose-500/10'
                   }`}>
-                    {pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) Murni Return
+                    {pureProfit >= 0 ? `+${formatRupiah(pureProfit)}` : formatRupiah(pureProfit)} ({purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) Return
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-                {isPendingValuation
-                  ? 'Setoran DCA dialokasikan aman sebagai modal pokok baru. Estimasi return pasar aktif setelah update saldo akhir bulan.'
-                  : totalDCA > 0
-                  ? `Setoran DCA ${formatRupiah(totalDCA)} dialokasikan sebagai modal. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni pertumbuhan organik aset.`
-                  : `Tidak ada setoran DCA periode ${currentSheetName}. Return pasar ${formatRupiah(pureProfit)} (${purePnl >= 0 ? `+${purePnl}%` : `${purePnl}%`}) murni mencerminkan kinerja pasar.`}
-              </p>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 self-start md:self-center">
-              <span className="px-3 py-1.5 rounded-xl bg-slate-200/80 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-300 font-semibold text-xs">
-                {activeAssets.length} Broker Terdaftar
-              </span>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              <span>{activeAssets.length} Broker Aktif</span>
             </div>
           </div>
         </div>
@@ -360,9 +468,9 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                       </span>
                     </div>
 
-                    <div className="pt-1.5 border-t border-slate-200 dark:border-white/5 flex items-center justify-between text-[9px] sm:text-[10px]">
-                      <span className="text-slate-500 dark:text-slate-400">Porsi:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-300 bg-slate-200 dark:bg-white/10 px-1.5 py-0.2 rounded border border-slate-300 dark:border-white/15">
+                    <div className="pt-1.5 border-t border-slate-200 dark:border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="text-slate-500 dark:text-slate-400">Porsi</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
                         {allocationPct}%
                       </span>
                     </div>
@@ -372,14 +480,20 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
             </div>
           ) : (
             <div className="p-6 rounded-2xl bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-center space-y-2">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Belum ada broker atau aset terdaftar untuk periode {currentSheetName}.</p>
-              <button
-                onClick={handleOpenAdd}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5 text-white" />
-                <span>Tambah Broker / Aset Pertama</span>
-              </button>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {sheetConnected
+                  ? `Belum ada broker atau aset terdaftar untuk periode ${currentSheetName}.`
+                  : 'Google Sheet portofolio belum terhubung.'}
+              </p>
+              {sheetConnected && (
+                <button
+                  onClick={handleOpenAdd}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5 text-white" />
+                  <span>Tambah Broker Pertama</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -400,9 +514,8 @@ export const InvestmentPortfolio: React.FC<InvestmentPortfolioProps> = ({
                   Pertumbuhan nilai valuasi bersih historis MoM
                 </p>
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-slate-800 dark:text-slate-300 bg-slate-200 dark:bg-white/10 px-2.5 py-1 rounded-full border border-slate-300 dark:border-white/15 shrink-0">
-                <Award className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-                <span>Realized YTD: <strong>{formatRupiah(totalProfit2026)}</strong></span>
+              <div className="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 bg-slate-200/80 dark:bg-white/10 px-2.5 py-0.5 rounded-lg border border-slate-300 dark:border-white/10 shrink-0">
+                <span>Realized YTD: <strong>{formatRupiah(displayProfit2026)}</strong></span>
               </div>
             </div>
 

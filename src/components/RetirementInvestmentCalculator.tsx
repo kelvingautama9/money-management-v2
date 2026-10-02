@@ -305,25 +305,25 @@ export const RetirementInvestmentCalculator: React.FC<RetirementInvestmentCalcul
 
   // Handle Clipboard Copy
   const handleCopySummary = () => {
-    const text = `🎯 STRATEGI DANA PENSIUN & INVESTASI (ATURAN 4%)
+    const text = `STRATEGI DANA PENSIUN & INVESTASI (ATURAN 4%)
 --------------------------------------------------
 Usia: ${currentAge} tahun -> Target Pensiun: ${retirementAge} tahun (Sisa ${calculations.yearsToRetire} tahun)
 Pengeluaran Sekarang: ${formatRupiah(monthlyExpense)}/bulan
 Asumsi Inflasi: ${inflationRate}%/tahun
 Pengeluaran Saat Pensiun: ${formatRupiah(calculations.monthlyExpenseAtRetirement)}/bulan
 
-💰 KEBUTUHAN DANA PENSIUN (4% RULE):
+KEBUTUHAN DANA PENSIUN (4% RULE):
 Target Modal Pokok: ${formatRupiah(calculations.retirementFundNeeded)}
 
-📈 PROYEKSI AKUMULASI INVESTASI:
+PROYEKSI AKUMULASI INVESTASI:
 Modal Awal: ${formatRupiah(initialFund)}
 Setoran Rutin: ${formatRupiah(monthlyContribution)}/bulan (${expectedReturnRate}% return/thn)
 Hasil Akumulasi: ${formatRupiah(calculations.totalAccumulated)}
 - Modal Disetor: ${formatRupiah(calculations.totalPrincipal)} (${calculations.principalPct}%)
 - Bunga Majemuk: ${formatRupiah(calculations.totalInterest)} (${calculations.interestPct}%)
 
-📊 KESIMPULAN STATUS:
-${calculations.isTargetAchieved ? '✅ SURPLUS (Target Tercapai)' : '⚠️ KURANG / DEFISIT'}
+KESIMPULAN STATUS:
+${calculations.isTargetAchieved ? 'SURPLUS (Target Tercapai)' : 'KURANG / DEFISIT'}
 Selisih: ${calculations.isTargetAchieved ? '+' : '-'}${formatRupiah(Math.abs(calculations.difference))}
 Cakupan Target: ${calculations.coverageRatio}%
 Tarik Pasif Bulanan Aman: ${formatRupiah(calculations.safeMonthlyWithdrawalAtRetirement)}/bulan

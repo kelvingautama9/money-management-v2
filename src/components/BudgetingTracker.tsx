@@ -8,22 +8,15 @@ import {
   Film,
   Compass,
   Heart,
-  CheckCircle2,
-  AlertCircle,
   AlertTriangle,
   Pencil,
   Plus,
   Trash2,
   X,
   PieChart,
-  Wallet,
-  TrendingDown,
-  Layers,
-  ShieldCheck,
-  Calendar,
-  Lightbulb,
-  ArrowRight,
-  Shield
+  ShoppingBag,
+  Car,
+  Utensils
 } from 'lucide-react';
 
 interface BudgetingTrackerProps {
@@ -58,17 +51,21 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
 
   const getIcon = (nama: string) => {
     const n = nama.toLowerCase();
-    if (n.includes('listrik')) return <Zap className="w-5 h-5 text-blue-400" />;
+    if (n.includes('listrik')) return <Zap className="w-4 h-4 text-blue-500" />;
     if (n.includes('entertainment') || n.includes('hiburan'))
-      return <Film className="w-5 h-5 text-slate-400" />;
+      return <Film className="w-4 h-4 text-purple-500" />;
     if (n.includes('transport') || n.includes('bensin'))
-      return <Compass className="w-5 h-5 text-slate-400" />;
+      return <Car className="w-4 h-4 text-slate-500" />;
     if (n.includes('dating') || n.includes('kencan'))
-      return <Heart className="w-5 h-5 text-slate-400" />;
-    return <PieChart className="w-5 h-5 text-slate-400" />;
+      return <Heart className="w-4 h-4 text-pink-500" />;
+    if (n.includes('makan') || n.includes('jajan'))
+      return <Utensils className="w-4 h-4 text-amber-500" />;
+    if (n.includes('belanja'))
+      return <ShoppingBag className="w-4 h-4 text-emerald-500" />;
+    return <PieChart className="w-4 h-4 text-slate-500" />;
   };
 
-  // Aggregates for macro summary banner
+  // Aggregates for summary
   const totalBudgetingBulanan = budgets.reduce((sum, b) => sum + (b.budgeting || b.targetBulanan || 0), 0);
   const totalSaldoAwal = budgets.reduce((sum, b) => sum + (b.saldoAwal || 0), 0);
   const totalKapasitasSaldo = budgets.reduce(
@@ -82,45 +79,22 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
   );
   const overallMonthlyPct =
     totalBudgetingBulanan > 0 ? Number(((totalActualSpend / totalBudgetingBulanan) * 100).toFixed(1)) : 0;
-  const overallTotalPct =
-    totalKapasitasSaldo > 0 ? Number(((totalActualSpend / totalKapasitasSaldo) * 100).toFixed(1)) : 0;
 
-  // 100% Deterministic & Scripted Smart Budget Advice (Zero AI tokens, Instant, Actionable)
   const budgetAdvice = useMemo(() => {
     const overBudgetList: { name: string; overAmount: number; pct: number }[] = [];
-    const nearLimitList: { name: string; remaining: number; pct: number }[] = [];
-    const depletedList: { name: string; deficit: number }[] = [];
-    const healthyList: { name: string; surplus: number; pct: number }[] = [];
-
     budgets.forEach((b) => {
       const monthly = b.budgeting || b.targetBulanan || 0;
       const actual = b.actualSpend || 0;
-      const saldoAwal = b.saldoAwal || 0;
-      const total = b.totalSaldo || (saldoAwal + monthly);
-      const sisa = b.sisa !== undefined ? b.sisa : total - actual;
       const pct = monthly > 0 ? Number(((actual / monthly) * 100).toFixed(1)) : 0;
-
-      if (sisa <= 0) {
-        depletedList.push({ name: b.nama, deficit: Math.abs(sisa) });
-      } else if (monthly > 0 && actual > monthly) {
+      if (monthly > 0 && actual > monthly) {
         overBudgetList.push({ name: b.nama, overAmount: actual - monthly, pct });
-      } else if (monthly > 0 && actual >= 0.8 * monthly) {
-        nearLimitList.push({ name: b.nama, remaining: monthly - actual, pct });
-      } else if (monthly > 0) {
-        healthyList.push({ name: b.nama, surplus: monthly - actual, pct });
       }
     });
-
     const totalOver = overBudgetList.reduce((sum, item) => sum + item.overAmount, 0);
-
     return {
       overBudgetList,
-      nearLimitList,
-      depletedList,
-      healthyList,
       totalOver,
-      hasAlert: overBudgetList.length > 0 || depletedList.length > 0,
-      hasWarning: nearLimitList.length > 0
+      hasAlert: overBudgetList.length > 0
     };
   }, [budgets]);
 
@@ -209,551 +183,240 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
   return (
     <div className="space-y-5">
       {/* Header with Title and Add Button */}
-      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+      <div className={`flex items-center justify-between gap-3 pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
         <div>
-          <h3 className={`text-base sm:text-lg font-bold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            <PieChart className={`w-5 h-5 ${isLight ? 'text-slate-800' : 'text-slate-300'}`} />
-            Dompet Budgeting & Sinking Funds
+          <h3 className={`text-base sm:text-lg font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            Dompet & Pos Anggaran
           </h3>
-          <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            Audit komparasi jatah bulanan vs ketahanan saldo akumulasi kantong belanja
+          <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            Periode {currentMonth}
           </p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border font-semibold text-xs self-start sm:self-auto transition-all active:scale-95 shadow-sm cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold text-xs transition-all active:scale-95 shadow-sm cursor-pointer ${
             isLight
-              ? 'bg-slate-900 hover:bg-slate-800 border-slate-900 text-white'
-              : 'bg-white hover:bg-slate-100 border-white text-slate-900'
+              ? 'bg-slate-900 hover:bg-slate-800 text-white'
+              : 'bg-white hover:bg-slate-100 text-slate-900'
           }`}
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Tambah Pos Budget</span>
+          <span>Tambah Pos</span>
         </button>
       </div>
 
-      {/* Smart Scripted Budget Advice (Minimalist Light Grey, Navy, White, Dark Red) */}
-      <GlassContainer
-        settings={settings}
-        className={`p-4 sm:p-5 transition-all shadow-md rounded-2xl ${
-          budgetAdvice.hasAlert
-            ? isLight
-              ? 'bg-red-50/90 border-red-200 text-slate-900'
-              : 'border-red-900/40 bg-red-950/20 text-slate-200'
-            : budgetAdvice.hasWarning
-            ? isLight
-              ? 'bg-slate-50 border-slate-200 text-slate-900'
-              : 'border-white/10 bg-white/[0.03] text-slate-200'
-            : isLight
-            ? 'bg-slate-50 border-slate-200 text-slate-900'
-            : 'border-white/10 bg-white/[0.03] text-slate-200'
-        } backdrop-blur-xl`}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div
-              className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${
-                budgetAdvice.hasAlert
-                  ? isLight
-                    ? 'bg-red-100 border-red-200 text-red-700'
-                    : 'bg-red-500/20 border-red-500/30 text-red-300'
-                  : isLight
-                  ? 'bg-slate-100 border-slate-200 text-slate-800'
-                  : 'bg-white/10 border-white/15 text-slate-200'
-              }`}
-            >
-              <Lightbulb className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span
-                  className={`text-xs sm:text-sm font-extrabold tracking-tight flex items-center gap-1.5 ${
-                    isLight ? 'text-slate-900' : 'text-white'
-                  }`}
-                >
-                  Saran & Rekomendasi Anggaran
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
-                    budgetAdvice.hasAlert
-                      ? isLight
-                        ? 'bg-red-50 border-red-200 text-red-700'
-                        : 'bg-red-500/20 border-red-500/40 text-red-300'
-                      : isLight
-                      ? 'bg-slate-100 border-slate-200 text-slate-800'
-                      : 'bg-white/10 border-white/20 text-slate-200'
-                  }`}
-                >
-                  {budgetAdvice.hasAlert
-                    ? 'Peringatan Over-Budget'
-                    : budgetAdvice.hasWarning
-                    ? 'Mendekati Limit'
-                    : 'Budget Terkendali'}
-                </span>
-                <span className="text-[10px] font-mono text-slate-500">
-                  Periode {currentMonth}
-                </span>
-              </div>
-              <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                {budgetAdvice.overBudgetList.length > 0 ? (
-                  <>
-                    <strong className={isLight ? 'text-red-700 font-extrabold' : 'text-red-400 font-bold'}>
-                      Terdeteksi Over-Budget:
-                    </strong>{' '}
-                    Pos{' '}
-                    <strong className={isLight ? 'text-slate-950 font-bold' : 'text-white'}>
-                      {budgetAdvice.overBudgetList.map((i) => `${i.name} (+${formatRupiah(i.overAmount)})`).join(', ')}
-                    </strong>{' '}
-                    telah melampaui alokasi bulanan (total over: +{formatRupiah(budgetAdvice.totalOver)}). Disarankan segera{' '}
-                    <strong className={isLight ? 'text-red-700 font-bold' : 'text-red-400'}>
-                      mengerem pengeluaran
-                    </strong>{' '}
-                    pada pos tersebut agar arus kas bulanan tidak defisit.
-                  </>
-                ) : budgetAdvice.depletedList.length > 0 ? (
-                  <>
-                    <strong className={isLight ? 'text-red-700 font-extrabold' : 'text-red-400'}>
-                      Saldo Kantong Habis:
-                    </strong>{' '}
-                    Pos {budgetAdvice.depletedList.map((i) => i.name).join(', ')} telah terserap penuh. Tunda belanja tambahan hingga periode berikutnya.
-                  </>
-                ) : budgetAdvice.nearLimitList.length > 0 ? (
-                  <>
-                    <strong className={isLight ? 'text-slate-900 font-bold' : 'text-slate-200'}>
-                      Waspada Limit Anggaran:
-                    </strong>{' '}
-                    Pos {budgetAdvice.nearLimitList.map((i) => `${i.name} (${i.pct}%)`).join(', ')} sudah menyerap &ge;80% jatah bulanan.
-                  </>
-                ) : (
-                  <>
-                    <strong className={isLight ? 'text-slate-900 font-bold' : 'text-white'}>
-                      Disiplin Anggaran Terjaga:
-                    </strong>{' '}
-                    Seluruh pos belanja beroperasi dalam batas aman ({overallMonthlyPct}% terserap). Cadangan sisa saldo sebesar{' '}
-                    <strong className={isLight ? 'text-slate-950 font-bold' : 'text-white'}>
-                      {formatRupiah(totalSisaSaldo)}
-                    </strong>{' '}
-                    memperkuat saldo simpanan bulan depan.
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
+      {/* Minimalist Alert (Only shown if over budget) */}
+      {budgetAdvice.hasAlert && (
+        <div className={`p-3 px-4 rounded-xl border text-xs flex items-center gap-2 ${
+          isLight
+            ? 'bg-rose-50 border-rose-200 text-rose-800'
+            : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
+        }`}>
+          <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+          <span>
+            <strong>Perhatian:</strong> Pos {budgetAdvice.overBudgetList.map((i) => i.name).join(', ')} melebihi alokasi (+{formatRupiah(budgetAdvice.totalOver)}).
+          </span>
         </div>
-      </GlassContainer>
+      )}
 
-      {/* Aggregate Overview Strip (Detail 1 vs Detail 2 at System Level) */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <GlassContainer settings={settings} className={`p-3.5 sm:p-4 ${isLight ? 'border-slate-200/80' : 'border-white/10'}`}>
-          <span className={`text-[10px] sm:text-xs font-medium block mb-1 flex items-center gap-1.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
-            Total Budgeting Bulanan
+          <span className={`text-[11px] font-medium block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            Total Kuota Bulanan
           </span>
           <div className={`text-base sm:text-lg font-bold font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
             {formatRupiah(totalBudgetingBulanan)}
           </div>
-          <span className={`text-[10px] mt-0.5 block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            Jatah alokasi belanja bulan ini
-          </span>
         </GlassContainer>
 
         <GlassContainer settings={settings} className={`p-3.5 sm:p-4 ${isLight ? 'border-slate-200/80' : 'border-white/10'}`}>
-          <span className={`text-[10px] sm:text-xs font-medium block mb-1 flex items-center gap-1.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            <Layers className={`w-3.5 h-3.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
-            Akumulasi S. Awal (Bulan Lalu)
+          <span className={`text-[11px] font-medium block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            Saldo Awal Lalu
           </span>
           <div className={`text-base sm:text-lg font-bold font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
             {formatRupiah(totalSaldoAwal)}
           </div>
-          <span className={`text-[10px] mt-0.5 block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            Sisa saldo simpanan bulan lalu
-          </span>
         </GlassContainer>
 
         <GlassContainer settings={settings} className={`p-3.5 sm:p-4 ${isLight ? 'border-slate-200/80' : 'border-white/10'}`}>
-          <span className={`text-[10px] sm:text-xs font-medium block mb-1 flex items-center gap-1.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            <TrendingDown className={`w-3.5 h-3.5 ${isLight ? 'text-red-700' : 'text-red-400'}`} />
-            Total Pengeluaran
+          <span className={`text-[11px] font-medium block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            Total Terpakai
           </span>
-          <div className={`text-base sm:text-lg font-bold font-mono ${isLight ? 'text-red-700' : 'text-red-400'}`}>
+          <div className={`text-base sm:text-lg font-bold font-mono ${
+            overallMonthlyPct > 100
+              ? isLight ? 'text-rose-700' : 'text-rose-400'
+              : isLight ? 'text-slate-900' : 'text-white'
+          }`}>
             {formatRupiah(totalActualSpend)}
           </div>
-          <span className={`text-[10px] mt-0.5 block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            {overallMonthlyPct}% dari total budget
+          <span className={`text-[10px] mt-0.5 block ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+            {overallMonthlyPct}% terserap
           </span>
         </GlassContainer>
 
         <GlassContainer settings={settings} className={`p-3.5 sm:p-4 ${isLight ? 'border-slate-200/80' : 'border-white/10'}`}>
-          <span className={`text-[10px] sm:text-xs font-medium block mb-1 flex items-center gap-1.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            <ShieldCheck className={`w-3.5 h-3.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
-            Total Sisa Saldo Dompet
+          <span className={`text-[11px] font-medium block mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            Sisa Saldo
           </span>
-          <div className={`text-base sm:text-lg font-bold font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          <div className={`text-base sm:text-lg font-bold font-mono ${
+            totalSisaSaldo < 0
+              ? isLight ? 'text-rose-700' : 'text-rose-400'
+              : isLight ? 'text-emerald-700' : 'text-emerald-400'
+          }`}>
             {formatRupiah(totalSisaSaldo)}
           </div>
-          <span className={`text-[10px] mt-0.5 block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+          <span className={`text-[10px] mt-0.5 block ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
             Kapasitas: {formatRupiah(totalKapasitasSaldo)}
           </span>
         </GlassContainer>
       </div>
 
-      {/* Grid of Budget Cards */}
+      {/* Grid of Clean Minimalist Budget Cards */}
       {budgets.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {budgets.map((b) => {
-          const monthlyBudget = b.budgeting || b.targetBulanan || 0;
-          const saldoAwal = b.saldoAwal || 0;
-          const totalSaldo = b.totalSaldo || saldoAwal + monthlyBudget;
-          const actualSpend = b.actualSpend || 0;
-          const sisa = b.sisa !== undefined ? b.sisa : totalSaldo - actualSpend;
+            const monthlyBudget = b.budgeting || b.targetBulanan || 0;
+            const saldoAwal = b.saldoAwal || 0;
+            const totalSaldo = b.totalSaldo || saldoAwal + monthlyBudget;
+            const actualSpend = b.actualSpend || 0;
+            const sisa = b.sisa !== undefined ? b.sisa : totalSaldo - actualSpend;
 
-          // 1. BUDGETING BULANAN (Actual Spend vs Budgeting Bulanan)
-          const monthlySpendPct =
-            monthlyBudget > 0 ? Number(((actualSpend / monthlyBudget) * 100).toFixed(1)) : 0;
-          const isOverMonthly = actualSpend > monthlyBudget && monthlyBudget > 0;
-          const monthlyDiff = actualSpend - monthlyBudget; // > 0 = over budget bulanan
+            const monthlySpendPct =
+              monthlyBudget > 0 ? Number(((actualSpend / monthlyBudget) * 100).toFixed(1)) : 0;
+            const isOverMonthly = actualSpend > monthlyBudget && monthlyBudget > 0;
+            const monthlyDiff = actualSpend - monthlyBudget;
 
-          // 2. TOTAL SALDO KANTONG (Actual Spend vs Total Saldo)
-          const totalSpendPct =
-            totalSaldo > 0 ? Number(((actualSpend / totalSaldo) * 100).toFixed(1)) : 0;
-          const isDepleted = sisa <= 0;
-          const isWarning = totalSpendPct >= 80 && !isDepleted;
-
-          return (
-            <GlassContainer
-              key={b.id}
-              settings={settings}
-              className={`p-5 flex flex-col justify-between transition-all shadow-md relative ${
-                isLight ? 'border-slate-200 hover:border-slate-300' : 'border-white/10 hover:border-white/20'
-              }`}
-            >
-              <div>
-                {/* Header: Icon + Category Name + Account + Edit */}
-                <div className={`flex items-start justify-between gap-3 pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`p-2.5 rounded-2xl shrink-0 border ${
-                      isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+            return (
+              <div
+                key={b.id}
+                className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                  isLight
+                    ? 'bg-white border-slate-200/90 shadow-xs'
+                    : 'bg-white/[0.03] border-white/10'
+                }`}
+              >
+                {/* Header: Title + Account + Action Icons */}
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      isLight ? 'bg-slate-100' : 'bg-white/10'
                     }`}>
                       {getIcon(b.nama)}
                     </div>
                     <div className="min-w-0">
-                      <h4 className={`font-bold text-sm sm:text-base truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      <h4 className={`font-bold text-sm truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                         {b.nama}
                       </h4>
-                      <span className={`text-xs block truncate flex items-center gap-1.5 mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        <Wallet className={`w-3 h-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} />
+                      <span className={`text-[11px] truncate block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                         {b.akunTerkait || 'Bank BCA'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => handleOpenEdit(b)}
-                      className={`p-1.5 rounded-xl border transition cursor-pointer ${
+                      className={`p-1.5 rounded-lg transition cursor-pointer ${
                         isLight
-                          ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 hover:text-slate-900'
-                          : 'bg-white/5 hover:bg-white/15 border-transparent text-slate-400 hover:text-white'
+                          ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+                          : 'text-slate-400 hover:text-white hover:bg-white/10'
                       }`}
-                      title="Edit Pos Budgeting"
+                      title="Edit Pos Budget"
                     >
                       <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(b.id, b.nama)}
+                      className={`p-1.5 rounded-lg transition cursor-pointer ${
+                        isLight
+                          ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                          : 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
+                      }`}
+                      title="Hapus Pos Budget"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Status Badges Header */}
-                <div className="flex flex-wrap items-center gap-2 my-3">
-                  {/* Status 1: Kuota Bulanan */}
-                  {isOverMonthly ? (
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                      isLight
-                        ? 'bg-red-50 text-red-800 border-red-200'
-                        : 'bg-red-950/40 text-red-300 border-red-800'
+                {/* Spend Metric vs Kuota */}
+                <div className="my-2">
+                  <div className="flex items-baseline justify-between gap-2 text-xs">
+                    <span className={`text-base sm:text-lg font-bold font-mono tracking-tight ${
+                      isOverMonthly
+                        ? isLight ? 'text-rose-700' : 'text-rose-400'
+                        : isLight ? 'text-slate-900' : 'text-white'
                     }`}>
-                      <AlertTriangle className={`w-3 h-3 ${isLight ? 'text-red-700' : 'text-red-400'}`} />
-                      Over Budget (+{formatRupiah(monthlyDiff)})
+                      {formatRupiah(actualSpend)}
                     </span>
-                  ) : (
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                      isLight
-                        ? 'bg-slate-100 text-slate-800 border-slate-200'
-                        : 'bg-white/10 text-slate-200 border-white/15'
-                    }`}>
-                      <CheckCircle2 className={`w-3 h-3 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
-                      Budget Aman ({monthlySpendPct}%)
+                    <span className={`text-xs font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      dari {formatRupiah(monthlyBudget)}
                     </span>
-                  )}
-
-                  {/* Status 2: Saldo Kantong Total */}
-                  {isDepleted ? (
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                      isLight
-                        ? 'bg-red-50 text-red-800 border-red-200'
-                        : 'bg-red-950/40 text-red-300 border-red-800'
-                    }`}>
-                      <AlertCircle className={`w-3 h-3 ${isLight ? 'text-red-700' : 'text-red-400'}`} />
-                      Saldo Habis
-                    </span>
-                  ) : (
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                      isLight
-                        ? 'bg-slate-100 text-slate-800 border-slate-200'
-                        : 'bg-white/10 text-slate-200 border-white/15'
-                    }`}>
-                      <ShieldCheck className={`w-3 h-3 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
-                      Saldo Aman
-                    </span>
-                  )}
-                </div>
-
-                {/* DETAIL RINGKAS DOMPET BUDGETING */}
-                <div className="space-y-3 my-3">
-                  {/* DETAIL 1: BUDGETING BULANAN */}
-                  <div className={`p-3.5 rounded-2xl border space-y-2 ${
-                    isLight ? 'bg-slate-100/80 border-slate-200' : 'bg-white/[0.03] border-white/10'
-                  }`}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={`font-bold flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-                        Budgeting Bulanan
-                      </span>
-                      <span className={`font-mono text-xs ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                        <strong className={isOverMonthly ? (isLight ? 'text-red-800 font-extrabold' : 'text-red-400') : (isLight ? 'text-slate-900 font-bold' : 'text-white')}>
-                          {formatRupiah(actualSpend)}
-                        </strong>{' '}
-                        / {formatRupiah(monthlyBudget)}
-                      </span>
-                    </div>
-
-                    {/* Progress Bar Detail 1 */}
-                    <div className={`w-full h-2 rounded-full overflow-hidden relative ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          isOverMonthly
-                            ? 'bg-red-800 dark:bg-red-600'
-                            : isLight
-                            ? 'bg-slate-900'
-                            : 'bg-slate-300'
-                        }`}
-                        style={{ width: `${Math.min(100, monthlySpendPct)}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>
-                        Terpakai: <strong className={isLight ? 'text-slate-900 font-bold' : 'text-slate-200'}>{monthlySpendPct}%</strong>
-                      </span>
-                      {isOverMonthly ? (
-                        <span className={`font-bold ${isLight ? 'text-red-800 font-extrabold' : 'text-red-400'}`}>
-                          Over Budget: +{formatRupiah(monthlyDiff)}
-                        </span>
-                      ) : (
-                        <span className={`font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-                          Sisa Budget: +{formatRupiah(monthlyBudget - actualSpend)}
-                        </span>
-                      )}
-                    </div>
                   </div>
 
-                  {/* DETAIL 2: TOTAL SALDO DOMPET */}
-                  <div className={`p-3.5 rounded-2xl border space-y-2 ${
-                    isLight ? 'bg-slate-100/80 border-slate-200' : 'bg-white/[0.03] border-white/10'
-                  }`}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={`font-bold flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                        Total Saldo Dompet
-                      </span>
-                      <span className={`font-mono text-xs ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                        Total Saldo: <strong className={isLight ? 'text-slate-900 font-bold' : 'text-white'}>{formatRupiah(totalSaldo)}</strong>
-                      </span>
-                    </div>
-
-                    {/* Breakdown Math: Saldo Awal + Budgeting */}
-                    <div className={`flex items-center justify-between text-[11px] px-1 font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                      <span>S. Awal: {formatRupiah(saldoAwal)}</span>
-                      <span>+</span>
-                      <span>Budget: {formatRupiah(monthlyBudget)}</span>
-                      <span>=</span>
-                      <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>{formatRupiah(totalSaldo)}</span>
-                    </div>
-
-                    {/* Progress Bar Detail 2 */}
-                    <div className={`w-full h-2 rounded-full overflow-hidden relative ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          isDepleted
-                            ? 'bg-red-700'
-                            : isWarning
-                            ? 'bg-slate-600'
-                            : isLight ? 'bg-slate-900' : 'bg-slate-300'
-                        }`}
-                        style={{ width: `${Math.min(100, totalSpendPct)}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>
-                        Terpakai: <strong className={isLight ? 'text-slate-900 font-bold' : 'text-slate-200'}>{totalSpendPct}%</strong>
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>Sisa Saldo:</span>
-                        <span
-                          className={`font-mono font-bold ${
-                            isDepleted
-                              ? isLight ? 'text-red-700 font-extrabold' : 'text-red-400'
-                              : isLight ? 'text-slate-900 font-extrabold' : 'text-white'
-                          }`}
-                        >
-                          {formatRupiah(sisa)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SMART EXPLANATORY CALLOUT (Saran Berhemat & Evaluasi Anggaran Berbasis Data Riil) */}
-                {(() => {
-                  const cardStatus: 'safe' | 'warning' | 'danger' = isDepleted
-                    ? 'danger'
-                    : isOverMonthly
-                    ? 'warning'
-                    : monthlySpendPct >= 80
-                    ? 'warning'
-                    : 'safe';
-
-                  return (
+                  {/* Clean Single Progress Bar */}
+                  <div className={`w-full h-2 rounded-full overflow-hidden mt-2 ${isLight ? 'bg-slate-100' : 'bg-white/10'}`}>
                     <div
-                      className={`p-3.5 rounded-2xl border text-[11px] leading-relaxed mt-3 flex items-start gap-2.5 transition-all shadow-sm ${
-                        cardStatus === 'danger'
-                          ? isLight
-                            ? 'bg-red-50/95 border-red-200 text-red-950'
-                            : 'bg-red-950/20 border-red-900/40 text-red-200'
-                          : cardStatus === 'warning'
-                          ? isLight
-                            ? 'bg-slate-100/90 border-slate-200 text-slate-900'
-                            : 'bg-white/[0.04] border-white/10 text-slate-200'
-                          : isLight
-                          ? 'bg-slate-50 border-slate-200 text-slate-900'
-                          : 'bg-white/[0.03] border-white/10 text-slate-200'
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isOverMonthly
+                          ? 'bg-rose-600'
+                          : monthlySpendPct >= 80
+                          ? 'bg-amber-500'
+                          : isLight ? 'bg-slate-800' : 'bg-sky-400'
                       }`}
-                    >
-                      {cardStatus === 'danger' ? (
-                        <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-red-700' : 'text-red-400'}`} />
-                      ) : cardStatus === 'warning' ? (
-                        <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
-                      ) : (
-                        <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
-                      )}
+                      style={{ width: `${Math.min(100, monthlySpendPct)}%` }}
+                    />
+                  </div>
+                </div>
 
-                      <div className="space-y-1.5 w-full">
-                        <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                          <span className={`font-black uppercase tracking-wider text-[10px] flex items-center gap-1 ${
-                            cardStatus === 'danger'
-                              ? isLight ? 'text-red-950' : 'text-red-300'
-                              : isLight ? 'text-slate-900' : 'text-white'
-                          }`}>
-                            <Lightbulb className="w-3.5 h-3.5 shrink-0" />
-                            Saran & Evaluasi Anggaran
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono border ${
-                              cardStatus === 'danger'
-                                ? isLight
-                                ? 'bg-red-100 border-red-200 text-red-950'
-                                : 'bg-red-500/20 border-red-500/40 text-red-200'
-                              : isOverMonthly
-                              ? isLight
-                                ? 'bg-red-50 border-red-200 text-red-700'
-                                : 'bg-red-500/15 border-red-500/30 text-red-300'
-                              : monthlySpendPct >= 80
-                              ? isLight
-                                ? 'bg-slate-200 border-slate-300 text-slate-900'
-                                : 'bg-white/10 border-white/20 text-slate-200'
-                              : isLight
-                              ? 'bg-slate-100 border-slate-200 text-slate-800'
-                              : 'bg-white/10 border-white/20 text-slate-200'
-                            }`}
-                          >
-                            {cardStatus === 'danger'
-                              ? 'Saldo Habis'
-                              : isOverMonthly
-                              ? `Over Budget (+${formatRupiah(monthlyDiff)})`
-                              : monthlySpendPct >= 80
-                              ? `Mendekati Limit (${monthlySpendPct}%)`
-                              : 'Budget Aman'}
-                          </span>
-                        </div>
-
-                        {isDepleted ? (
-                          <>
-                            <p className={isLight ? 'text-slate-800 font-medium' : 'text-slate-200'}>
-                              <strong className={isLight ? 'text-red-700 font-bold' : 'text-red-400'}>Kondisi:</strong> Seluruh alokasi dan saldo kantong ini telah terserap penuh (sisa: <strong className={isLight ? 'text-slate-950 font-bold' : 'text-white'}>{formatRupiah(sisa)}</strong>).
-                            </p>
-                            <p className={`pt-1.5 border-t text-xs font-medium ${
-                              isLight ? 'border-red-200 text-red-950' : 'border-white/10 text-red-300/95'
-                            }`}>
-                              <strong className={isLight ? 'text-red-950 font-bold' : 'text-white'}>Saran:</strong> Segera tunda pengeluaran tambahan pada pos ini atau lakukan pengalihan dari pos surplus lain.
-                            </p>
-                          </>
-                        ) : isOverMonthly ? (
-                          <>
-                            <p className={isLight ? 'text-slate-800 font-medium' : 'text-slate-200'}>
-                              <strong className={isLight ? 'text-red-700 font-bold' : 'text-red-400'}>Peringatan:</strong> Pengeluaran ({formatRupiah(actualSpend)}) telah melampaui jatah bulanan ({formatRupiah(monthlyBudget)}) sebesar +{formatRupiah(monthlyDiff)} ({monthlySpendPct}%). Saldo bulan lalu masih tersisa {formatRupiah(sisa)}.
-                            </p>
-                            <p className={`pt-1.5 border-t text-xs font-medium ${
-                              isLight ? 'border-slate-200 text-slate-800' : 'border-white/10 text-slate-200'
-                            }`}>
-                              <strong className={isLight ? 'text-slate-950 font-bold' : 'text-white'}>Saran Berhemat:</strong> Disarankan segera mengerem transaksi pos ini agar arus kas tetap terkontrol.
-                            </p>
-                          </>
-                        ) : monthlySpendPct >= 80 ? (
-                          <>
-                            <p className={isLight ? 'text-slate-800 font-medium' : 'text-slate-200'}>
-                              <strong className={isLight ? 'text-slate-900 font-bold' : 'text-white'}>Perhatian:</strong> Serapan kuota telah mencapai {monthlySpendPct}%. Sisa kuota belanja bulanan tersisa {formatRupiah(monthlyBudget - actualSpend)}.
-                            </p>
-                            <p className={`pt-1.5 border-t text-xs font-medium ${
-                              isLight ? 'border-slate-200 text-slate-800' : 'border-white/10 text-slate-200'
-                            }`}>
-                              <strong className={isLight ? 'text-slate-950 font-bold' : 'text-white'}>Saran:</strong> Batasi belanja diskresioner dan dahulukan kebutuhan pokok hingga akhir bulan.
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className={isLight ? 'text-slate-800 font-medium' : 'text-slate-200'}>
-                              <strong className={isLight ? 'text-slate-900 font-bold' : 'text-white'}>Disiplin Anggaran:</strong> Penyerapan kas terkendali ({monthlySpendPct}% dari jatah bulanan). Sisa saldo simpanan: <strong className={isLight ? 'text-slate-950 font-bold' : 'text-white'}>{formatRupiah(sisa)}</strong>.
-                            </p>
-                            <p className={`pt-1.5 border-t text-xs font-medium ${
-                              isLight ? 'border-slate-200 text-slate-800' : 'border-white/10 text-slate-200'
-                            }`}>
-                              <strong className={isLight ? 'text-slate-950 font-bold' : 'text-white'}>Saran:</strong> Pertahankan ritme belanja ini.
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
+                {/* Unboxed Metadata with Typographic Separator */}
+                <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-slate-100 dark:border-white/5">
+                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                    <span>{monthlySpendPct}% terpakai</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Kapasitas: {formatRupiah(totalSaldo)}</span>
+                  </div>
+                  <div>
+                    {isOverMonthly ? (
+                      <span className={`font-semibold ${isLight ? 'text-rose-700' : 'text-rose-400'}`}>
+                        Over: +{formatRupiah(monthlyDiff)}
+                      </span>
+                    ) : (
+                      <span className={`font-medium ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                        Sisa: {formatRupiah(sisa)}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </GlassContainer>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       ) : (
-        <div className="p-8 rounded-3xl border border-white/10 bg-white/[0.03] text-center space-y-3">
-          <PieChart className="w-10 h-10 mx-auto text-amber-400 opacity-60" />
-          <h4 className="text-sm font-bold text-white">Belum Ada Kantong Budget</h4>
-          <p className="text-xs max-w-sm mx-auto text-slate-400">
-            Alokasikan jatah pengeluaran bulanan (seperti Listrik, Transport, Makan, Hiburan) untuk menjaga arus kas tetap terkontrol.
-          </p>
+        <div className={`p-8 rounded-2xl border text-center space-y-3 ${
+          isLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/[0.02] border-white/10 text-slate-400'
+        }`}>
+          <PieChart className="w-8 h-8 text-slate-400 mx-auto" />
+          <div className="space-y-1">
+            <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              Belum Ada Pos Budget Terhubung
+            </h4>
+            <p className="text-xs max-w-sm mx-auto leading-relaxed">
+              Hubungkan proyek Google Sheet Anda atau klik tombol Tambah Pos untuk memulai pencatatan anggaran.
+            </p>
+          </div>
           <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-bold text-xs shadow-md transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
+            onClick={handleOpenAdd}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5 ${
+              isLight
+                ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                : 'bg-white hover:bg-slate-100 text-slate-900'
+            }`}
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ Tambah Kantong Budget</span>
+            <span>Tambah Pos Pertama</span>
           </button>
         </div>
       )}
@@ -763,26 +426,17 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <div className={`w-full max-w-md rounded-3xl p-6 space-y-4 transition-all ${
             isLight
-              ? 'bg-white border border-slate-200 shadow-2xl shadow-slate-900/15 text-slate-800'
-              : 'bg-[#0f172a] border border-slate-700 shadow-2xl shadow-black/80 text-white'
+              ? 'bg-white border border-slate-200 shadow-2xl text-slate-800'
+              : 'bg-[#0f172a] border border-slate-700 shadow-2xl text-white'
           }`}>
             <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
-              <div>
-                <h4 className={`text-sm font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  <Pencil className={`w-4 h-4 ${isLight ? 'text-blue-600' : 'text-sky-400'}`} />
-                  Edit Pos Dompet Budgeting
-                </h4>
-                <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                  Atur jatah bulanan dan saldo akumulasi awal bulan lalu
-                </p>
-              </div>
+              <h4 className={`text-sm font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <Pencil className="w-4 h-4 text-blue-500" />
+                Edit Pos Budget
+              </h4>
               <button
                 onClick={() => setEditingBudget(null)}
-                className={`p-1.5 rounded-lg transition ${
-                  isLight
-                    ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -799,8 +453,8 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   onChange={(e) => setFormNama(e.target.value)}
                   className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                     isLight
-                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                   }`}
                   required
                 />
@@ -817,8 +471,8 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   placeholder="Contoh: Allo Bank, Jago-Transport, Blu BCA"
                   className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                     isLight
-                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                   }`}
                   required
                 />
@@ -836,14 +490,11 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                     placeholder="300000"
                     className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                       isLight
-                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                     }`}
                     required
                   />
-                  <span className={`text-[10px] mt-0.5 block font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Budget tiap bulan
-                  </span>
                 </div>
 
                 <div>
@@ -854,52 +505,15 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                     type="number"
                     value={formSaldoAwal}
                     onChange={(e) => setFormSaldoAwal(e.target.value)}
-                    placeholder="200122"
+                    placeholder="0"
                     className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                       isLight
-                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                     }`}
                   />
-                  <span className={`text-[10px] mt-0.5 block font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Carry-over sisa lalu
-                  </span>
                 </div>
               </div>
-
-              {/* Dynamic Live Calculation Preview in Modal */}
-              {(() => {
-                const p = parseFloat(formPlafon.replace(/[^0-9.-]/g, '')) || 0;
-                const sa = parseFloat(formSaldoAwal.replace(/[^0-9.-]/g, '')) || 0;
-                const tot = sa + p;
-                const act = editingBudget.actualSpend || 0;
-                const rem = tot - act;
-                return (
-                  <div className={`p-3 rounded-2xl space-y-1.5 text-[11px] ${
-                    isLight
-                      ? 'bg-slate-50 border border-slate-200'
-                      : 'bg-white/5 border border-white/10'
-                  }`}>
-                    <span className={`font-bold block ${isLight ? 'text-sky-800' : 'text-sky-300'}`}>
-                      Kalkulasi Otomatis Dompet:
-                    </span>
-                    <div className={`flex justify-between ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                      <span>Total Saldo (Kapasitas):</span>
-                      <span className={`font-mono font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{formatRupiah(tot)}</span>
-                    </div>
-                    <div className={`flex justify-between ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                      <span>Actual Spend Saat Ini:</span>
-                      <span className={`font-mono font-bold ${isLight ? 'text-rose-700' : 'text-rose-400'}`}>{formatRupiah(act)}</span>
-                    </div>
-                    <div className={`flex justify-between pt-1 border-t ${
-                      isLight ? 'border-slate-200 text-slate-700' : 'border-white/10 text-slate-300'
-                    }`}>
-                      <span>Estimasi Sisa Saldo:</span>
-                      <span className={`font-mono font-bold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>{formatRupiah(rem)}</span>
-                    </div>
-                  </div>
-                );
-              })()}
 
               <div className={`flex justify-between items-center pt-3 border-t ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
                 <button
@@ -927,9 +541,13 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 cursor-pointer"
+                    className={`px-4 py-2 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer ${
+                      isLight
+                        ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                        : 'bg-white hover:bg-slate-100 text-slate-950'
+                    }`}
                   >
-                    Simpan Perubahan
+                    Simpan
                   </button>
                 </div>
               </div>
@@ -943,21 +561,17 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <div className={`w-full max-w-md rounded-3xl p-6 space-y-4 transition-all ${
             isLight
-              ? 'bg-white border border-slate-200 shadow-2xl shadow-slate-900/15 text-slate-800'
-              : 'bg-[#0f172a] border border-slate-700 shadow-2xl shadow-black/80 text-white'
+              ? 'bg-white border border-slate-200 shadow-2xl text-slate-800'
+              : 'bg-[#0f172a] border border-slate-700 shadow-2xl text-white'
           }`}>
             <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
               <h4 className={`text-sm font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                <Plus className={`w-4 h-4 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
-                Tambah Pos Budgeting Baru
+                <Plus className="w-4 h-4 text-emerald-500" />
+                Tambah Pos Budget
               </h4>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className={`p-1.5 rounded-lg transition ${
-                  isLight
-                    ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -975,8 +589,8 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   placeholder="Contoh: Belanja Bulanan / Langganan / Gym"
                   className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                     isLight
-                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                   }`}
                   required
                 />
@@ -993,8 +607,8 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                   placeholder="Contoh: Bank BCA, Allo Bank, Seabank"
                   className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                     isLight
-                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                      ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                      : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                   }`}
                   required
                 />
@@ -1012,14 +626,11 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                     placeholder="500000"
                     className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                       isLight
-                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                     }`}
                     required
                   />
-                  <span className={`text-[10px] mt-0.5 block font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Budget tiap bulan
-                  </span>
                 </div>
 
                 <div>
@@ -1033,13 +644,10 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                     placeholder="0"
                     className={`w-full p-2.5 rounded-xl text-xs font-medium transition focus:outline-none ${
                       isLight
-                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20'
+                        ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600'
+                        : 'bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-400'
                     }`}
                   />
-                  <span className={`text-[10px] mt-0.5 block font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Sisa bulan lalu jika ada
-                  </span>
                 </div>
               </div>
 
@@ -1057,9 +665,13 @@ export const BudgetingTracker: React.FC<BudgetingTrackerProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 cursor-pointer"
+                  className={`px-4 py-2 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer ${
+                    isLight
+                      ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                      : 'bg-white hover:bg-slate-100 text-slate-950'
+                  }`}
                 >
-                  Buat Pos Budget
+                  Simpan
                 </button>
               </div>
             </form>

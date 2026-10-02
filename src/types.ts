@@ -37,6 +37,7 @@ export interface ActiveAssetSummary {
   priceNow: number; // Column R: PRICE NOW
   pnlPercent: number; // Column S: PnL (%)
   valueTotalIdr: number; // Column T or S: VALUE TOTAL (IDR)
+  rowIndex?: number;
 }
 
 export interface Transaction {

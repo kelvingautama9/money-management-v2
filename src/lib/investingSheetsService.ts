@@ -213,7 +213,8 @@ export const INVESTING_HEADERS = [
  */
 export async function findInvestingTabName(
   spreadsheetId: string,
-  accessToken: string
+  accessToken: string,
+  preferredTitle?: string
 ): Promise<{ title: string; sheetId?: number } | null> {
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`, {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -226,19 +227,31 @@ export async function findInvestingTabName(
 
   const data = await res.json();
   const sheets: any[] = data.sheets || [];
+  if (sheets.length === 0) return null;
 
-  // 1. Look for exact 'INVESTING' first (as requested by user)
+  // 0. If preferredTitle matches any sheet (case-insensitive)
+  if (preferredTitle) {
+    const cleanPref = preferredTitle.trim().toUpperCase();
+    for (const s of sheets) {
+      const title = s?.properties?.title || '';
+      if (title.toUpperCase() === cleanPref) {
+        return { title, sheetId: s.properties.sheetId };
+      }
+    }
+  }
+
+  // 1. Look for exact 'INVESTMENT' first (since user's project is INVESTMENT)
   for (const s of sheets) {
     const title = s?.properties?.title || '';
-    if (title.toUpperCase() === 'INVESTING') {
+    if (title.toUpperCase() === 'INVESTMENT') {
       return { title, sheetId: s.properties.sheetId };
     }
   }
 
-  // 2. Look for exact 'INVESTMENT'
+  // 2. Look for exact 'INVESTING'
   for (const s of sheets) {
     const title = s?.properties?.title || '';
-    if (title.toUpperCase() === 'INVESTMENT') {
+    if (title.toUpperCase() === 'INVESTING') {
       return { title, sheetId: s.properties.sheetId };
     }
   }
@@ -251,12 +264,28 @@ export async function findInvestingTabName(
     }
   }
 
-  // 4. Fallback: Contains 'trading' or 'jurnal'
+  // 4. Fallback: Contains 'trading', 'jurnal', 'portfolio', 'portofolio', 'saham', 'stock', 'asset', 'aset'
   for (const s of sheets) {
     const title = s?.properties?.title || '';
-    if (title.toLowerCase().includes('trading') || title.toLowerCase().includes('jurnal')) {
+    const low = title.toLowerCase();
+    if (
+      low.includes('trading') ||
+      low.includes('jurnal') ||
+      low.includes('portfolio') ||
+      low.includes('portofolio') ||
+      low.includes('saham') ||
+      low.includes('stock') ||
+      low.includes('asset') ||
+      low.includes('aset') ||
+      low.includes('rekap')
+    ) {
       return { title, sheetId: s.properties.sheetId };
     }
+  }
+
+  // 5. Fallback: If single sheet or first available sheet exists
+  if (sheets.length > 0 && sheets[0]?.properties?.title) {
+    return { title: sheets[0].properties.title, sheetId: sheets[0].properties.sheetId };
   }
 
   return null;
@@ -268,9 +297,9 @@ export async function findInvestingTabName(
 export async function ensureInvestingTabExists(
   spreadsheetId: string,
   accessToken: string,
-  preferredTitle: string = 'INVESTING'
+  preferredTitle: string = 'INVESTMENT'
 ): Promise<{ title: string; sheetId?: number }> {
-  const existing = await findInvestingTabName(spreadsheetId, accessToken).catch(() => null);
+  const existing = await findInvestingTabName(spreadsheetId, accessToken, preferredTitle).catch(() => null);
   if (existing) return existing;
 
   const targetTitle = preferredTitle;
@@ -322,20 +351,21 @@ export async function ensureInvestingTabExists(
 }
 
 /**
- * Fetches and parses all trade records and active asset summaries from tab INVESTING (A1:U150).
+ * Fetches and parses all trade records and active asset summaries from tab INVESTING / INVESTMENT (A1:U200).
  * Matches the user's exact Google Sheet structure.
  */
 export async function fetchInvestingSheetTrades(
   spreadsheetId: string,
-  accessToken: string
+  accessToken: string,
+  preferredTabTitle?: string
 ): Promise<{ tabTitle: string; sheetId?: number; trades: TradeRecord[]; activeSummaries: ActiveAssetSummary[] }> {
-  const tabInfo = await findInvestingTabName(spreadsheetId, accessToken);
+  const tabInfo = await findInvestingTabName(spreadsheetId, accessToken, preferredTabTitle);
   if (!tabInfo) {
-    throw new Error('Tab INVESTING belum ditemukan pada Google Spreadsheet ini');
+    throw new Error('Tab Jurnal Investasi belum ditemukan pada Google Spreadsheet ini');
   }
 
   // Fetch range covering transaction table (A..N) AND summary table (P..U)
-  const safeRange = formatSheetRange(tabInfo.title, 'A1:U150');
+  const safeRange = formatSheetRange(tabInfo.title, 'A1:U200');
   const rows = await fetchSheetValues(spreadsheetId, safeRange, accessToken);
 
   const trades: TradeRecord[] = [];
@@ -345,7 +375,7 @@ export async function fetchInvestingSheetTrades(
     return { tabTitle: tabInfo.title, sheetId: tabInfo.sheetId, trades, activeSummaries };
   }
 
-  // 1. Locate header row dynamically
+  // 1. Locate trade header row dynamically
   let headerRowIndex = 0;
   let colType = 0;
   let colAsset = 1;
@@ -492,14 +522,54 @@ export async function fetchInvestingSheetTrades(
       status,
       nilaiAset
     });
+  }
 
-    // 3. Parse Active Summary from columns P (15), Q (16), R (17), S (18), T (19) if present
-    const sumAsset = (row[15] || '').toString().trim().toUpperCase();
-    if (sumAsset && sumAsset !== 'ASSET' && sumAsset !== 'GRAND TOTAL' && !sumAsset.includes('TOTAL') && sumAsset !== '-') {
-      const avgBuy = parseIndonesianNumber(row[16], { isDecimal: true });
-      const priceNow = parseIndonesianNumber(row[17], { isDecimal: true });
-      const sumPnl = parseIndonesianNumber(row[18], { isDecimal: true });
-      const valueTotal = parseIndonesianNumber(row[19], { isCurrency: true });
+  // 3. Parse Active Summary from columns P (15), Q (16), R (17), S (18), T (19) INDEPENDENTLY of trades
+  let sumColAsset = 15;
+  let sumColAvgBuy = 16;
+  let sumColPriceNow = 17;
+  let sumColPnl = 18;
+  let sumColValue = 19;
+
+  // Detect if header row defines custom columns for active summary table
+  for (let r = 0; r < Math.min(8, rows.length); r++) {
+    const row = rows[r];
+    if (!row) continue;
+    for (let c = 12; c < Math.min(22, row.length); c++) {
+      const cell = String(row[c] || '').toLowerCase().trim();
+      if (cell === 'asset' || cell === 'ticker' || cell === 'broker') {
+        sumColAsset = c;
+        sumColAvgBuy = c + 1;
+        sumColPriceNow = c + 2;
+        sumColPnl = c + 3;
+        sumColValue = c + 4;
+        break;
+      }
+    }
+  }
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length <= sumColAsset) continue;
+
+    const sumAsset = (row[sumColAsset] || '').toString().trim().toUpperCase();
+    if (
+      sumAsset &&
+      sumAsset !== 'ASSET' &&
+      sumAsset !== 'TICKER' &&
+      sumAsset !== 'BROKER' &&
+      sumAsset !== 'GRAND TOTAL' &&
+      !sumAsset.includes('TOTAL') &&
+      sumAsset !== '-' &&
+      sumAsset !== '—' &&
+      sumAsset !== '.' &&
+      !sumAsset.includes('TYPE') &&
+      !sumAsset.includes('NOTES')
+    ) {
+      const avgBuy = parseIndonesianNumber(row[sumColAvgBuy], { isDecimal: true });
+      const priceNow = parseIndonesianNumber(row[sumColPriceNow], { isDecimal: true });
+      const sumPnl = parseIndonesianNumber(row[sumColPnl], { isDecimal: true });
+      const valueTotal = parseIndonesianNumber(row[sumColValue], { isCurrency: true });
 
       if (avgBuy > 0 || priceNow > 0 || valueTotal > 0) {
         activeSummaries.push({
@@ -507,13 +577,221 @@ export async function fetchInvestingSheetTrades(
           avgBuy,
           priceNow,
           pnlPercent: sumPnl,
-          valueTotalIdr: valueTotal
+          valueTotalIdr: valueTotal,
+          rowIndex: i + 1
         });
       }
     }
   }
 
+  // 4. Fallback: If no explicit active summaries table found in columns P..T, derive from floating trades
+  if (activeSummaries.length === 0 && trades.length > 0) {
+    const floatingTrades = trades.filter((t) => t.status === 'Floating');
+    const assetMap = new Map<string, { totalNominal: number; totalUnits: number; latestPrice: number; totalValue: number }>();
+    floatingTrades.forEach((t) => {
+      const asset = t.asset.toUpperCase();
+      const existing = assetMap.get(asset) || { totalNominal: 0, totalUnits: 0, latestPrice: 0, totalValue: 0 };
+      existing.totalNominal += t.nominalIdr;
+      existing.totalUnits += t.jumlah || 1;
+      existing.latestPrice = t.exitPrice || t.entryPrice;
+      existing.totalValue += t.nilaiAset || t.nominalIdr;
+      assetMap.set(asset, existing);
+    });
+
+    assetMap.forEach((data, asset) => {
+      const avgBuy = data.totalUnits > 0 ? data.totalNominal / data.totalUnits : 100;
+      const priceNow = data.latestPrice;
+      const pnlPercent = avgBuy > 0 ? ((priceNow - avgBuy) / avgBuy) * 100 : 0;
+      activeSummaries.push({
+        asset,
+        avgBuy: Number(avgBuy.toFixed(1)),
+        priceNow: Number(priceNow.toFixed(1)),
+        pnlPercent: Number(pnlPercent.toFixed(2)),
+        valueTotalIdr: data.totalValue
+      });
+    });
+  }
+
   return { tabTitle: tabInfo.title, sheetId: tabInfo.sheetId, trades, activeSummaries };
+}
+
+/**
+ * Converts ActiveAssetSummary[] or derived trade holdings into InvestmentAsset[] for the Portfolio page.
+ */
+export function activeSummariesToInvestmentAssets(
+  summaries: ActiveAssetSummary[],
+  trades: TradeRecord[] = []
+): import('../types').InvestmentAsset[] {
+  if (!summaries || summaries.length === 0) return [];
+  const palette = [
+    '#38bdf8', // sky-400
+    '#818cf8', // indigo-400
+    '#34d399', // emerald-400
+    '#f472b6', // pink-400
+    '#fbbf24', // amber-400
+    '#a78bfa', // violet-400
+    '#f87171', // red-400
+    '#2dd4bf', // teal-400
+    '#fb923c'  // orange-400
+  ];
+
+  const totalValue = summaries.reduce((acc, s) => acc + (Number(s.valueTotalIdr) || 0), 0);
+
+  return summaries.map((s, idx) => {
+    const val = Number(s.valueTotalIdr) || 0;
+    const alokasi = totalValue > 0 ? Number(((val / totalValue) * 100).toFixed(1)) : 0;
+    // DCA: sum of nominalIdr of buy trades for this asset
+    const assetTrades = trades.filter((t) => t.asset.toUpperCase() === s.asset.toUpperCase() && t.type === 'BUY');
+    const totalDCA = assetTrades.reduce((sum, t) => sum + (Number(t.nominalIdr) || 0), 0);
+
+    return {
+      nama: s.asset,
+      nilaiAkhirBulan: val,
+      depositWd: totalDCA,
+      alokasiPercent: alokasi,
+      warna: palette[idx % palette.length]
+    };
+  });
+}
+
+/**
+ * Synchronizes an investment asset directly to the active summary table (columns P..T)
+ * in the INVESTMENT tab of Google Sheets.
+ */
+export async function syncActiveAssetToInvestingSheet(
+  spreadsheetId: string,
+  tabTitle: string,
+  oldAssetName: string,
+  asset: {
+    nama: string;
+    nilaiAkhirBulan: number;
+    depositWd?: number;
+    avgBuy?: number;
+    priceNow?: number;
+    pnlPercent?: number;
+  },
+  accessToken: string
+): Promise<{ updated: boolean; rowIndex?: number }> {
+  const targetOld = (oldAssetName || '').trim().toUpperCase();
+  const safeName = asset.nama.trim().toUpperCase();
+  const safeAmount = Math.round(Number(asset.nilaiAkhirBulan) || 0);
+
+  try {
+    const safeRange = formatSheetRange(tabTitle, 'P1:T100');
+    const rows = await fetchSheetValues(spreadsheetId, safeRange, accessToken);
+    let targetRow = -1;
+    let firstEmptyRow = -1;
+
+    if (rows && rows.length > 0) {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cell = (row?.[0] || '').toString().trim().toUpperCase();
+        if (targetOld && cell === targetOld) {
+          targetRow = i + 1;
+          break;
+        }
+        if (!targetOld && safeName && cell === safeName) {
+          targetRow = i + 1;
+          break;
+        }
+        if (!cell && firstEmptyRow === -1 && i > 1) {
+          firstEmptyRow = i + 1;
+        }
+      }
+    }
+
+    if (targetRow > 0) {
+      // Update existing summary row P{targetRow}:T{targetRow}
+      const updateRange = formatSheetRange(tabTitle, `P${targetRow}:T${targetRow}`);
+      const rowVals = [
+        safeName,
+        asset.avgBuy ?? '',
+        asset.priceNow ?? '',
+        asset.pnlPercent !== undefined ? `${asset.pnlPercent}%` : '',
+        safeAmount
+      ];
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(updateRange)}?valueInputOption=USER_ENTERED`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ values: [rowVals] })
+        }
+      );
+      return { updated: true, rowIndex: targetRow };
+    } else {
+      // Append to summary column P..T
+      const appendRow = firstEmptyRow > 0 ? firstEmptyRow : (rows?.length || 2) + 1;
+      const appendRange = formatSheetRange(tabTitle, `P${appendRow}:T${appendRow}`);
+      const rowVals = [
+        safeName,
+        asset.avgBuy ?? 0,
+        asset.priceNow ?? 0,
+        '0%',
+        safeAmount
+      ];
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(appendRange)}?valueInputOption=USER_ENTERED`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ values: [rowVals] })
+        }
+      );
+      return { updated: true, rowIndex: appendRow };
+    }
+  } catch (e) {
+    console.warn('Error in syncActiveAssetToInvestingSheet:', e);
+    throw e;
+  }
+}
+
+/**
+ * Clears an active asset row from columns P..T in the Google Sheet.
+ */
+export async function deleteActiveAssetFromInvestingSheet(
+  spreadsheetId: string,
+  tabTitle: string,
+  assetName: string,
+  accessToken: string
+): Promise<boolean> {
+  const targetName = (assetName || '').trim().toUpperCase();
+  try {
+    const safeRange = formatSheetRange(tabTitle, 'P1:T100');
+    const rows = await fetchSheetValues(spreadsheetId, safeRange, accessToken);
+    if (!rows || rows.length === 0) return false;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const cell = (row?.[0] || '').toString().trim().toUpperCase();
+      if (cell === targetName) {
+        const rowNum = i + 1;
+        const clearRange = formatSheetRange(tabTitle, `P${rowNum}:T${rowNum}`);
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(clearRange)}:clear`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+          }
+        );
+        return true;
+      }
+    }
+    return false;
+  } catch (e) {
+    console.warn('Error deleting active asset from sheet:', e);
+    return false;
+  }
 }
 
 /**

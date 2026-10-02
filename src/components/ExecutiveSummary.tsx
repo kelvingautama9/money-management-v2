@@ -166,10 +166,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* HERO SECTION: Large Balance & Dual Frosted Cards */}
-      <GlassContainer settings={settings} className="p-5 sm:p-8 relative overflow-hidden w-full max-w-full min-w-0">
-        {/* Subtle decorative glow */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <GlassContainer settings={settings} className="p-5 sm:p-7 relative overflow-hidden w-full max-w-full min-w-0">
         <div className="relative z-10 w-full min-w-0">
           {/* Top Label & Actions */}
           <div className="flex items-center justify-between">
@@ -184,15 +181,15 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   triggerHaptic('medium');
                   setIsReportPreviewOpen(true);
                 }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition active:scale-95 shadow-md cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 cursor-pointer ${
                   isDark
-                    ? 'bg-blue-600/30 hover:bg-blue-600/40 border-blue-400/40 text-blue-200 shadow-blue-500/10'
-                    : 'bg-blue-600 hover:bg-blue-700 border-blue-700 text-white shadow-blue-600/20'
+                    ? 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
+                    : 'bg-slate-900 hover:bg-slate-800 border-slate-900 text-white shadow-xs'
                 }`}
                 title="Ekspor Laporan Bulanan (PDF) & Cetak Resmi"
               >
-                <FileDown className={`w-3.5 h-3.5 ${isDark ? 'text-blue-300' : 'text-white'}`} />
-                <span>Ekspor Laporan (PDF)</span>
+                <FileDown className="w-3.5 h-3.5 text-slate-300" />
+                <span>Ekspor PDF</span>
               </button>
 
               {onOpenCalculator && (
@@ -201,15 +198,15 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                     triggerHaptic('medium');
                     onOpenCalculator();
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 shadow-xs cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition active:scale-95 cursor-pointer ${
                     isDark
-                      ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-400/30 text-emerald-300'
-                      : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-950 font-bold'
+                      ? 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+                      : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
                   }`}
-                  title="Buka Kalkulator Pensiun & Target Finansial"
+                  title="Buka Kalkulator Pensiun"
                 >
-                  <Calculator className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`} />
-                  <span className={`hidden sm:inline ${isDark ? 'text-emerald-300' : 'text-emerald-950 font-bold'}`}>Kalkulator</span>
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Kalkulator</span>
                 </button>
               )}
               <button
@@ -235,154 +232,85 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               {displayMoney(totalAset)}
             </h1>
             {momGrowth ? (
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border inline-flex items-center gap-1 ${
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 ${
                 momGrowth.diff >= 0
-                  ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30'
-                  : 'text-rose-400 bg-rose-500/15 border-rose-500/30'
+                  ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                  : 'text-rose-500 bg-rose-500/10 border-rose-500/20'
               }`}>
                 <ArrowUpRight className="w-3.5 h-3.5" />
-                {momGrowth.diff >= 0 ? `+${formatRupiah(momGrowth.diff)}` : formatRupiah(momGrowth.diff)} MoM ({momGrowth.pct >= 0 ? `+${momGrowth.pct}%` : `${momGrowth.pct}%`})
+                {momGrowth.diff >= 0 ? `+${formatRupiah(momGrowth.diff)}` : formatRupiah(momGrowth.diff)} ({momGrowth.pct >= 0 ? `+${momGrowth.pct}%` : `${momGrowth.pct}%`})
               </span>
             ) : totalAset > 0 ? (
-              <span className="text-xs font-bold text-sky-400 px-2.5 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 inline-flex items-center gap-1">
-                Valuasi Aktif ({currentMonthSheet})
+              <span className="text-xs font-medium text-slate-400 px-2 py-0.5 rounded-lg bg-slate-500/10 border border-slate-500/20">
+                {currentMonthSheet}
               </span>
             ) : null}
           </div>
 
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Kas Cair & Dana Darurat: <strong className={isDark ? "text-slate-200" : "text-slate-900"}>{displayMoney(cashStandbyDanaDarurat)}</strong> • Portofolio Investasi: <strong className={isDark ? "text-sky-300" : "text-sky-700 font-bold"}>{displayMoney(totalInvestment)}</strong>
+          <p className={`text-xs mt-1.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Kas Cair & Dana Darurat: <strong className={isDark ? "text-slate-200" : "text-slate-900"}>{displayMoney(cashStandbyDanaDarurat)}</strong> • Portofolio Investasi: <strong className={isDark ? "text-slate-200" : "text-slate-900"}>{displayMoney(totalInvestment)}</strong>
           </p>
 
-          {/* SPLIT ROW: INCOME (LEFT) & PENGELUARAN (RIGHT), THEN FULL-WIDTH PORTOFOLIO INVESTASI BELOW */}
-          <div className="space-y-3 sm:space-y-4 mt-6 w-full min-w-0">
-            {/* Top Row: 2-Column Split (Income vs Pengeluaran) */}
+          {/* SPLIT ROW: INCOME (LEFT) & PENGELUARAN (RIGHT) */}
+          <div className="mt-5 w-full min-w-0">
             <div className="grid grid-cols-2 gap-2.5 sm:gap-4 w-full">
               {/* 1. Income Card (Left) */}
-              <InteractiveGlossyCard
-                accentColor="emerald"
-                isDark={isDark}
-                contentClassName="p-3.5 sm:p-5"
+              <div
+                className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
+                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50/90 border-slate-200/90 shadow-xs'
+                }`}
               >
-                <div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                    <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 ${
-                      isDark ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30' : 'bg-emerald-500/20 text-emerald-500'
-                    }`}>
-                      <ArrowDownLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </div>
-                    <span
-                      className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? '!text-white text-white' : 'text-slate-700'}`}
-                      style={{ color: isDark ? '#ffffff' : undefined }}
-                    >
-                      Income Bulanan
-                    </span>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                    isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    <ArrowDownLeft className="w-3 h-3" />
                   </div>
-                  <h3
-                    className={`text-base sm:text-2xl font-bold tracking-tight truncate ${isDark ? '!text-white text-white' : 'text-slate-900'}`}
-                    style={{ color: isDark ? '#ffffff' : undefined }}
-                  >
-                    {displayMoney(totalPemasukan)}
-                  </h3>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <span className={`text-[10px] sm:text-[11px] font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                      Periode {currentMonthSheet}
-                    </span>
-                  </div>
+                  <span className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Income Bulanan
+                  </span>
                 </div>
-
-                {/* Mint Sparkline Wave */}
-                <div className="mt-2 sm:mt-4 pt-1 sm:pt-2">
-                  <svg className="w-full h-8 sm:h-12 overflow-visible" viewBox="0 0 200 40">
-                    <defs>
-                      <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10B981" stopOpacity={isDark ? "0.35" : "0.22"} />
-                        <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M 0 35 Q 30 30, 60 25 T 120 18 T 170 10 T 200 5 L 200 40 L 0 40 Z"
-                      fill="url(#incomeGradient)"
-                    />
-                    <path
-                      d="M 0 35 Q 30 30, 60 25 T 120 18 T 170 10 T 200 5"
-                      fill="none"
-                      stroke={isDark ? "#34D399" : "#059669"}
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-              </InteractiveGlossyCard>
+                <h3 className={`text-base sm:text-2xl font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {displayMoney(totalPemasukan)}
+                </h3>
+                <span className={`text-[10px] sm:text-[11px] block mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Periode {currentMonthSheet}
+                </span>
+              </div>
 
               {/* 2. Spendings Card (Right) */}
-              <InteractiveGlossyCard
-                accentColor="rose"
-                isDark={isDark}
-                contentClassName="p-3.5 sm:p-5"
+              <div
+                className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
+                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50/90 border-slate-200/90 shadow-xs'
+                }`}
               >
-                <div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                    <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 ${
-                      isDark ? 'bg-red-500/15 text-red-300 border border-red-500/30' : 'bg-red-50 text-red-700 border border-red-200'
-                    }`}>
-                      <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </div>
-                    <span
-                      className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? '!text-white text-white' : 'text-slate-700'}`}
-                      style={{ color: isDark ? '#ffffff' : undefined }}
-                    >
-                      Total Pengeluaran
-                    </span>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                    isDark ? 'bg-rose-500/15 text-rose-400' : 'bg-rose-100 text-rose-700'
+                  }`}>
+                    <ArrowUpRight className="w-3 h-3" />
                   </div>
-                  <h3
-                    className={`text-base sm:text-2xl font-bold tracking-tight truncate ${isDark ? 'text-red-400' : 'text-red-700'}`}
-                  >
-                    {displayMoney(totalPengeluaran)}
-                  </h3>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md whitespace-nowrap ${
-                        isDark
-                          ? 'bg-red-500/15 text-red-300 border border-red-500/30'
-                          : 'bg-red-50 text-red-700 border border-red-200'
-                      }`}
-                    >
-                      {spendRatio}% Dari Income
-                    </span>
-                    <span className={`text-[10px] sm:text-[11px] truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                      {sisaSaldoIncome >= 0 ? (
-                        <>Surplus: <strong className={isDark ? "text-slate-200 font-bold" : "text-slate-900 font-bold"}>+{displayMoney(sisaSaldoIncome)}</strong></>
-                      ) : (
-                        <>Defisit: <strong className={isDark ? "text-red-400 font-black" : "text-red-700 font-black"}>-{displayMoney(Math.abs(sisaSaldoIncome))}</strong></>
-                      )}
-                    </span>
-                  </div>
+                  <span className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Total Pengeluaran
+                  </span>
                 </div>
-
-                {/* Coral/Orange Sparkline Wave */}
-                <div className="mt-2 sm:mt-4 pt-1 sm:pt-2">
-                  <svg className="w-full h-8 sm:h-12 overflow-visible" viewBox="0 0 200 40">
-                    <defs>
-                      <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#F43F5E" stopOpacity={isDark ? "0.35" : "0.22"} />
-                        <stop offset="100%" stopColor="#F43F5E" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M 0 35 Q 40 28, 70 32 T 130 20 T 170 14 T 200 8 L 200 40 L 0 40 Z"
-                      fill="url(#spendGradient)"
-                    />
-                    <path
-                      d="M 0 35 Q 40 28, 70 32 T 130 20 T 170 14 T 200 8"
-                      fill="none"
-                      stroke={isDark ? "#FB7185" : "#E11D48"}
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                <h3 className={`text-base sm:text-2xl font-bold tracking-tight truncate ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>
+                  {displayMoney(totalPengeluaran)}
+                </h3>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]">
+                  <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {spendRatio}% Income
+                  </span>
+                  <span className="text-slate-400">•</span>
+                  <span className={`truncate ${
+                    sisaSaldoIncome >= 0
+                      ? isDark ? 'text-emerald-400' : 'text-emerald-700 font-medium'
+                      : isDark ? 'text-rose-400' : 'text-rose-600 font-medium'
+                  }`}>
+                    {sisaSaldoIncome >= 0 ? `Surplus: +${displayMoney(sisaSaldoIncome)}` : `Defisit: -${displayMoney(Math.abs(sisaSaldoIncome))}`}
+                  </span>
                 </div>
-              </InteractiveGlossyCard>
+              </div>
             </div>
           </div>
         </div>
@@ -573,13 +501,11 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                         <CreditCard className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-700' : 'text-slate-300'}`} />
                         <span className="truncate">{acc.nama}</span>
                       </span>
-                      <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ${
-                        isNegative 
-                          ? 'bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30' 
-                          : isLight ? 'bg-slate-200 text-slate-800' : 'bg-white/10 text-slate-300'
-                      }`}>
-                        {isNegative ? 'Minus' : `#${idx + 1}`}
-                      </span>
+                      {isNegative && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30">
+                          Minus
+                        </span>
+                      )}
                     </div>
 
                     {/* Middle row: Saldo Terkini + Amount */}
@@ -682,7 +608,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 const isDepleted = sisa <= 0;
 
                 return (
-                  <div key={b.id} className={`p-3.5 rounded-2xl border space-y-2.5 ${
+                  <div key={b.id} className={`p-3 rounded-xl border space-y-2 ${
                     isLight ? 'bg-slate-50/80 border-slate-200' : 'bg-white/[0.03] border-white/10'
                   }`}>
                     <div className="flex items-center justify-between text-xs">
@@ -690,74 +616,36 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                         {getCategoryIcon(b.nama)}
                         <span className="truncate">{b.nama}</span>
                       </span>
-                      {isOverMonthly ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500/15 text-red-600 dark:text-red-300 border border-red-500/30 shrink-0">
-                          Over Kuota (+{formatRupiah(monthlyDiff)})
+                      <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                        <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>
+                          {formatRupiah(actualSpend)} / {formatRupiah(monthlyBudget)}
                         </span>
-                      ) : (
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${
-                          isLight ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-white/10 text-slate-200 border-white/15'
-                        }`}>
-                          Dalam Kuota ({monthlySpendPct}%)
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Dual Details Strip */}
-                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-0.5">
-                      {/* Detail 1: Jatah Bulanan */}
-                      <div className={`p-2 rounded-xl border space-y-1 ${
-                        isLight ? 'bg-white border-slate-200/80' : 'bg-white/[0.02] border-white/5'
-                      }`}>
-                        <div className={`text-[10px] font-medium flex justify-between ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                          <span>1. Kuota Bulanan</span>
-                          <span className={isOverMonthly ? (isLight ? 'text-red-700 font-bold' : 'text-red-400 font-bold') : (isLight ? 'text-slate-700' : 'text-slate-300')}>
-                            {monthlySpendPct}%
+                        {isOverMonthly && (
+                          <span className="text-[10px] font-bold text-rose-500">
+                            (+{formatRupiah(monthlyDiff)})
                           </span>
-                        </div>
-                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isOverMonthly ? 'bg-red-700' : isLight ? 'bg-slate-800' : 'bg-slate-300'
-                            }`}
-                            style={{ width: `${Math.min(100, monthlySpendPct)}%` }}
-                          />
-                        </div>
-                        <div className={`text-[10px] flex justify-between ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                          <span className="truncate">Spend: {formatRupiah(actualSpend)}</span>
-                        </div>
-                      </div>
-
-                      {/* Detail 2: Saldo Kantong Total */}
-                      <div className={`p-2 rounded-xl border space-y-1 ${
-                        isLight ? 'bg-white border-slate-200/80' : 'bg-white/[0.02] border-white/5'
-                      }`}>
-                        <div className={`text-[10px] font-medium flex justify-between ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                          <span>2. Saldo Kantong</span>
-                          <span className={isDepleted ? (isLight ? 'text-red-700 font-bold' : 'text-red-400 font-bold') : (isLight ? 'text-slate-900 font-bold' : 'text-white')}>
-                            {totalSpendPct}%
-                          </span>
-                        </div>
-                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isDepleted ? 'bg-red-700' : isLight ? 'bg-slate-800' : 'bg-slate-300'
-                            }`}
-                            style={{ width: `${Math.min(100, totalSpendPct)}%` }}
-                          />
-                        </div>
-                        <div className="text-[10px] flex justify-between">
-                          <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Sisa:</span>
-                          <span className={`font-mono font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{formatRupiah(sisa)}</span>
-                        </div>
+                        )}
                       </div>
                     </div>
 
-                    {isOverMonthly && !isDepleted && (
-                      <div className={`text-[10px] leading-tight pt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                        Over jatah bulanan, saldo kantong tertutup sisa bulan lalu ({formatRupiah(saldoAwal)}).
-                      </div>
-                    )}
+                    {/* Clean Single Progress Bar */}
+                    <div className={`w-full h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isOverMonthly ? 'bg-rose-500' : isLight ? 'bg-slate-800' : 'bg-slate-300'
+                        }`}
+                        style={{ width: `${Math.min(100, monthlySpendPct)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>
+                        {monthlySpendPct}% terpakai
+                      </span>
+                      <span className={isLight ? 'text-slate-700' : 'text-slate-300'}>
+                        Sisa Kantong: <strong className={isDepleted ? 'text-rose-500 font-bold' : isLight ? 'text-slate-900' : 'text-white'}>{formatRupiah(sisa)}</strong>
+                      </span>
+                    </div>
                   </div>
                 );
               })

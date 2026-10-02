@@ -650,7 +650,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
 
                   {isOverMonthly && !isDepleted && (
                     <div className="text-[9px] text-amber-300/90 leading-tight pt-1">
-                      ⚠️ Over kuota bulanan, namun saldo kantong belum defisit (sisa bulan lalu: {formatRupiah(saldoAwal)}).
+                      Over kuota bulanan, namun saldo kantong belum defisit (sisa bulan lalu: {formatRupiah(saldoAwal)}).
                     </div>
                   )}
                 </div>
@@ -689,7 +689,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                 : 'bg-emerald-100 text-emerald-900 border-emerald-300'
             }`}>
-              {overBudgetBudgets.length > 0 ? '⚠️ Perlu Perhatian Anggaran' : '✅ Arus Kas & Anggaran Solven'}
+              {overBudgetBudgets.length > 0 ? 'Perlu Perhatian Anggaran' : 'Arus Kas & Anggaran Solven'}
             </span>
           </div>
 
@@ -703,7 +703,7 @@ export const AuditFinancialPage: React.FC<AuditFinancialPageProps> = ({
               ? 'bg-blue-500/10 border-blue-500/20 text-sky-200'
               : 'bg-white border-blue-200 text-blue-950 shadow-xs'
           }`}>
-            💡 <strong className="font-bold">Ringkasan Audit {currentSheetName}:</strong> Arus kas masuk tercatat sebesar{' '}
+            <strong className="font-bold">Ringkasan Audit {currentSheetName}:</strong> Arus kas masuk tercatat sebesar{' '}
             <strong className="font-mono">{formatRupiah(totalIncome)}</strong> dan realisasi belanja sebesar{' '}
             <strong className="font-mono">{formatRupiah(totalExpense)}</strong>, membukukan surplus bersih sebesar{' '}
             <strong className="font-mono">{formatRupiah(netSavings)}</strong> (Savings Rate {savingsRate}%).{' '}

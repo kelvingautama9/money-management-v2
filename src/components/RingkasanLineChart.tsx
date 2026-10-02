@@ -63,15 +63,18 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
         });
       }
 
-      // Progression fallback leading to current totalAset
+      if (totalAset <= 0) {
+        return [];
+      }
+
+      // Progression fallback leading to current totalAset only if totalAset > 0
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', currentMonthSheet.slice(0, 3)];
-      const base = totalAset > 0 ? totalAset * 0.76 : 15000000;
-      const step = totalAset > 0 ? (totalAset - base) / (months.length - 1) : 1000000;
+      const base = totalAset * 0.8;
+      const step = (totalAset - base) / (months.length - 1);
 
       return months.map((m, i) => {
         const isLatest = i === months.length - 1;
-        const variation = Math.sin(i * 1.3) * (step * 0.35);
-        const val = isLatest ? totalAset : Math.round(base + i * step + variation);
+        const val = isLatest ? totalAset : Math.round(base + i * step);
         const prev = i === 0 ? base : base + (i - 1) * step;
         const diffPct = Number((((val - prev) / (prev || 1)) * 100).toFixed(1));
         return {
@@ -85,19 +88,23 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
       });
     } else {
       // Cashflow mode: Net Cashflow per month
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', currentMonthSheet.slice(0, 3)];
       const currentNet = totalPemasukan - totalPengeluaran;
-      const baseNet = currentNet > 0 ? currentNet * 0.7 : 2500000;
+      if (totalPemasukan <= 0 && totalPengeluaran <= 0) {
+        return [];
+      }
+
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', currentMonthSheet.slice(0, 3)];
+      const baseNet = currentNet * 0.8;
+      const step = (currentNet - baseNet) / (months.length - 1);
 
       return months.map((m, i) => {
         const isLatest = i === months.length - 1;
-        const variation = Math.cos(i * 1.1) * 600000;
-        const val = isLatest ? Math.max(0, currentNet) : Math.max(0, Math.round(baseNet + variation));
+        const val = isLatest ? currentNet : Math.round(baseNet + i * step);
         return {
           date: m,
           fullDate: `${m} 2026`,
           value: val,
-          pnl: Number(((val / (baseNet || 1) - 1) * 100).toFixed(1)),
+          pnl: 0,
           profit: val,
           isKey: isLatest || i === 0 || i === Math.floor(months.length / 2)
         };

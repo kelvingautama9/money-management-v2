@@ -18,9 +18,9 @@ export const EmergencyFundCard: React.FC<EmergencyFundCardProps> = ({
   const [monthlyContribution, setMonthlyContribution] = useState<number>(500000);
   const [showSim, setShowSim] = useState<boolean>(false);
 
-  const percent = Math.min(100, Number(((fund.current / fund.target) * 100).toFixed(1)));
+  const percent = fund.target > 0 ? Math.min(100, Number(((fund.current / fund.target) * 100).toFixed(1))) : 0;
   const shortfall = Math.max(0, fund.target - fund.current);
-  const runwayMonths = (fund.current / monthlyExpenseBaseline).toFixed(1);
+  const runwayMonths = monthlyExpenseBaseline > 0 ? (fund.current / monthlyExpenseBaseline).toFixed(1) : '0';
   const monthsToTarget = monthlyContribution > 0 ? Math.ceil(shortfall / monthlyContribution) : 0;
 
   return (
@@ -31,8 +31,8 @@ export const EmergencyFundCard: React.FC<EmergencyFundCardProps> = ({
             <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
               Dana Darurat (Emergency Fund)
             </h3>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-white/15">
-              {percent}% Tercapai
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              • {percent}% Tercapai
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
