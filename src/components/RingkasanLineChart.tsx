@@ -3,10 +3,10 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/line-charts-9';
-import { TrendingUp, TrendingDown, ArrowUpRight, Wallet, Activity } from 'lucide-react';
-import { CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from 'recharts';
+import { TrendingUp, TrendingDown, ArrowUpRight } from 'lucide-react';
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { formatRupiah } from '../lib/sheetsApi';
-import { InvestmentHistory, Transaction } from '../types';
+import { InvestmentHistory, Transaction, SheetSummary } from '../types';
 
 interface RingkasanLineChartProps {
   totalAset: number;
@@ -16,9 +16,159 @@ interface RingkasanLineChartProps {
   history?: InvestmentHistory[];
   transactions?: Transaction[];
   currentMonthSheet?: string;
+  availableSheets?: string[];
+  sheetSummaries?: Record<string, SheetSummary>;
   isDark?: boolean;
   hideBalance?: boolean;
   onNavigate?: (page: any) => void;
+}
+
+const MONTH_ORDER: Record<string, number> = {
+  januari: 1, jan: 1,
+  februari: 2, feb: 2,
+  maret: 3, mar: 3,
+  april: 4, apr: 4,
+  mei: 5, may: 5,
+  juni: 6, jun: 6,
+  juli: 7, jul: 7,
+  agustus: 8, agu: 8, ags: 8, aug: 8,
+  september: 9, sep: 9, sept: 9,
+  oktober: 10, okt: 10, oct: 10,
+  november: 11, nov: 11,
+  desember: 12, des: 12, dec: 12
+};
+
+function getMonthIndex(name: string): number {
+  const clean = (name || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!clean) return 99;
+  for (const [k, v] of Object.entries(MONTH_ORDER)) {
+    if (clean === k || clean.startsWith(k)) return v;
+  }
+  return 99;
+}
+
+function formatMonthLabel(name: string): string {
+  const clean = (name || '').trim();
+  const idx = getMonthIndex(clean);
+  const fullNames = [
+    '',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember'
+  ];
+  if (idx >= 1 && idx <= 12) return fullNames[idx];
+  return clean || 'Bulan';
+}
+
+function formatShortMonth(name: string): string {
+  const clean = (name || '').trim();
+  const idx = getMonthIndex(clean);
+  const shortNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+  if (idx >= 1 && idx <= 12) return shortNames[idx];
+  return clean.slice(0, 4) || 'Bln';
+}
+
+/**
+ * Resolves Total Aset (Net Worth) for a given Google Sheet month tab
+ * using:
+ * 1. Active month live `totalAset` if `isCurrent`
+ * 2. `sheetSummaries[tabName]` (`totalAset`, or `cashStandbyDanaDarurat + totalInvestment`, or sum of `accountBalances`)
+ * 3. Cached transactions in `localStorage` (`kelvin_financial_txs_${tabName}`)
+ * 4. Matching record in `history`
+ */
+function resolveTabTotalAset(
+  tabName: string,
+  isCurrent: boolean,
+  liveTotalAset: number,
+  sheetSummaries: Record<string, SheetSummary>,
+  history: InvestmentHistory[]
+): number {
+  if (isCurrent && liveTotalAset !== 0) {
+    return liveTotalAset;
+  }
+
+  const sumObj =
+    sheetSummaries?.[tabName] ||
+    sheetSummaries?.[tabName.toUpperCase()] ||
+    sheetSummaries?.[tabName.toLowerCase()];
+
+  if (sumObj) {
+    if (typeof sumObj.totalAset === 'number' && sumObj.totalAset !== 0) {
+      return sumObj.totalAset;
+    }
+    const combined = (Number(sumObj.cashStandbyDanaDarurat) || 0) + (Number(sumObj.totalInvestment) || 0);
+    if (combined !== 0) {
+      return combined;
+    }
+    if (sumObj.accountBalances && Object.keys(sumObj.accountBalances).length > 0) {
+      const seen = new Set<string>();
+      let accSum = 0;
+      let hasBal = false;
+      Object.entries(sumObj.accountBalances).forEach(([k, v]) => {
+        const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (typeof v === 'number' && cleanK && !seen.has(cleanK)) {
+          seen.add(cleanK);
+          accSum += v;
+          hasBal = true;
+        }
+      });
+      if (hasBal && accSum !== 0) {
+        return accSum;
+      }
+    }
+  }
+
+  // Fallback to cached transactions for this tab
+  try {
+    const cached =
+      localStorage.getItem(`kelvin_financial_txs_${tabName}`) ||
+      localStorage.getItem(`kelvin_financial_txs_${tabName.toUpperCase()}`) ||
+      localStorage.getItem(`kelvin_financial_txs_${tabName.toLowerCase()}`);
+    if (cached) {
+      const parsed: Transaction[] = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        let txNet = 0;
+        parsed.forEach((t) => {
+          const amt = Number(t.jumlah) || 0;
+          if (t.tipe === 'Saldo Bulan Lalu' || (t.kategori || '').toLowerCase().includes('saldo awal')) {
+            txNet += amt;
+          } else if (t.tipe === 'Income') {
+            txNet += amt;
+          } else if (t.tipe === 'Transfer Masuk') {
+            txNet += amt;
+          } else if (t.tipe === 'Transfer Keluar') {
+            txNet -= amt;
+          } else if (t.tipe === 'Expense') {
+            txNet -= amt;
+          }
+        });
+        if (txNet !== 0) return txNet;
+      }
+    }
+  } catch (e) {}
+
+  // Fallback to history record matching this month
+  const mIdx = getMonthIndex(tabName);
+  if (Array.isArray(history) && history.length > 0) {
+    const match = history.find((h) => {
+      const hIdx = getMonthIndex(h.bulan);
+      return (mIdx !== 99 && hIdx === mIdx) || h.bulan.toLowerCase().includes(tabName.toLowerCase());
+    });
+    if (match && Number(match.totalNetWorth) !== 0) {
+      return Number(match.totalNetWorth);
+    }
+  }
+
+  return isCurrent ? liveTotalAset : 0;
 }
 
 export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
@@ -29,106 +179,301 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
   history = [],
   transactions = [],
   currentMonthSheet = 'September',
+  availableSheets = [],
+  sheetSummaries = {},
   isDark = true,
   hideBalance = false,
   onNavigate
 }) => {
   const [chartMode, setChartMode] = useState<'networth' | 'cashflow'>('networth');
 
-  // Chart configuration: clean sky/slate palette with zero yellow/amber/purple
   const chartConfig = useMemo(() => {
     return {
       value: {
-        label: chartMode === 'networth' ? 'Net Worth' : 'Arus Kas',
-        color: isDark ? '#38bdf8' : '#0284c7', // Sky-400 / Sky-600
+        label: chartMode === 'networth' ? 'Total Aset' : 'Arus Kas Bersih',
+        color: isDark ? '#38bdf8' : '#0284c7',
       },
     } satisfies ChartConfig;
   }, [isDark, chartMode]);
 
-  // Construct chart data points from real history or dynamic timeline
+  // Build chart points directly from the user's detected Google Sheet month tabs (e.g. Januari, Februari, Maret, April, Juni, Agustus, etc.)
   const chartPoints = useMemo(() => {
+    const cleanCurr = (currentMonthSheet || '').trim();
+    const currMonthIdx = getMonthIndex(cleanCurr);
+
+    // Filter detected tabs to real monthly recap tabs (excluding utility tabs like INVESTMENT/INVESTING/PREVIEW)
+    const detectedMonthTabs = Array.from(
+      new Set([...(availableSheets || []), ...(cleanCurr ? [cleanCurr] : [])])
+    ).filter((tab) => {
+      const up = (tab || '').trim().toUpperCase();
+      return up && up !== 'INVESTMENT' && up !== 'INVESTING' && up !== 'PREVIEW';
+    });
+
     if (chartMode === 'networth') {
-      if (history && history.length >= 2) {
-        return history.map((h, idx) => {
-          const isLatest = idx === history.length - 1;
-          const val = isLatest && totalAset > 0 ? totalAset : h.totalNetWorth;
-          return {
-            date: h.bulan.slice(0, 3),
-            fullDate: h.bulan,
+      const pointMap = new Map<
+        string,
+        {
+          monthOrder: number;
+          tabOrder: number;
+          tabName: string;
+          date: string;
+          fullDate: string;
+          value: number;
+          isCurrent: boolean;
+        }
+      >();
+
+      detectedMonthTabs.forEach((tab, tabIdx) => {
+        const mIdx = getMonthIndex(tab);
+        const key = mIdx !== 99 ? `m-${mIdx}` : `tab-${tab.toLowerCase()}`;
+        const isCurrent =
+          tab.toLowerCase() === cleanCurr.toLowerCase() ||
+          (mIdx !== 99 && mIdx === currMonthIdx);
+
+        const val = resolveTabTotalAset(tab, isCurrent, totalAset, sheetSummaries, history);
+
+        // Include tab if it has a valid non-zero totalAset, or if it's the currently selected tab with data
+        if (val !== 0 || (isCurrent && totalAset > 0)) {
+          pointMap.set(key, {
+            monthOrder: mIdx,
+            tabOrder: tabIdx,
+            tabName: tab,
+            date: mIdx !== 99 ? formatShortMonth(tab) : tab,
+            fullDate: mIdx !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
             value: val,
-            pnl: h.pnlPercent || 0,
-            profit: h.netProfitMoM || 0,
-            isKey: isLatest || idx === 0 || idx === Math.floor(history.length / 2)
-          };
+            isCurrent
+          });
+        }
+      });
+
+      // Also include any month in sheetSummaries that wasn't in availableSheets yet
+      if (sheetSummaries && typeof sheetSummaries === 'object') {
+        Object.keys(sheetSummaries).forEach((tabKey, idx) => {
+          const mIdx = getMonthIndex(tabKey);
+          if (mIdx === 99) return;
+          const key = `m-${mIdx}`;
+          if (pointMap.has(key)) return;
+          const isCurrent = mIdx === currMonthIdx;
+          const val = resolveTabTotalAset(tabKey, isCurrent, totalAset, sheetSummaries, history);
+          if (val !== 0) {
+            pointMap.set(key, {
+              monthOrder: mIdx,
+              tabOrder: 100 + idx,
+              tabName: tabKey,
+              date: formatShortMonth(tabKey),
+              fullDate: `${formatMonthLabel(tabKey)} (Tab: ${tabKey})`,
+              value: val,
+              isCurrent
+            });
+          }
         });
       }
 
-      if (totalAset <= 0) {
-        return [];
-      }
+      // Sort chronologically by month index (Januari -> Februari -> Maret -> April -> Juni -> Agustus -> dst.)
+      const sorted = Array.from(pointMap.values()).sort((a, b) => {
+        if (a.monthOrder !== b.monthOrder) return a.monthOrder - b.monthOrder;
+        return a.tabOrder - b.tabOrder;
+      });
 
-      // Progression fallback leading to current totalAset only if totalAset > 0
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', currentMonthSheet.slice(0, 3)];
-      const base = totalAset * 0.8;
-      const step = (totalAset - base) / (months.length - 1);
-
-      return months.map((m, i) => {
-        const isLatest = i === months.length - 1;
-        const val = isLatest ? totalAset : Math.round(base + i * step);
-        const prev = i === 0 ? base : base + (i - 1) * step;
-        const diffPct = Number((((val - prev) / (prev || 1)) * 100).toFixed(1));
+      return sorted.map((pt, idx) => {
+        const prev = idx > 0 ? sorted[idx - 1] : null;
+        const profit = prev ? pt.value - prev.value : 0;
+        const pnl =
+          prev && prev.value !== 0
+            ? Number((((pt.value - prev.value) / Math.abs(prev.value)) * 100).toFixed(1))
+            : 0;
+        const isLatest = idx === sorted.length - 1;
         return {
-          date: m,
-          fullDate: `${m} 2026`,
-          value: val,
-          pnl: diffPct,
-          profit: Math.round(val - prev),
-          isKey: isLatest || i === 0 || i === Math.floor(months.length / 2)
+          ...pt,
+          profit,
+          pnl,
+          isLatest,
+          isKey: true // Mark every detected monthly recap tab clearly on the line chart
         };
       });
     } else {
-      // Cashflow mode: Net Cashflow per month
-      const currentNet = totalPemasukan - totalPengeluaran;
-      if (totalPemasukan <= 0 && totalPengeluaran <= 0) {
-        return [];
-      }
+      // Cashflow mode: Net Cashflow (Pemasukan - Pengeluaran) for each detected month tab
+      const cashflowMap = new Map<
+        string,
+        {
+          monthOrder: number;
+          tabOrder: number;
+          tabName: string;
+          date: string;
+          fullDate: string;
+          income: number;
+          expense: number;
+          value: number;
+          isCurrent: boolean;
+        }
+      >();
 
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', currentMonthSheet.slice(0, 3)];
-      const baseNet = currentNet * 0.8;
-      const step = (currentNet - baseNet) / (months.length - 1);
+      detectedMonthTabs.forEach((tab, tabIdx) => {
+        const mIdx = getMonthIndex(tab);
+        const key = mIdx !== 99 ? `m-${mIdx}` : `tab-${tab.toLowerCase()}`;
+        const isCurrent =
+          tab.toLowerCase() === cleanCurr.toLowerCase() ||
+          (mIdx !== 99 && mIdx === currMonthIdx);
 
-      return months.map((m, i) => {
-        const isLatest = i === months.length - 1;
-        const val = isLatest ? currentNet : Math.round(baseNet + i * step);
+        if (isCurrent && (totalPemasukan > 0 || totalPengeluaran > 0 || transactions.length > 0)) {
+          cashflowMap.set(key, {
+            monthOrder: mIdx,
+            tabOrder: tabIdx,
+            tabName: tab,
+            date: mIdx !== 99 ? formatShortMonth(tab) : tab,
+            fullDate: mIdx !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
+            income: totalPemasukan,
+            expense: totalPengeluaran,
+            value: totalPemasukan - totalPengeluaran,
+            isCurrent: true
+          });
+          return;
+        }
+
+        try {
+          const cached =
+            localStorage.getItem(`kelvin_financial_txs_${tab}`) ||
+            localStorage.getItem(`kelvin_financial_txs_${tab.toUpperCase()}`) ||
+            localStorage.getItem(`kelvin_financial_txs_${tab.toLowerCase()}`);
+          if (cached) {
+            const parsed: Transaction[] = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const inc = parsed
+                .filter((t) => t.tipe === 'Income')
+                .reduce((s, t) => s + (Number(t.jumlah) || 0), 0);
+              const exp = parsed
+                .filter((t) => t.tipe === 'Expense')
+                .reduce((s, t) => s + (Number(t.jumlah) || 0), 0);
+              if (inc > 0 || exp > 0) {
+                cashflowMap.set(key, {
+                  monthOrder: mIdx,
+                  tabOrder: tabIdx,
+                  tabName: tab,
+                  date: mIdx !== 99 ? formatShortMonth(tab) : tab,
+                  fullDate: mIdx !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
+                  income: inc,
+                  expense: exp,
+                  value: inc - exp,
+                  isCurrent
+                });
+              }
+            }
+          }
+        } catch (e) {}
+      });
+
+      const sorted = Array.from(cashflowMap.values()).sort((a, b) => {
+        if (a.monthOrder !== b.monthOrder) return a.monthOrder - b.monthOrder;
+        return a.tabOrder - b.tabOrder;
+      });
+
+      return sorted.map((pt, idx) => {
+        const prev = idx > 0 ? sorted[idx - 1] : null;
+        const profit = prev ? pt.value - prev.value : pt.value;
+        const pnl =
+          prev && prev.value !== 0
+            ? Number((((pt.value - prev.value) / Math.abs(prev.value)) * 100).toFixed(1))
+            : pt.income > 0
+              ? Number(((pt.value / pt.income) * 100).toFixed(1))
+              : 0;
+        const isLatest = idx === sorted.length - 1;
         return {
-          date: m,
-          fullDate: `${m} 2026`,
-          value: val,
-          pnl: 0,
-          profit: val,
-          isKey: isLatest || i === 0 || i === Math.floor(months.length / 2)
+          ...pt,
+          profit,
+          pnl,
+          isLatest,
+          isKey: true
         };
       });
     }
-  }, [chartMode, history, totalAset, totalPemasukan, totalPengeluaran, currentMonthSheet]);
+  }, [
+    chartMode,
+    availableSheets,
+    sheetSummaries,
+    history,
+    transactions,
+    totalAset,
+    totalPemasukan,
+    totalPengeluaran,
+    currentMonthSheet
+  ]);
 
   const values = chartPoints.map((p) => p.value);
-  const highValue = values.length > 0 ? Math.max(...values) : totalAset;
-  const lowValue = values.length > 0 ? Math.min(...values) : totalAset * 0.8;
+  const netCashflow = totalPemasukan - totalPengeluaran;
 
-  // Calculate MoM change percentage
-  const changePct = useMemo(() => {
-    if (chartPoints.length >= 2) {
-      const last = chartPoints[chartPoints.length - 1].value;
-      const prev = chartPoints[chartPoints.length - 2].value;
-      if (prev > 0) {
-        return Number((((last - prev) / prev) * 100).toFixed(1));
-      }
+  // Headline value reflects active month or latest recap month in the series
+  const displayMainValue = useMemo(() => {
+    if (chartMode === 'networth') {
+      if (totalAset !== 0) return totalAset;
+      if (chartPoints.length > 0) return chartPoints[chartPoints.length - 1].value;
+      return 0;
     }
-    return 12.7;
+    return netCashflow;
+  }, [chartMode, totalAset, netCashflow, chartPoints]);
+
+  const highPoint = useMemo(() => {
+    if (chartPoints.length === 0) return null;
+    return chartPoints.reduce((best, p) => (p.value > best.value ? p : best), chartPoints[0]);
   }, [chartPoints]);
 
-  const activeRefDate = chartPoints.length > 2 ? chartPoints[Math.floor(chartPoints.length / 2)].date : chartPoints[0]?.date;
+  const lowPoint = useMemo(() => {
+    if (chartPoints.length === 0) return null;
+    return chartPoints.reduce((worst, p) => (p.value < worst.value ? p : worst), chartPoints[0]);
+  }, [chartPoints]);
+
+  const highValue = highPoint ? highPoint.value : displayMainValue;
+  const lowValue = lowPoint ? lowPoint.value : displayMainValue;
+
+  // Calculate MoM change percentage for active month (or latest month in the recap) vs its preceding recap month
+  const { changePct, changeDiff, prevMonthLabel, activeMonthLabel, hasComparison } = useMemo(() => {
+    if (chartPoints.length >= 2) {
+      const currIdx = chartPoints.findIndex((p) => p.isCurrent);
+      const targetIdx = currIdx >= 1 ? currIdx : chartPoints.length - 1;
+      const currentPt = chartPoints[targetIdx];
+      const prevPt = chartPoints[targetIdx - 1];
+      if (currentPt && prevPt && prevPt.value !== 0) {
+        const diff = currentPt.value - prevPt.value;
+        const pct = Number(((diff / Math.abs(prevPt.value)) * 100).toFixed(1));
+        return {
+          changePct: pct,
+          changeDiff: diff,
+          prevMonthLabel: prevPt.date,
+          activeMonthLabel: currentPt.date,
+          hasComparison: true
+        };
+      }
+    }
+    return {
+      changePct: 0,
+      changeDiff: 0,
+      prevMonthLabel: '',
+      activeMonthLabel: '',
+      hasComparison: false
+    };
+  }, [chartPoints]);
+
+  // Dynamic Y-Axis domain with proportional padding so lines never clip or flatten
+  const yAxisDomain = useMemo<[number, number]>(() => {
+    if (values.length === 0) return [0, 10_000_000];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) {
+      const pad = Math.max(Math.abs(max) * 0.15, 500_000);
+      return [chartMode === 'networth' && min >= 0 ? Math.max(0, min - pad) : min - pad, max + pad];
+    }
+    const span = max - min;
+    const pad = Math.max(span * 0.2, 250_000);
+    const lower = chartMode === 'networth' && min >= 0 ? Math.max(0, Math.floor(min - pad)) : Math.floor(min - pad);
+    const upper = Math.ceil(max + pad);
+    return [lower, upper];
+  }, [values, chartMode]);
+
+  const activeRefDate = useMemo(() => {
+    if (chartPoints.length === 0) return undefined;
+    const curr = chartPoints.find((p) => p.isCurrent);
+    if (curr) return curr.date;
+    return chartPoints[chartPoints.length - 1]?.date;
+  }, [chartPoints]);
 
   const displayMoney = (val: number) => {
     if (hideBalance) return '••••••••';
@@ -136,94 +481,114 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
   };
 
   const formatCondensedRupiah = (val: number) => {
-    if (val >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(1)}M`;
-    if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(0)}jt`;
-    if (val >= 1_000) return `${(val / 1_000).toFixed(0)}rb`;
-    return `${val}`;
+    if (hideBalance) return '•••';
+    const sign = val < 0 ? '-' : '';
+    const abs = Math.abs(val);
+    if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}M`;
+    if (abs >= 1_000_000) {
+      const jt = abs / 1_000_000;
+      return `${sign}${jt % 1 === 0 ? jt.toFixed(0) : jt.toFixed(1)}jt`;
+    }
+    if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(0)}rb`;
+    return `${sign}${Math.round(abs)}`;
   };
 
-  const netCashflow = totalPemasukan - totalPengeluaran;
-  const netCashflowPct = totalPemasukan > 0 ? Number(((netCashflow / totalPemasukan) * 100).toFixed(1)) : 0;
-  const displayMainValue = chartMode === 'networth' ? totalAset : netCashflow;
+  const secondaryRatioPct = useMemo(() => {
+    if (chartMode === 'networth') {
+      return displayMainValue > 0 ? Number(((totalInvestment / displayMainValue) * 100).toFixed(1)) : 0;
+    }
+    return totalPemasukan > 0 ? Number(((netCashflow / totalPemasukan) * 100).toFixed(1)) : 0;
+  }, [chartMode, displayMainValue, totalInvestment, totalPemasukan, netCashflow]);
 
-  // Custom Tooltip following line-charts-9 specification
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div
-          className={`p-3 rounded-xl border text-xs shadow-xl backdrop-blur-md ${
+          className={`p-3 rounded-xl border text-xs shadow-lg ${
             isDark
-              ? 'bg-slate-900/95 border-white/20 text-white shadow-black/40'
-              : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-200/80'
+              ? 'bg-slate-900/95 border-white/15 text-white'
+              : 'bg-white/95 border-slate-200 text-slate-900'
           }`}
         >
           <div className={`text-[11px] font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             {data.fullDate || data.date}
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-sm font-bold font-mono">
+            <div className="text-sm font-bold font-mono tabular-nums">
               {displayMoney(data.value)}
             </div>
-            <div
-              className={`text-[11px] font-bold ${
-                data.pnl >= 0
-                  ? isDark ? 'text-emerald-400' : 'text-emerald-600'
-                  : isDark ? 'text-red-400' : 'text-red-600'
-              }`}
-            >
-              {data.pnl >= 0 ? `+${data.pnl}%` : `${data.pnl}%`}
-            </div>
+            {data.pnl !== 0 && (
+              <div
+                className={`text-[11px] font-semibold font-mono ${
+                  data.pnl >= 0
+                    ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    : isDark ? 'text-rose-400' : 'text-rose-600'
+                }`}
+              >
+                {data.pnl >= 0 ? `+${data.pnl}%` : `${data.pnl}%`}
+              </div>
+            )}
           </div>
+          {data.profit !== 0 && (
+            <div className={`text-[10px] mt-0.5 font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Selisih vs bulan sebelumnya: {data.profit >= 0 ? `+${displayMoney(data.profit)}` : displayMoney(data.profit)}
+            </div>
+          )}
         </div>
       );
     }
     return null;
   };
 
+  const recapRangeLabel = useMemo(() => {
+    if (chartPoints.length === 0) return `Periode ${currentMonthSheet}`;
+    if (chartPoints.length === 1) return `Rekap ${chartPoints[0].date}`;
+    return `${chartPoints[0].date} – ${chartPoints[chartPoints.length - 1].date} (${chartPoints.length} Bulan Rekap)`;
+  }, [chartPoints, currentMonthSheet]);
+
   return (
     <Card
-      className={`w-full overflow-hidden border transition-all duration-300 rounded-2xl sm:rounded-3xl ${
+      className={`w-full overflow-hidden border transition-all duration-300 rounded-2xl ${
         isDark
-          ? 'bg-slate-900/70 border-white/10 shadow-2xl text-white backdrop-blur-md'
-          : 'bg-white border-slate-200 shadow-sm text-slate-900'
+          ? 'bg-slate-900/70 border-white/10 shadow-lg text-white'
+          : 'bg-white border-slate-200 shadow-xs text-slate-900'
       }`}
     >
-      <CardContent className="flex flex-col items-stretch gap-5 p-5 sm:p-7">
-        {/* Header: Title, Metric, Growth Badge, and Mode Switcher */}
+      <CardContent className="flex flex-col items-stretch gap-4 p-5 sm:p-6">
+        {/* Header: Title, Metric, Growth Indicator, and Mode Switcher */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {chartMode === 'networth' ? 'Tren Kekayaan & Portofolio' : 'Arus Kas Bersih (Net Cashflow)'}
+            <div className={`flex items-center flex-wrap gap-2 text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className="uppercase tracking-wider font-semibold">
+                {chartMode === 'networth' ? 'Tren Total Aset Lintas Bulan' : 'Arus Kas Bersih Lintas Bulan'}
               </span>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                isDark ? 'bg-white/5 border-white/10 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
-              }`}>
-                Periode {currentMonthSheet}
-              </span>
+              <span aria-hidden="true">·</span>
+              <span className="font-mono">{recapRangeLabel}</span>
             </div>
 
-            <div className="flex flex-wrap items-baseline gap-2 sm:gap-3.5">
-              <span className={`text-3xl sm:text-4xl font-black font-mono tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <div className="flex flex-wrap items-baseline gap-2.5">
+              <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight tabular-nums ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {displayMoney(displayMainValue)}
               </span>
 
-              <div
-                className={`flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                  changePct >= 0
-                    ? isDark
-                      ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30'
-                      : 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                    : isDark
-                      ? 'text-red-400 bg-red-500/15 border-red-500/30'
-                      : 'text-red-700 bg-red-50 border-red-200'
-                }`}
-              >
-                {changePct >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                <span>{changePct >= 0 ? `+${changePct}%` : `${changePct}%`}</span>
-                <span className="font-normal opacity-80 text-[10px] ml-0.5">MoM</span>
-              </div>
+              {hasComparison && (
+                <span
+                  className={`inline-flex items-center gap-1 text-xs font-semibold font-mono ${
+                    changePct >= 0
+                      ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                      : isDark ? 'text-rose-400' : 'text-rose-600'
+                  }`}
+                >
+                  {changePct >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                  <span>
+                    {changeDiff >= 0 ? `+${displayMoney(changeDiff)}` : displayMoney(changeDiff)} ({changePct >= 0 ? `+${changePct}%` : `${changePct}%`})
+                  </span>
+                  <span className="font-normal opacity-75 text-[11px]">
+                    {prevMonthLabel} → {activeMonthLabel}
+                  </span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -244,7 +609,7 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
                       : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Net Worth
+                Total Aset
               </button>
               <button
                 onClick={() => setChartMode('cashflow')}
@@ -278,103 +643,85 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
           </div>
         </div>
 
-        <div className="grow">
-          {/* Stats Row following line-charts-9 design (NO YELLOW) */}
-          <div className="flex items-center justify-between flex-wrap gap-2.5 text-xs sm:text-sm mb-3 pb-3 border-b border-slate-200/80 dark:border-white/10">
-            {/* Primary metric stat */}
-            <div className="flex items-center gap-4 sm:gap-6">
-              <div className="flex items-center gap-2">
-                <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
-                  {chartMode === 'networth' ? 'Portofolio Aktif:' : 'Surplus Bulanan:'}
-                </span>
-                <span className="font-semibold font-mono">
-                  {displayMoney(chartMode === 'networth' ? totalInvestment : netCashflow)}
-                </span>
-                <div
-                  className={`flex items-center gap-0.5 text-xs font-bold ${
-                    netCashflow >= 0
-                      ? isDark ? 'text-emerald-400' : 'text-emerald-600'
-                      : isDark ? 'text-red-400' : 'text-red-600'
-                  }`}
-                >
-                  {netCashflow >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                  <span>({netCashflowPct >= 0 ? `+${netCashflowPct}%` : `${netCashflowPct}%`})</span>
-                </div>
-              </div>
-            </div>
-
-            {/* High, Low, Change Stats with clean navy/slate palette */}
-            <div className={`flex items-center gap-4 sm:gap-6 text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              <span>
-                High: <span className={`font-semibold font-mono ${isDark ? 'text-sky-400' : 'text-sky-600'}`}>{formatCondensedRupiah(highValue)}</span>
-              </span>
-              <span>
-                Low: <span className={`font-semibold font-mono ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{formatCondensedRupiah(lowValue)}</span>
-              </span>
-              <span>
-                Change: <span className={`font-semibold font-mono ${
-                  changePct >= 0
-                    ? isDark ? 'text-emerald-400' : 'text-emerald-600'
-                    : isDark ? 'text-red-400' : 'text-red-600'
-                }`}>
-                  {changePct >= 0 ? `+${changePct}%` : `${changePct}%`}
-                </span>
-              </span>
-            </div>
+        {/* Summary Metrics Bar */}
+        <div className="flex items-center justify-between flex-wrap gap-2.5 text-xs pb-3 border-b border-slate-200/80 dark:border-white/10">
+          <div className="flex items-center gap-2">
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+              {chartMode === 'networth' ? `Portofolio (${currentMonthSheet}):` : `Surplus (${currentMonthSheet}):`}
+            </span>
+            <span className="font-semibold font-mono tabular-nums">
+              {displayMoney(chartMode === 'networth' ? totalInvestment : netCashflow)}
+            </span>
+            <span className={`font-mono text-[11px] ${
+              secondaryRatioPct >= 0
+                ? isDark ? 'text-sky-400' : 'text-sky-600'
+                : isDark ? 'text-rose-400' : 'text-rose-600'
+            }`}>
+              ({chartMode === 'networth' ? `${secondaryRatioPct}% Aset` : `${secondaryRatioPct >= 0 ? '+' : ''}${secondaryRatioPct}% Income`})
+            </span>
           </div>
 
-          {/* Chart with Dot Grid, Line Shadow, and Reference Line matching line-charts-9 */}
+          <div className={`flex items-center flex-wrap gap-4 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <span>
+              Tertinggi{highPoint ? ` (${highPoint.date})` : ''}:{' '}
+              <span className={`font-semibold font-mono tabular-nums ${isDark ? 'text-sky-400' : 'text-sky-600'}`}>
+                {formatCondensedRupiah(highValue)}
+              </span>
+            </span>
+            <span>
+              Terendah{lowPoint ? ` (${lowPoint.date})` : ''}:{' '}
+              <span className={`font-semibold font-mono tabular-nums ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                {formatCondensedRupiah(lowValue)}
+              </span>
+            </span>
+            <span>
+              Perubahan:{' '}
+              <span className={`font-semibold font-mono tabular-nums ${
+                changePct >= 0
+                  ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                  : isDark ? 'text-rose-400' : 'text-rose-600'
+              }`}>
+                {changePct >= 0 ? `+${changePct}%` : `${changePct}%`}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* Chart Area or Honest Empty State */}
+        {chartPoints.length > 0 ? (
           <ChartContainer
             config={chartConfig}
-            className="h-72 sm:h-96 w-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
+            className="h-64 sm:h-80 w-full !aspect-auto [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
           >
             <ComposedChart
               data={chartPoints}
               margin={{
-                top: 20,
-                right: 15,
-                left: -10,
-                bottom: 20,
+                top: 16,
+                right: 18,
+                left: 4,
+                bottom: 8,
               }}
             >
               <defs>
-                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={chartConfig.value.color} stopOpacity={isDark ? 0.22 : 0.12} />
-                  <stop offset="100%" stopColor={chartConfig.value.color} stopOpacity={0} />
+                <linearGradient id="ringkasanAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={chartConfig.value.color} stopOpacity={isDark ? 0.22 : 0.15} />
+                  <stop offset="100%" stopColor={chartConfig.value.color} stopOpacity={0.0} />
                 </linearGradient>
-                <pattern id="dotGrid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <circle cx="10" cy="10" r="1" fill={isDark ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.16)'} />
-                </pattern>
-                <filter id="dotShadow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feDropShadow dx="2" dy="3" stdDeviation="3" floodColor="rgba(0,0,0,0.8)" />
-                </filter>
-                <filter id="lineShadow" x="-100%" y="-100%" width="300%" height="300%">
-                  <feDropShadow
-                    dx="4"
-                    dy="6"
-                    stdDeviation="22"
-                    floodColor={isDark ? 'rgba(56, 189, 248, 0.85)' : 'rgba(2, 132, 199, 0.45)'}
-                  />
-                </filter>
               </defs>
 
-              <rect x="0" y="0" width="100%" height="100%" fill="url(#dotGrid)" style={{ pointerEvents: 'none' }} />
-
               <CartesianGrid
-                strokeDasharray="4 8"
-                stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)'}
-                strokeOpacity={1}
+                strokeDasharray="4 6"
+                stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,23,42,0.07)'}
                 horizontal={true}
                 vertical={false}
               />
 
-              {/* Active tick reference line */}
               {activeRefDate && (
                 <ReferenceLine
                   x={activeRefDate}
-                  stroke={chartConfig.value.color}
-                  strokeDasharray="4 4"
-                  strokeWidth={1}
+                  stroke={isDark ? 'rgba(56, 189, 248, 0.4)' : 'rgba(2, 132, 199, 0.4)'}
+                  strokeDasharray="3 3"
+                  strokeWidth={1.2}
                 />
               )}
 
@@ -382,27 +729,35 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
                 dataKey="date"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: chartConfig.value.color }}
-                tickMargin={15}
-                interval="preserveStartEnd"
+                tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }}
+                tickMargin={10}
+                interval={0}
               />
 
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: chartConfig.value.color }}
+                width={56}
+                tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }}
                 tickFormatter={(value) => formatCondensedRupiah(value)}
-                tickMargin={15}
-                domain={['dataMin - 1000000', 'dataMax + 1000000']}
+                tickMargin={8}
+                domain={yAxisDomain}
               />
 
               <ChartTooltip
                 content={<CustomTooltip />}
                 cursor={{
                   strokeDasharray: '3 3',
-                  stroke: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(15,23,42,0.25)',
-                  strokeOpacity: 0.5,
+                  stroke: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.2)',
                 }}
+              />
+
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="none"
+                fill="url(#ringkasanAreaGrad)"
+                isAnimationActive={false}
               />
 
               <Line
@@ -410,36 +765,62 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
                 dataKey="value"
                 stroke={chartConfig.value.color}
                 strokeWidth={2.5}
-                filter="url(#lineShadow)"
+                isAnimationActive={false}
                 dot={(props: any) => {
                   const { cx, cy, payload } = props;
-                  if (payload.isKey) {
-                    return (
-                      <circle
-                        key={`dot-${payload.date}`}
-                        cx={cx}
-                        cy={cy}
-                        r={6}
-                        fill={chartConfig.value.color}
-                        stroke={isDark ? '#0f172a' : '#ffffff'}
-                        strokeWidth={2}
-                        filter="url(#dotShadow)"
-                      />
-                    );
-                  }
-                  return <g key={`dot-${payload.date}`} />;
+                  if (cx === undefined || cy === undefined) return <g key={`empty-${payload?.date}`} />;
+                  const isCurr = Boolean(payload?.isCurrent);
+                  return (
+                    <circle
+                      key={`dot-${payload.date}`}
+                      cx={cx}
+                      cy={cy}
+                      r={isCurr ? 6 : 4.5}
+                      fill={isCurr ? (isDark ? '#38bdf8' : '#0284c7') : chartConfig.value.color}
+                      stroke={isDark ? '#0f172a' : '#ffffff'}
+                      strokeWidth={isCurr ? 2.5 : 2}
+                    />
+                  );
                 }}
                 activeDot={{
-                  r: 6,
+                  r: 6.5,
                   fill: chartConfig.value.color,
                   stroke: isDark ? '#0f172a' : '#ffffff',
                   strokeWidth: 2,
-                  filter: 'url(#dotShadow)',
                 }}
               />
             </ComposedChart>
           </ChartContainer>
-        </div>
+        ) : (
+          <div
+            className={`h-56 sm:h-64 rounded-xl border flex flex-col items-center justify-center text-center p-6 ${
+              isDark ? 'bg-white/[0.02] border-white/10 text-slate-400' : 'bg-slate-50 border-slate-200/80 text-slate-500'
+            }`}
+          >
+            <p className={`text-xs font-semibold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              {chartMode === 'networth'
+                ? 'Belum ada rekapan total aset lintas bulan yang terdeteksi'
+                : 'Belum ada transaksi pemasukan atau pengeluaran pada tab bulan ini'}
+            </p>
+            <p className="text-[11px] max-w-md mb-3">
+              {chartMode === 'networth'
+                ? 'Klik tombol Sync Sheets untuk menarik seluruh tab bulan rekapan dari Google Sheet Anda.'
+                : 'Catat transaksi pemasukan atau pengeluaran terlebih dahulu untuk melihat grafik arus kas bersih.'}
+            </p>
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate(chartMode === 'networth' ? 'portfolio' : 'cashflow')}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
+                    : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
+                }`}
+              >
+                {chartMode === 'networth' ? 'Kelola Portofolio' : 'Input Transaksi'}
+              </button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

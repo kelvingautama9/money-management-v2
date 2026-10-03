@@ -557,7 +557,7 @@ export function parseSheetGridData(
     }
   });
 
-  // Post-processing: If totalAset was not explicitly found in sheet cell, calculate from account balances
+  // Post-processing: If totalAset was not explicitly found in sheet cell, calculate from account balances or transactions
   if (!summary.totalAset && summary.accountBalances) {
     const balances = summary.accountBalances;
     let sumTotal = 0;
@@ -574,13 +574,29 @@ export function parseSheetGridData(
       'cash'
     ];
 
+    const seenKeys = new Set<string>();
     for (const acc of recognizedAccounts) {
       const clean = acc.replace(/[^a-z0-9]/g, '');
       const val = balances[acc] ?? balances[clean];
       if (typeof val === 'number') {
         sumTotal += val;
         hasValidBalances = true;
+        seenKeys.add(acc);
+        seenKeys.add(clean);
       }
+    }
+
+    // If user has custom account names in their Nama Akun table, sum them cleanly without double-counting aliases
+    if (!hasValidBalances) {
+      Object.entries(balances).forEach(([k, v]) => {
+        // Only count original case-sensitive or spaced keys to avoid double counting lowercase/stripped keys
+        const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (typeof v === 'number' && !seenKeys.has(cleanK)) {
+          seenKeys.add(cleanK);
+          sumTotal += v;
+          hasValidBalances = true;
+        }
+      });
     }
 
     if (hasValidBalances && sumTotal !== 0) {
@@ -588,7 +604,89 @@ export function parseSheetGridData(
     }
   }
 
+  // Fallback 2: If totalAset is still not set, check cashStandbyDanaDarurat + totalInvestment
+  if (!summary.totalAset && (summary.cashStandbyDanaDarurat || summary.totalInvestment)) {
+    const combined = (summary.cashStandbyDanaDarurat || 0) + (summary.totalInvestment || 0);
+    if (combined !== 0) {
+      summary.totalAset = combined;
+    }
+  }
+
+  // Fallback 3: If totalAset is still not set, derive from transactions (Saldo Bulan Lalu + Income + Transfer Masuk - Transfer Keluar - Expense)
+  if (!summary.totalAset && transactions.length > 0) {
+    let txNetWorth = 0;
+    transactions.forEach((t) => {
+      const amt = Number(t.jumlah) || 0;
+      if (t.tipe === 'Saldo Bulan Lalu' || t.kategori.toLowerCase().includes('saldo awal')) {
+        txNetWorth += amt;
+      } else if (t.tipe === 'Income') {
+        txNetWorth += amt;
+      } else if (t.tipe === 'Transfer Masuk') {
+        txNetWorth += amt;
+      } else if (t.tipe === 'Transfer Keluar') {
+        txNetWorth -= amt;
+      } else if (t.tipe === 'Expense') {
+        txNetWorth -= amt;
+      }
+    });
+    if (txNetWorth !== 0) {
+      summary.totalAset = txNetWorth;
+    }
+  }
+
   return { transactions, summary };
+}
+
+/**
+ * Batch fetches multiple month tabs in a single Google Sheets API call (`values:batchGet`)
+ * and returns parsed transactions and summary metrics for each month tab.
+ */
+export async function batchFetchAllMonthTabs(
+  spreadsheetId: string,
+  tabTitles: string[],
+  accessToken: string
+): Promise<Record<string, { transactions: Transaction[]; summary: SheetSummary }>> {
+  const result: Record<string, { transactions: Transaction[]; summary: SheetSummary }> = {};
+  if (!spreadsheetId || !accessToken || !Array.isArray(tabTitles) || tabTitles.length === 0) {
+    return result;
+  }
+
+  // Filter out non-month utility tabs like INVESTMENT / INVESTING
+  const monthTabs = tabTitles.filter((t) => {
+    const up = (t || '').trim().toUpperCase();
+    return up && up !== 'INVESTMENT' && up !== 'INVESTING' && up !== 'PREVIEW';
+  });
+
+  if (monthTabs.length === 0) return result;
+
+  try {
+    const queryParams = monthTabs
+      .map((tab) => `ranges=${encodeURIComponent(formatSheetRange(tab, 'A1:N100'))}`)
+      .join('&');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${queryParams}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!res.ok) {
+      return result;
+    }
+
+    const data = await res.json();
+    const valueRanges: Array<{ range?: string; values?: string[][] }> = data.valueRanges || [];
+
+    valueRanges.forEach((vr, idx) => {
+      const tabName = monthTabs[idx];
+      if (!tabName) return;
+      const rows = vr.values || [];
+      const parsed = parseSheetGridData(rows, tabName);
+      result[tabName] = parsed;
+    });
+  } catch (err) {
+    console.warn('batchFetchAllMonthTabs error:', err);
+  }
+
+  return result;
 }
 
 /**

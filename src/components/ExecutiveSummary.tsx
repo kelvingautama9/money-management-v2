@@ -55,6 +55,7 @@ interface ExecutiveSummaryProps {
   currentMonthSheet?: string;
   availableSheets?: string[];
   onSelectMonthSheet?: (name: string) => void;
+  sheetSummaries?: Record<string, any>;
 }
 
 export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
@@ -78,7 +79,8 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   isSyncing = false,
   currentMonthSheet = 'SEPTEMBER',
   availableSheets = [],
-  onSelectMonthSheet
+  onSelectMonthSheet,
+  sheetSummaries = {}
 }) => {
   const [hideBalance, setHideBalance] = useState(false);
   const [isReportPreviewOpen, setIsReportPreviewOpen] = useState(false);
@@ -133,19 +135,61 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const spendRatio = totalPemasukan > 0 ? ((totalPengeluaran / totalPemasukan) * 100).toFixed(1) : '0';
   const saveRatio = totalPemasukan > 0 ? ((sisaSaldoIncome / totalPemasukan) * 100).toFixed(1) : '0';
 
-  // Dynamic MoM growth calculation from historical snapshots
+  // Dynamic MoM growth calculation across all detected Google Sheet month tabs
   const momGrowth = useMemo(() => {
-    if (history && history.length >= 2) {
-      const latest = history[history.length - 1];
-      const prev = history[history.length - 2];
-      if (latest && prev && prev.totalNetWorth > 0) {
-        const diff = latest.totalNetWorth - prev.totalNetWorth;
-        const pct = ((diff / prev.totalNetWorth) * 100).toFixed(1);
-        return { diff, pct: Number(pct) };
+    const monthOrder: Record<string, number> = {
+      januari: 1, jan: 1, februari: 2, feb: 2, maret: 3, mar: 3, april: 4, apr: 4,
+      mei: 5, may: 5, juni: 6, jun: 6, juli: 7, jul: 7, agustus: 8, agu: 8, ags: 8, aug: 8,
+      september: 9, sep: 9, sept: 9, oktober: 10, okt: 10, oct: 10, november: 11, nov: 11, desember: 12, des: 12, dec: 12
+    };
+    const getIdx = (s: string) => {
+      const c = (s || '').toLowerCase().replace(/[^a-z]/g, '');
+      for (const [k, v] of Object.entries(monthOrder)) {
+        if (c === k || c.startsWith(k)) return v;
+      }
+      return 99;
+    };
+
+    const currIdx = getIdx(currentMonthSheet);
+    const tabs = Array.from(new Set([...(availableSheets || []), currentMonthSheet])).filter((t) => {
+      const u = (t || '').toUpperCase().trim();
+      return u && u !== 'INVESTMENT' && u !== 'INVESTING' && u !== 'PREVIEW';
+    });
+
+    const points: Array<{ order: number; val: number; isCurr: boolean }> = [];
+    const seen = new Set<number>();
+
+    tabs.forEach((tab) => {
+      const idx = getIdx(tab);
+      if (idx !== 99 && seen.has(idx)) return;
+      const isCurr = tab.toLowerCase() === (currentMonthSheet || '').toLowerCase() || (idx !== 99 && idx === currIdx);
+      let val = isCurr && totalAset !== 0 ? totalAset : 0;
+      if (val === 0) {
+        const sum = sheetSummaries?.[tab] || sheetSummaries?.[tab.toUpperCase()] || sheetSummaries?.[tab.toLowerCase()];
+        if (sum) {
+          val = Number(sum.totalAset) || ((Number(sum.cashStandbyDanaDarurat) || 0) + (Number(sum.totalInvestment) || 0));
+        }
+      }
+      if (val !== 0) {
+        if (idx !== 99) seen.add(idx);
+        points.push({ order: idx, val, isCurr });
+      }
+    });
+
+    points.sort((a, b) => a.order - b.order);
+    if (points.length >= 2) {
+      const activePos = points.findIndex((p) => p.isCurr);
+      const targetPos = activePos >= 1 ? activePos : points.length - 1;
+      const currVal = points[targetPos].val;
+      const prevVal = points[targetPos - 1].val;
+      if (prevVal !== 0) {
+        const diff = currVal - prevVal;
+        const pct = Number(((diff / Math.abs(prevVal)) * 100).toFixed(1));
+        return { diff, pct };
       }
     }
     return null;
-  }, [history]);
+  }, [availableSheets, sheetSummaries, currentMonthSheet, totalAset]);
 
   // Format balance with privacy mask
   const displayMoney = (amount: number) => {
@@ -325,6 +369,8 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         history={history}
         transactions={transactions}
         currentMonthSheet={currentMonthSheet}
+        availableSheets={availableSheets}
+        sheetSummaries={sheetSummaries}
         isDark={isDark}
         hideBalance={hideBalance}
         onNavigate={onNavigate}

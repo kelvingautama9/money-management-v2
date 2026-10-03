@@ -48,7 +48,8 @@ import {
   syncBudgetToSheet,
   reconcileBudgetMetrics,
   findSpreadsheetByName,
-  listUserSpreadsheets
+  listUserSpreadsheets,
+  batchFetchAllMonthTabs
 } from './lib/sheetsApi';
 import { triggerHaptic } from './lib/haptics';
 
@@ -360,31 +361,64 @@ export default function App() {
             localStorage.setItem('kelvin_financial_available_sheets', JSON.stringify(titles));
           } catch (e) {}
 
-          // If current sheetName isn't in titles, switch to closest match or the first existing tab
-          const exactMatch = titles.find((t) => t === sheetName);
-          if (!exactMatch) {
-            const caseMatch = titles.find((t) => t.toLowerCase() === sheetName.toLowerCase());
-            const target = caseMatch || titles[0];
-            if (target) {
-              setSheetName(target);
-              try {
-                localStorage.setItem('kelvin_financial_sheet_name', target);
-              } catch (e) {}
-            }
-          }
-          const invMatch =
-            titles.find((t) => t.toUpperCase() === 'INVESTMENT') ||
-            titles.find((t) => t.toUpperCase() === 'INVESTING') ||
-            titles.find((t) => t.toLowerCase().includes('invest'));
-          if (invMatch) {
-            setHasInvestingTab(true);
-            setInvestingTabTitle(invMatch);
-          } else {
-            setHasInvestingTab(false);
-            setInvestingTrades([]);
-            setInvestingActiveSummaries([]);
-          }
-          setSyncNotice(`Tab Google Sheet terdeteksi (${titles.length} tab): ${titles.join(', ')}`);
+           // If current sheetName isn't in titles, switch to closest match or the first existing tab
+           const exactMatch = titles.find((t) => t === sheetName);
+           let activeTabToLoad = sheetName;
+           if (!exactMatch) {
+             const caseMatch = titles.find((t) => t.toLowerCase() === sheetName.toLowerCase());
+             const target = caseMatch || titles[0];
+             if (target) {
+               activeTabToLoad = target;
+               setSheetName(target);
+               try {
+                 localStorage.setItem('kelvin_financial_sheet_name', target);
+               } catch (e) {}
+             }
+           }
+           const invMatch =
+             titles.find((t) => t.toUpperCase() === 'INVESTMENT') ||
+             titles.find((t) => t.toUpperCase() === 'INVESTING') ||
+             titles.find((t) => t.toLowerCase().includes('invest'));
+           if (invMatch) {
+             setHasInvestingTab(true);
+             setInvestingTabTitle(invMatch);
+           } else {
+             setHasInvestingTab(false);
+             setInvestingTrades([]);
+             setInvestingActiveSummaries([]);
+           }
+
+           // Batch fetch all detected month tabs so the Line Chart and multi-month summaries have real data for every tab
+           const batchData = await batchFetchAllMonthTabs(cleanId, titles, token);
+           if (batchData && Object.keys(batchData).length > 0) {
+             setSheetSummaries((prev) => {
+               const updated = { ...prev };
+               Object.entries(batchData).forEach(([tabKey, parsed]) => {
+                 if (parsed.summary) {
+                   updated[tabKey] = parsed.summary;
+                   updated[tabKey.toUpperCase()] = parsed.summary;
+                   updated[tabKey.toLowerCase()] = parsed.summary;
+                 }
+                 if (parsed.transactions && parsed.transactions.length > 0) {
+                   try {
+                     localStorage.setItem(`kelvin_financial_txs_${tabKey}`, JSON.stringify(parsed.transactions));
+                   } catch (e) {}
+                 }
+               });
+               try {
+                 localStorage.setItem('kelvin_financial_sheet_summaries', JSON.stringify(updated));
+               } catch (e) {}
+               return updated;
+             });
+
+             const currentTabParsed = batchData[activeTabToLoad];
+             if (currentTabParsed && currentTabParsed.transactions.length > 0) {
+               setTransactions(currentTabParsed.transactions);
+               setLastSynced(new Date());
+             }
+           }
+
+           setSyncNotice(`Tab Google Sheet terdeteksi (${titles.length} tab): ${titles.join(', ')}`);
         }
       } catch (e: any) {
         console.warn('Tab sheets discovery error:', e);
@@ -1361,21 +1395,48 @@ export default function App() {
             localStorage.setItem('kelvin_financial_available_sheets', JSON.stringify(remoteTitles));
           } catch (e) {}
 
-          // If currently selected sheet is not in remote titles, switch to closest match or first tab
-          if (!remoteTitles.includes(activeSheetName)) {
-            const caseMatch = remoteTitles.find(
-              (t) => t.toLowerCase() === activeSheetName.toLowerCase()
-            );
-            const targetTab = caseMatch || remoteTitles[0];
-            setSheetName(targetTab);
-            try {
-              localStorage.setItem('kelvin_financial_sheet_name', targetTab);
-            } catch (e) {}
-          }
-        }
-      } catch (e) {
-        console.warn('Could not refresh remote sheet titles:', e);
-      }
+           // If currently selected sheet is not in remote titles, switch to closest match or first tab
+           if (!remoteTitles.includes(activeSheetName)) {
+             const caseMatch = remoteTitles.find(
+               (t) => t.toLowerCase() === activeSheetName.toLowerCase()
+             );
+             const targetTab = caseMatch || remoteTitles[0];
+             setSheetName(targetTab);
+             try {
+               localStorage.setItem('kelvin_financial_sheet_name', targetTab);
+             } catch (e) {}
+           }
+
+           // Batch fetch all detected month tabs so multi-month Line Chart stays synchronized across all tabs
+           batchFetchAllMonthTabs(cleanId, remoteTitles, token)
+             .then((batchData) => {
+               if (batchData && Object.keys(batchData).length > 0) {
+                 setSheetSummaries((prev) => {
+                   const updated = { ...prev };
+                   Object.entries(batchData).forEach(([tabKey, parsed]) => {
+                     if (parsed.summary) {
+                       updated[tabKey] = parsed.summary;
+                       updated[tabKey.toUpperCase()] = parsed.summary;
+                       updated[tabKey.toLowerCase()] = parsed.summary;
+                     }
+                     if (parsed.transactions && parsed.transactions.length > 0) {
+                       try {
+                         localStorage.setItem(`kelvin_financial_txs_${tabKey}`, JSON.stringify(parsed.transactions));
+                       } catch (e) {}
+                     }
+                   });
+                   try {
+                     localStorage.setItem('kelvin_financial_sheet_summaries', JSON.stringify(updated));
+                   } catch (e) {}
+                   return updated;
+                 });
+               }
+             })
+             .catch((err) => console.warn('Background batchFetchAllMonthTabs error:', err));
+         }
+       } catch (e) {
+         console.warn('Could not refresh remote sheet titles:', e);
+       }
 
       // 2. Fetch grid data A1:N100 to capture transactions and summary metrics
       const safeRange = formatSheetRange(activeSheetName, 'A1:N100');
@@ -2154,6 +2215,7 @@ export default function App() {
                         currentMonthSheet={sheetName}
                         availableSheets={availableSheets}
                         onSelectMonthSheet={handleSelectMonth}
+                        sheetSummaries={isZeroState ? {} : sheetSummaries}
                       />
                     </div>
                   )}
