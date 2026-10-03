@@ -479,14 +479,36 @@ export function parseSheetGridData(
         cellTextLower.includes('net worth') ||
         cellTextLower === 'grand total'
       ) {
-        let nextVal = row[c + 1] ?? row[c + 2] ?? row[c + 3];
-        // If not on same row, check row below
-        if ((nextVal === undefined || nextVal === '') && rows[rowIndex + 1]) {
-          nextVal = rows[rowIndex + 1][c] ?? rows[rowIndex + 1][c + 1];
+        let targetCol = c + 1;
+        let targetRow = rowIndex + 1;
+        let nextVal: any = undefined;
+
+        if (row[c + 1] !== undefined && row[c + 1] !== '') {
+          nextVal = row[c + 1];
+          targetCol = c + 1;
+        } else if (row[c + 2] !== undefined && row[c + 2] !== '') {
+          nextVal = row[c + 2];
+          targetCol = c + 2;
+        } else if (row[c + 3] !== undefined && row[c + 3] !== '') {
+          nextVal = row[c + 3];
+          targetCol = c + 3;
+        } else if (rows[rowIndex + 1]) {
+          if (rows[rowIndex + 1][c] !== undefined && rows[rowIndex + 1][c] !== '') {
+            nextVal = rows[rowIndex + 1][c];
+            targetCol = c;
+            targetRow = rowIndex + 2;
+          } else if (rows[rowIndex + 1][c + 1] !== undefined && rows[rowIndex + 1][c + 1] !== '') {
+            nextVal = rows[rowIndex + 1][c + 1];
+            targetCol = c + 1;
+            targetRow = rowIndex + 2;
+          }
         }
+
         const num = parseCurrencyToNumber(nextVal);
-        if (num !== 0 || nextVal === '0') {
+        if (num !== 0 || nextVal === '0' || nextVal === 0) {
           summary.totalAset = num;
+          summary.sourceCell = `${colIndexToA1(targetCol)}${targetRow}`;
+          summary.sourceMethod = 'cell_anchor';
         }
       }
 
@@ -501,7 +523,7 @@ export function parseSheetGridData(
           nextVal = rows[rowIndex + 1][c] ?? rows[rowIndex + 1][c + 1];
         }
         const num = parseCurrencyToNumber(nextVal);
-        if (num !== 0 || nextVal === '0') {
+        if (num !== 0 || nextVal === '0' || nextVal === 0) {
           summary.cashStandbyDanaDarurat = num;
         }
       }
@@ -519,7 +541,7 @@ export function parseSheetGridData(
           nextVal = rows[rowIndex + 1][c] ?? rows[rowIndex + 1][c + 1];
         }
         const num = parseCurrencyToNumber(nextVal);
-        if (num !== 0 || nextVal === '0') {
+        if (num !== 0 || nextVal === '0' || nextVal === 0) {
           summary.totalInvestment = num;
         }
       }
@@ -557,11 +579,26 @@ export function parseSheetGridData(
     }
   });
 
-  // Post-processing: If totalAset was not explicitly found in sheet cell, calculate from account balances or transactions
-  if (!summary.totalAset && summary.accountBalances) {
+  // --- Self-Auditing & Component Reconciliation ---
+  // 1. Compute pure Income & Expense from transactions (excluding Saldo Bulan Lalu and Transfer Internal)
+  const pureIncome = transactions
+    .filter((t) => t.tipe === 'Income')
+    .reduce((sum, t) => sum + (Number(t.jumlah) || 0), 0);
+  const pureExpense = transactions
+    .filter((t) => t.tipe === 'Expense')
+    .reduce((sum, t) => sum + (Number(t.jumlah) || 0), 0);
+
+  summary.totalPemasukan = pureIncome;
+  summary.totalPengeluaran = pureExpense;
+  summary.netCashflow = pureIncome - pureExpense;
+
+  // 2. Reconcile Account Balances table (Nama Akun) into liquid cash vs investment
+  let accountTableLiquid = 0;
+  let accountTableInvest = 0;
+  let hasAccountTableBalances = false;
+
+  if (summary.accountBalances && Object.keys(summary.accountBalances).length > 0) {
     const balances = summary.accountBalances;
-    let sumTotal = 0;
-    let hasValidBalances = false;
     const recognizedAccounts = [
       'bank bca',
       'seabank',
@@ -579,29 +616,57 @@ export function parseSheetGridData(
       const clean = acc.replace(/[^a-z0-9]/g, '');
       const val = balances[acc] ?? balances[clean];
       if (typeof val === 'number') {
-        sumTotal += val;
-        hasValidBalances = true;
+        if (acc.includes('invest')) {
+          accountTableInvest += val;
+        } else {
+          accountTableLiquid += val;
+        }
+        hasAccountTableBalances = true;
         seenKeys.add(acc);
         seenKeys.add(clean);
       }
     }
 
-    // If user has custom account names in their Nama Akun table, sum them cleanly without double-counting aliases
-    if (!hasValidBalances) {
+    // If user has custom account names in their Nama Akun table, sum them cleanly without double-counting aliases or subtotals
+    if (!hasAccountTableBalances) {
       Object.entries(balances).forEach(([k, v]) => {
-        // Only count original case-sensitive or spaced keys to avoid double counting lowercase/stripped keys
-        const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (typeof v === 'number' && !seenKeys.has(cleanK)) {
+        const lowerK = k.toLowerCase().trim();
+        const cleanK = lowerK.replace(/[^a-z0-9]/g, '');
+        if (
+          typeof v === 'number' &&
+          cleanK &&
+          !seenKeys.has(cleanK) &&
+          !lowerK.startsWith('total') &&
+          !lowerK.startsWith('subtotal') &&
+          !lowerK.startsWith('grand total')
+        ) {
           seenKeys.add(cleanK);
-          sumTotal += v;
-          hasValidBalances = true;
+          if (lowerK.includes('invest') || lowerK.includes('pluang') || lowerK.includes('bibit') || lowerK.includes('binance')) {
+            accountTableInvest += v;
+          } else {
+            accountTableLiquid += v;
+          }
+          hasAccountTableBalances = true;
         }
       });
     }
+  }
 
-    if (hasValidBalances && sumTotal !== 0) {
-      summary.totalAset = sumTotal;
-    }
+  const accountTableTotal = accountTableLiquid + accountTableInvest;
+
+  // Fill missing component breakdown (Kas Cair vs Portofolio Investasi)
+  if (summary.cashStandbyDanaDarurat === undefined && hasAccountTableBalances) {
+    summary.cashStandbyDanaDarurat = accountTableLiquid;
+  }
+  if (summary.totalInvestment === undefined && hasAccountTableBalances && accountTableInvest > 0) {
+    summary.totalInvestment = accountTableInvest;
+  }
+
+  // Fallback 1: If Total Aset anchor cell was not explicitly present, use Account Balances Table sum
+  if (!summary.totalAset && hasAccountTableBalances && accountTableTotal !== 0) {
+    summary.totalAset = accountTableTotal;
+    summary.sourceMethod = 'account_table';
+    summary.sourceCell = 'Tabel Nama Akun';
   }
 
   // Fallback 2: If totalAset is still not set, check cashStandbyDanaDarurat + totalInvestment
@@ -609,37 +674,35 @@ export function parseSheetGridData(
     const combined = (summary.cashStandbyDanaDarurat || 0) + (summary.totalInvestment || 0);
     if (combined !== 0) {
       summary.totalAset = combined;
+      summary.sourceMethod = 'component_sum';
+      summary.sourceCell = 'Kas + Investasi';
     }
   }
 
-  // Fallback 3: If totalAset is still not set, derive from transactions (Saldo Bulan Lalu + Income + Transfer Masuk - Transfer Keluar - Expense)
-  if (!summary.totalAset && transactions.length > 0) {
-    let txNetWorth = 0;
-    transactions.forEach((t) => {
-      const amt = Number(t.jumlah) || 0;
-      if (t.tipe === 'Saldo Bulan Lalu' || t.kategori.toLowerCase().includes('saldo awal')) {
-        txNetWorth += amt;
-      } else if (t.tipe === 'Income') {
-        txNetWorth += amt;
-      } else if (t.tipe === 'Transfer Masuk') {
-        txNetWorth += amt;
-      } else if (t.tipe === 'Transfer Keluar') {
-        txNetWorth -= amt;
-      } else if (t.tipe === 'Expense') {
-        txNetWorth -= amt;
-      }
-    });
-    if (txNetWorth !== 0) {
-      summary.totalAset = txNetWorth;
+  // Reconcile components if totalAset is known from cell anchor: ensure Kas + Investasi = Total Aset
+  if (summary.totalAset && summary.totalAset !== 0) {
+    if (summary.cashStandbyDanaDarurat !== undefined && summary.totalInvestment === undefined) {
+      summary.totalInvestment = Math.max(0, summary.totalAset - summary.cashStandbyDanaDarurat);
+    } else if (summary.totalInvestment !== undefined && summary.cashStandbyDanaDarurat === undefined) {
+      summary.cashStandbyDanaDarurat = summary.totalAset - summary.totalInvestment;
+    } else if (summary.cashStandbyDanaDarurat === undefined && summary.totalInvestment === undefined) {
+      summary.cashStandbyDanaDarurat = summary.totalAset;
+      summary.totalInvestment = 0;
     }
   }
+
+  // Determine if this month tab has real financial activity (to filter out empty future template tabs)
+  const hasRealTx = transactions.some((t) => (Number(t.jumlah) || 0) !== 0);
+  const hasRealAset = Boolean(summary.totalAset && summary.totalAset !== 0);
+  summary.hasRealActivity = hasRealAset || hasRealTx || hasAccountTableBalances;
 
   return { transactions, summary };
 }
 
 /**
  * Batch fetches multiple month tabs in a single Google Sheets API call (`values:batchGet`)
- * and returns parsed transactions and summary metrics for each month tab.
+ * using `valueRenderOption=UNFORMATTED_VALUE` so formula cells return exact raw numbers
+ * with zero locale/formatting ambiguity.
  */
 export async function batchFetchAllMonthTabs(
   spreadsheetId: string,
@@ -663,7 +726,7 @@ export async function batchFetchAllMonthTabs(
     const queryParams = monthTabs
       .map((tab) => `ranges=${encodeURIComponent(formatSheetRange(tab, 'A1:N100'))}`)
       .join('&');
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${queryParams}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&${queryParams}`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -673,12 +736,12 @@ export async function batchFetchAllMonthTabs(
     }
 
     const data = await res.json();
-    const valueRanges: Array<{ range?: string; values?: string[][] }> = data.valueRanges || [];
+    const valueRanges: Array<{ range?: string; values?: any[][] }> = data.valueRanges || [];
 
     valueRanges.forEach((vr, idx) => {
       const tabName = monthTabs[idx];
       if (!tabName) return;
-      const rows = vr.values || [];
+      const rows = (vr.values || []) as string[][];
       const parsed = parseSheetGridData(rows, tabName);
       result[tabName] = parsed;
     });
@@ -704,13 +767,16 @@ export async function getSpreadsheetDetails(spreadsheetId: string, accessToken: 
 }
 
 /**
- * Reads range values from Google Sheets.
+ * Reads range values from Google Sheets using `UNFORMATTED_VALUE` for exact numeric precision.
  */
 export async function fetchSheetValues(spreadsheetId: string, range: string, accessToken: string): Promise<string[][]> {
   const encodedRange = encodeURIComponent(range);
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedRange}`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedRange}?valueRenderOption=UNFORMATTED_VALUE`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  );
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
     throw new Error(errData?.error?.message || `Gagal mengambil data dari Google Sheets (HTTP ${res.status})`);

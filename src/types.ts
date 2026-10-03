@@ -108,6 +108,12 @@ export interface SheetSummary {
   totalAset?: number;
   cashStandbyDanaDarurat?: number;
   totalInvestment?: number;
+  totalPemasukan?: number;
+  totalPengeluaran?: number;
+  netCashflow?: number;
+  sourceCell?: string;
+  sourceMethod?: 'cell_anchor' | 'account_table' | 'component_sum' | 'transactions';
+  hasRealActivity?: boolean;
   accountBalances?: Record<string, number>;
   emergencyFund?: Partial<EmergencyFund>;
   budgets?: Partial<BudgetCategory>[];

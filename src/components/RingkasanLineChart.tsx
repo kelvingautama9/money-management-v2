@@ -10,6 +10,7 @@ import { InvestmentHistory, Transaction, SheetSummary } from '../types';
 
 interface RingkasanLineChartProps {
   totalAset: number;
+  cashStandbyDanaDarurat?: number;
   totalInvestment: number;
   totalPemasukan: number;
   totalPengeluaran: number;
@@ -38,18 +39,32 @@ const MONTH_ORDER: Record<string, number> = {
   desember: 12, des: 12, dec: 12
 };
 
-function getMonthIndex(name: string): number {
-  const clean = (name || '').toLowerCase().replace(/[^a-z]/g, '');
-  if (!clean) return 99;
-  for (const [k, v] of Object.entries(MONTH_ORDER)) {
-    if (clean === k || clean.startsWith(k)) return v;
+/**
+ * Extracts year (if specified in tab name e.g. "Januari 2027") and month index (1..12)
+ * so cross-year tabs sort accurately and never collide.
+ */
+function parseMonthAndYear(name: string): { year: number; month: number; sortKey: number } {
+  const raw = (name || '').trim();
+  const yearMatch = raw.match(/\b(20\d{2})\b/);
+  const year = yearMatch ? parseInt(yearMatch[1], 10) : 2026;
+  const cleanAlpha = raw.toLowerCase().replace(/[^a-z]/g, '');
+
+  let month = 99;
+  if (cleanAlpha) {
+    for (const [k, v] of Object.entries(MONTH_ORDER)) {
+      if (cleanAlpha === k || cleanAlpha.startsWith(k)) {
+        month = v;
+        break;
+      }
+    }
   }
-  return 99;
+  const sortKey = month !== 99 ? year * 100 + month : 999999;
+  return { year, month, sortKey };
 }
 
 function formatMonthLabel(name: string): string {
   const clean = (name || '').trim();
-  const idx = getMonthIndex(clean);
+  const { year, month } = parseMonthAndYear(clean);
   const fullNames = [
     '',
     'Januari',
@@ -65,114 +80,160 @@ function formatMonthLabel(name: string): string {
     'November',
     'Desember'
   ];
-  if (idx >= 1 && idx <= 12) return fullNames[idx];
+  if (month >= 1 && month <= 12) {
+    return /\b20\d{2}\b/.test(clean) ? `${fullNames[month]} ${year}` : fullNames[month];
+  }
   return clean || 'Bulan';
 }
 
 function formatShortMonth(name: string): string {
   const clean = (name || '').trim();
-  const idx = getMonthIndex(clean);
+  const { year, month } = parseMonthAndYear(clean);
   const shortNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
-  if (idx >= 1 && idx <= 12) return shortNames[idx];
+  if (month >= 1 && month <= 12) {
+    return /\b20\d{2}\b/.test(clean) && year !== 2026
+      ? `${shortNames[month]} '${String(year).slice(-2)}`
+      : shortNames[month];
+  }
   return clean.slice(0, 4) || 'Bln';
 }
 
+interface ResolvedTabSnapshot {
+  totalAset: number;
+  kasCair: number;
+  investasi: number;
+  sourceLabel: string;
+  hasRealActivity: boolean;
+}
+
 /**
- * Resolves Total Aset (Net Worth) for a given Google Sheet month tab
- * using:
- * 1. Active month live `totalAset` if `isCurrent`
- * 2. `sheetSummaries[tabName]` (`totalAset`, or `cashStandbyDanaDarurat + totalInvestment`, or sum of `accountBalances`)
- * 3. Cached transactions in `localStorage` (`kelvin_financial_txs_${tabName}`)
- * 4. Matching record in `history`
+ * Strictly resolves Net Worth (Total Aset) and its components (Kas Cair vs Investasi)
+ * from the Account Snapshot / Summary Table (NEVER from raw transaction flow),
+ * with audit metadata indicating the exact source cell/method.
  */
-function resolveTabTotalAset(
+function resolveTabNetWorthSnapshot(
   tabName: string,
   isCurrent: boolean,
   liveTotalAset: number,
+  liveKasCair: number,
+  liveInvestasi: number,
   sheetSummaries: Record<string, SheetSummary>,
   history: InvestmentHistory[]
-): number {
-  if (isCurrent && liveTotalAset !== 0) {
-    return liveTotalAset;
-  }
-
+): ResolvedTabSnapshot {
   const sumObj =
     sheetSummaries?.[tabName] ||
     sheetSummaries?.[tabName.toUpperCase()] ||
     sheetSummaries?.[tabName.toLowerCase()];
 
-  if (sumObj) {
-    if (typeof sumObj.totalAset === 'number' && sumObj.totalAset !== 0) {
-      return sumObj.totalAset;
-    }
-    const combined = (Number(sumObj.cashStandbyDanaDarurat) || 0) + (Number(sumObj.totalInvestment) || 0);
-    if (combined !== 0) {
-      return combined;
-    }
-    if (sumObj.accountBalances && Object.keys(sumObj.accountBalances).length > 0) {
-      const seen = new Set<string>();
-      let accSum = 0;
-      let hasBal = false;
-      Object.entries(sumObj.accountBalances).forEach(([k, v]) => {
-        const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (typeof v === 'number' && cleanK && !seen.has(cleanK)) {
-          seen.add(cleanK);
-          accSum += v;
-          hasBal = true;
-        }
-      });
-      if (hasBal && accSum !== 0) {
-        return accSum;
-      }
-    }
+  if (isCurrent && liveTotalAset !== 0) {
+    const cellRef = sumObj?.sourceCell ? `Sel ${sumObj.sourceCell} (Tab ${tabName})` : `Tab Aktif (${tabName})`;
+    return {
+      totalAset: liveTotalAset,
+      kasCair: liveKasCair || Math.max(0, liveTotalAset - liveInvestasi),
+      investasi: liveInvestasi,
+      sourceLabel: cellRef,
+      hasRealActivity: true
+    };
   }
 
-  // Fallback to cached transactions for this tab
-  try {
-    const cached =
-      localStorage.getItem(`kelvin_financial_txs_${tabName}`) ||
-      localStorage.getItem(`kelvin_financial_txs_${tabName.toUpperCase()}`) ||
-      localStorage.getItem(`kelvin_financial_txs_${tabName.toLowerCase()}`);
-    if (cached) {
-      const parsed: Transaction[] = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        let txNet = 0;
-        parsed.forEach((t) => {
-          const amt = Number(t.jumlah) || 0;
-          if (t.tipe === 'Saldo Bulan Lalu' || (t.kategori || '').toLowerCase().includes('saldo awal')) {
-            txNet += amt;
-          } else if (t.tipe === 'Income') {
-            txNet += amt;
-          } else if (t.tipe === 'Transfer Masuk') {
-            txNet += amt;
-          } else if (t.tipe === 'Transfer Keluar') {
-            txNet -= amt;
-          } else if (t.tipe === 'Expense') {
-            txNet -= amt;
+  if (sumObj) {
+    let resolvedTotal = 0;
+    let sourceLabel = `Ringkasan Tab ${tabName}`;
+
+    if (typeof sumObj.totalAset === 'number' && sumObj.totalAset !== 0) {
+      resolvedTotal = sumObj.totalAset;
+      if (sumObj.sourceMethod === 'cell_anchor' && sumObj.sourceCell) {
+        sourceLabel = `Formula Sel ${sumObj.sourceCell} (Tab ${tabName})`;
+      } else if (sumObj.sourceMethod === 'account_table') {
+        sourceLabel = `Tabel Nama Akun (Tab ${tabName})`;
+      } else if (sumObj.sourceMethod === 'component_sum') {
+        sourceLabel = `Kas + Investasi (Tab ${tabName})`;
+      }
+    } else {
+      const combined = (Number(sumObj.cashStandbyDanaDarurat) || 0) + (Number(sumObj.totalInvestment) || 0);
+      if (combined !== 0) {
+        resolvedTotal = combined;
+        sourceLabel = `Kas + Investasi (Tab ${tabName})`;
+      } else if (sumObj.accountBalances && Object.keys(sumObj.accountBalances).length > 0) {
+        const seen = new Set<string>();
+        let accSum = 0;
+        let hasBal = false;
+        Object.entries(sumObj.accountBalances).forEach(([k, v]) => {
+          const lowerK = k.toLowerCase().trim();
+          const cleanK = lowerK.replace(/[^a-z0-9]/g, '');
+          if (
+            typeof v === 'number' &&
+            cleanK &&
+            !seen.has(cleanK) &&
+            !lowerK.startsWith('total') &&
+            !lowerK.startsWith('subtotal') &&
+            !lowerK.startsWith('grand total')
+          ) {
+            seen.add(cleanK);
+            accSum += v;
+            hasBal = true;
           }
         });
-        if (txNet !== 0) return txNet;
+        if (hasBal && accSum !== 0) {
+          resolvedTotal = accSum;
+          sourceLabel = `Tabel Nama Akun (Tab ${tabName})`;
+        }
       }
     }
-  } catch (e) {}
 
-  // Fallback to history record matching this month
-  const mIdx = getMonthIndex(tabName);
-  if (Array.isArray(history) && history.length > 0) {
-    const match = history.find((h) => {
-      const hIdx = getMonthIndex(h.bulan);
-      return (mIdx !== 99 && hIdx === mIdx) || h.bulan.toLowerCase().includes(tabName.toLowerCase());
-    });
-    if (match && Number(match.totalNetWorth) !== 0) {
-      return Number(match.totalNetWorth);
+    if (resolvedTotal !== 0) {
+      let kas = Number(sumObj.cashStandbyDanaDarurat) || 0;
+      let inv = Number(sumObj.totalInvestment) || 0;
+      if (kas === 0 && inv === 0) {
+        kas = resolvedTotal;
+      } else if (kas !== 0 && inv === 0 && resolvedTotal > kas) {
+        inv = resolvedTotal - kas;
+      } else if (inv !== 0 && kas === 0) {
+        kas = resolvedTotal - inv;
+      }
+
+      return {
+        totalAset: resolvedTotal,
+        kasCair: kas,
+        investasi: inv,
+        sourceLabel,
+        hasRealActivity: sumObj.hasRealActivity !== false
+      };
     }
   }
 
-  return isCurrent ? liveTotalAset : 0;
+  // Fallback to InvestmentHistory snapshot if available for this month
+  const { month } = parseMonthAndYear(tabName);
+  if (Array.isArray(history) && history.length > 0) {
+    const match = history.find((h) => {
+      const hParsed = parseMonthAndYear(h.bulan);
+      return (month !== 99 && hParsed.month === month) || h.bulan.toLowerCase().includes(tabName.toLowerCase());
+    });
+    if (match && Number(match.totalNetWorth) !== 0) {
+      const inv = (Number(match.pluang) || 0) + (Number(match.valasBca) || 0) + (Number(match.usdtBinance) || 0);
+      const total = Number(match.totalNetWorth);
+      return {
+        totalAset: total,
+        kasCair: Math.max(0, total - inv),
+        investasi: inv > 0 ? inv : total,
+        sourceLabel: `Rekap Historis (${match.bulan})`,
+        hasRealActivity: true
+      };
+    }
+  }
+
+  return {
+    totalAset: 0,
+    kasCair: 0,
+    investasi: 0,
+    sourceLabel: '-',
+    hasRealActivity: false
+  };
 }
 
 export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
   totalAset,
+  cashStandbyDanaDarurat = 0,
   totalInvestment,
   totalPemasukan,
   totalPengeluaran,
@@ -186,6 +247,8 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
   onNavigate
 }) => {
   const [chartMode, setChartMode] = useState<'networth' | 'cashflow'>('networth');
+  const [sortOrderMode, setSortOrderMode] = useState<'calendar' | 'sheet_order'>('calendar');
+  const [showComponentLines, setShowComponentLines] = useState<boolean>(true);
 
   const chartConfig = useMemo(() => {
     return {
@@ -193,13 +256,21 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
         label: chartMode === 'networth' ? 'Total Aset' : 'Arus Kas Bersih',
         color: isDark ? '#38bdf8' : '#0284c7',
       },
+      kasCair: {
+        label: 'Kas & Rekening',
+        color: isDark ? '#34d399' : '#059669',
+      },
+      investasi: {
+        label: 'Portofolio Investasi',
+        color: isDark ? '#818cf8' : '#4f46e5',
+      }
     } satisfies ChartConfig;
   }, [isDark, chartMode]);
 
-  // Build chart points directly from the user's detected Google Sheet month tabs (e.g. Januari, Februari, Maret, April, Juni, Agustus, etc.)
+  // Build 100% deterministic chart points from detected Google Sheet month tabs
   const chartPoints = useMemo(() => {
     const cleanCurr = (currentMonthSheet || '').trim();
-    const currMonthIdx = getMonthIndex(cleanCurr);
+    const currParsed = parseMonthAndYear(cleanCurr);
 
     // Filter detected tabs to real monthly recap tabs (excluding utility tabs like INVESTMENT/INVESTING/PREVIEW)
     const detectedMonthTabs = Array.from(
@@ -213,34 +284,48 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
       const pointMap = new Map<
         string,
         {
-          monthOrder: number;
+          sortKey: number;
           tabOrder: number;
           tabName: string;
           date: string;
           fullDate: string;
           value: number;
+          kasCair: number;
+          investasi: number;
+          sourceLabel: string;
           isCurrent: boolean;
         }
       >();
 
       detectedMonthTabs.forEach((tab, tabIdx) => {
-        const mIdx = getMonthIndex(tab);
-        const key = mIdx !== 99 ? `m-${mIdx}` : `tab-${tab.toLowerCase()}`;
+        const parsed = parseMonthAndYear(tab);
+        const key = parsed.month !== 99 ? `m-${parsed.sortKey}` : `tab-${tab.toLowerCase()}`;
         const isCurrent =
           tab.toLowerCase() === cleanCurr.toLowerCase() ||
-          (mIdx !== 99 && mIdx === currMonthIdx);
+          (parsed.month !== 99 && parsed.sortKey === currParsed.sortKey);
 
-        const val = resolveTabTotalAset(tab, isCurrent, totalAset, sheetSummaries, history);
+        const snap = resolveTabNetWorthSnapshot(
+          tab,
+          isCurrent,
+          totalAset,
+          cashStandbyDanaDarurat,
+          totalInvestment,
+          sheetSummaries,
+          history
+        );
 
-        // Include tab if it has a valid non-zero totalAset, or if it's the currently selected tab with data
-        if (val !== 0 || (isCurrent && totalAset > 0)) {
+        // Filter out future empty template tabs (where totalAset === 0 and no real activity)
+        if (snap.hasRealActivity && snap.totalAset !== 0) {
           pointMap.set(key, {
-            monthOrder: mIdx,
+            sortKey: parsed.sortKey,
             tabOrder: tabIdx,
             tabName: tab,
-            date: mIdx !== 99 ? formatShortMonth(tab) : tab,
-            fullDate: mIdx !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
-            value: val,
+            date: parsed.month !== 99 ? formatShortMonth(tab) : tab,
+            fullDate: parsed.month !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
+            value: snap.totalAset,
+            kasCair: snap.kasCair,
+            investasi: snap.investasi,
+            sourceLabel: snap.sourceLabel,
             isCurrent
           });
         }
@@ -249,29 +334,42 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
       // Also include any month in sheetSummaries that wasn't in availableSheets yet
       if (sheetSummaries && typeof sheetSummaries === 'object') {
         Object.keys(sheetSummaries).forEach((tabKey, idx) => {
-          const mIdx = getMonthIndex(tabKey);
-          if (mIdx === 99) return;
-          const key = `m-${mIdx}`;
+          const parsed = parseMonthAndYear(tabKey);
+          if (parsed.month === 99) return;
+          const key = `m-${parsed.sortKey}`;
           if (pointMap.has(key)) return;
-          const isCurrent = mIdx === currMonthIdx;
-          const val = resolveTabTotalAset(tabKey, isCurrent, totalAset, sheetSummaries, history);
-          if (val !== 0) {
+          const isCurrent = parsed.sortKey === currParsed.sortKey;
+          const snap = resolveTabNetWorthSnapshot(
+            tabKey,
+            isCurrent,
+            totalAset,
+            cashStandbyDanaDarurat,
+            totalInvestment,
+            sheetSummaries,
+            history
+          );
+          if (snap.hasRealActivity && snap.totalAset !== 0) {
             pointMap.set(key, {
-              monthOrder: mIdx,
+              sortKey: parsed.sortKey,
               tabOrder: 100 + idx,
               tabName: tabKey,
               date: formatShortMonth(tabKey),
               fullDate: `${formatMonthLabel(tabKey)} (Tab: ${tabKey})`,
-              value: val,
+              value: snap.totalAset,
+              kasCair: snap.kasCair,
+              investasi: snap.investasi,
+              sourceLabel: snap.sourceLabel,
               isCurrent
             });
           }
         });
       }
 
-      // Sort chronologically by month index (Januari -> Februari -> Maret -> April -> Juni -> Agustus -> dst.)
       const sorted = Array.from(pointMap.values()).sort((a, b) => {
-        if (a.monthOrder !== b.monthOrder) return a.monthOrder - b.monthOrder;
+        if (sortOrderMode === 'sheet_order') {
+          return a.tabOrder - b.tabOrder;
+        }
+        if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
         return a.tabOrder - b.tabOrder;
       });
 
@@ -288,15 +386,15 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
           profit,
           pnl,
           isLatest,
-          isKey: true // Mark every detected monthly recap tab clearly on the line chart
+          isKey: true
         };
       });
     } else {
-      // Cashflow mode: Net Cashflow (Pemasukan - Pengeluaran) for each detected month tab
+      // Cashflow mode: 100% pure Income minus pure Expense per month tab (ignoring Saldo Bulan Lalu & Transfer Internal)
       const cashflowMap = new Map<
         string,
         {
-          monthOrder: number;
+          sortKey: number;
           tabOrder: number;
           tabName: string;
           date: string;
@@ -304,56 +402,92 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
           income: number;
           expense: number;
           value: number;
+          kasCair: number;
+          investasi: number;
+          sourceLabel: string;
           isCurrent: boolean;
         }
       >();
 
       detectedMonthTabs.forEach((tab, tabIdx) => {
-        const mIdx = getMonthIndex(tab);
-        const key = mIdx !== 99 ? `m-${mIdx}` : `tab-${tab.toLowerCase()}`;
+        const parsed = parseMonthAndYear(tab);
+        const key = parsed.month !== 99 ? `m-${parsed.sortKey}` : `tab-${tab.toLowerCase()}`;
         const isCurrent =
           tab.toLowerCase() === cleanCurr.toLowerCase() ||
-          (mIdx !== 99 && mIdx === currMonthIdx);
+          (parsed.month !== 99 && parsed.sortKey === currParsed.sortKey);
 
-        if (isCurrent && (totalPemasukan > 0 || totalPengeluaran > 0 || transactions.length > 0)) {
+        if (isCurrent && (totalPemasukan > 0 || totalPengeluaran > 0)) {
           cashflowMap.set(key, {
-            monthOrder: mIdx,
+            sortKey: parsed.sortKey,
             tabOrder: tabIdx,
             tabName: tab,
-            date: mIdx !== 99 ? formatShortMonth(tab) : tab,
-            fullDate: mIdx !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
+            date: parsed.month !== 99 ? formatShortMonth(tab) : tab,
+            fullDate: parsed.month !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
             income: totalPemasukan,
             expense: totalPengeluaran,
             value: totalPemasukan - totalPengeluaran,
+            kasCair: totalPemasukan,
+            investasi: totalPengeluaran,
+            sourceLabel: `Mutasi Murni Tab ${tab}`,
             isCurrent: true
           });
           return;
         }
 
+        // Check precomputed pure cashflow in sheetSummaries first
+        const sumObj =
+          sheetSummaries?.[tab] ||
+          sheetSummaries?.[tab.toUpperCase()] ||
+          sheetSummaries?.[tab.toLowerCase()];
+
+        if (sumObj && ((sumObj.totalPemasukan ?? 0) > 0 || (sumObj.totalPengeluaran ?? 0) > 0)) {
+          const inc = Number(sumObj.totalPemasukan) || 0;
+          const exp = Number(sumObj.totalPengeluaran) || 0;
+          cashflowMap.set(key, {
+            sortKey: parsed.sortKey,
+            tabOrder: tabIdx,
+            tabName: tab,
+            date: parsed.month !== 99 ? formatShortMonth(tab) : tab,
+            fullDate: parsed.month !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
+            income: inc,
+            expense: exp,
+            value: inc - exp,
+            kasCair: inc,
+            investasi: exp,
+            sourceLabel: `Mutasi Murni Tab ${tab}`,
+            isCurrent
+          });
+          return;
+        }
+
+        // Fallback to cached transactions for this tab
         try {
           const cached =
             localStorage.getItem(`kelvin_financial_txs_${tab}`) ||
             localStorage.getItem(`kelvin_financial_txs_${tab.toUpperCase()}`) ||
             localStorage.getItem(`kelvin_financial_txs_${tab.toLowerCase()}`);
           if (cached) {
-            const parsed: Transaction[] = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              const inc = parsed
+            const parsedTxs: Transaction[] = JSON.parse(cached);
+            if (Array.isArray(parsedTxs) && parsedTxs.length > 0) {
+              const inc = parsedTxs
                 .filter((t) => t.tipe === 'Income')
                 .reduce((s, t) => s + (Number(t.jumlah) || 0), 0);
-              const exp = parsed
+              const exp = parsedTxs
                 .filter((t) => t.tipe === 'Expense')
                 .reduce((s, t) => s + (Number(t.jumlah) || 0), 0);
               if (inc > 0 || exp > 0) {
                 cashflowMap.set(key, {
-                  monthOrder: mIdx,
+                  sortKey: parsed.sortKey,
                   tabOrder: tabIdx,
                   tabName: tab,
-                  date: mIdx !== 99 ? formatShortMonth(tab) : tab,
-                  fullDate: mIdx !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
+                  date: parsed.month !== 99 ? formatShortMonth(tab) : tab,
+                  fullDate: parsed.month !== 99 ? `${formatMonthLabel(tab)} (Tab: ${tab})` : tab,
                   income: inc,
                   expense: exp,
                   value: inc - exp,
+                  kasCair: inc,
+                  investasi: exp,
+                  sourceLabel: `Mutasi Murni Tab ${tab}`,
                   isCurrent
                 });
               }
@@ -363,7 +497,10 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
       });
 
       const sorted = Array.from(cashflowMap.values()).sort((a, b) => {
-        if (a.monthOrder !== b.monthOrder) return a.monthOrder - b.monthOrder;
+        if (sortOrderMode === 'sheet_order') {
+          return a.tabOrder - b.tabOrder;
+        }
+        if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
         return a.tabOrder - b.tabOrder;
       });
 
@@ -388,11 +525,14 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
     }
   }, [
     chartMode,
+    sortOrderMode,
     availableSheets,
     sheetSummaries,
     history,
     transactions,
     totalAset,
+    cashStandbyDanaDarurat,
+    totalInvestment,
     totalPemasukan,
     totalPengeluaran,
     currentMonthSheet
@@ -401,7 +541,6 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
   const values = chartPoints.map((p) => p.value);
   const netCashflow = totalPemasukan - totalPengeluaran;
 
-  // Headline value reflects active month or latest recap month in the series
   const displayMainValue = useMemo(() => {
     if (chartMode === 'networth') {
       if (totalAset !== 0) return totalAset;
@@ -452,21 +591,28 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
     };
   }, [chartPoints]);
 
-  // Dynamic Y-Axis domain with proportional padding so lines never clip or flatten
+  // Dynamic Y-Axis domain accounting for both Total Aset and component breakdown lines if visible
   const yAxisDomain = useMemo<[number, number]>(() => {
-    if (values.length === 0) return [0, 10_000_000];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    if (chartPoints.length === 0) return [0, 10_000_000];
+    const allNums: number[] = [];
+    chartPoints.forEach((p) => {
+      allNums.push(p.value);
+      if (chartMode === 'networth' && showComponentLines) {
+        allNums.push(p.kasCair, p.investasi);
+      }
+    });
+    const min = Math.min(...allNums);
+    const max = Math.max(...allNums);
     if (min === max) {
       const pad = Math.max(Math.abs(max) * 0.15, 500_000);
       return [chartMode === 'networth' && min >= 0 ? Math.max(0, min - pad) : min - pad, max + pad];
     }
     const span = max - min;
-    const pad = Math.max(span * 0.2, 250_000);
+    const pad = Math.max(span * 0.18, 250_000);
     const lower = chartMode === 'networth' && min >= 0 ? Math.max(0, Math.floor(min - pad)) : Math.floor(min - pad);
     const upper = Math.ceil(max + pad);
     return [lower, upper];
-  }, [values, chartMode]);
+  }, [chartPoints, chartMode, showComponentLines]);
 
   const activeRefDate = useMemo(() => {
     if (chartPoints.length === 0) return undefined;
@@ -500,39 +646,77 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
     return totalPemasukan > 0 ? Number(((netCashflow / totalPemasukan) * 100).toFixed(1)) : 0;
   }, [chartMode, displayMainValue, totalInvestment, totalPemasukan, netCashflow]);
 
+  // Self-Auditing Tooltip with Kas Cair + Investasi breakdown and exact Sheet Source Cell
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div
-          className={`p-3 rounded-xl border text-xs shadow-lg ${
+          className={`p-3 rounded-xl border text-xs shadow-lg min-w-[215px] ${
             isDark
               ? 'bg-slate-900/95 border-white/15 text-white'
               : 'bg-white/95 border-slate-200 text-slate-900'
           }`}
         >
-          <div className={`text-[11px] font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            {data.fullDate || data.date}
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className={`text-[11px] font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              {data.fullDate || data.date}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-sm font-bold font-mono tabular-nums">
-              {displayMoney(data.value)}
+
+          <div className="flex items-baseline justify-between gap-3 pt-0.5">
+            <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              {chartMode === 'networth' ? 'Total Aset:' : 'Net Cashflow:'}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold font-mono tabular-nums">
+                {displayMoney(data.value)}
+              </span>
+              {data.pnl !== 0 && (
+                <span
+                  className={`text-[10px] font-semibold font-mono ${
+                    data.pnl >= 0
+                      ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                      : isDark ? 'text-rose-400' : 'text-rose-600'
+                  }`}
+                >
+                  ({data.pnl >= 0 ? `+${data.pnl}%` : `${data.pnl}%`})
+                </span>
+              )}
             </div>
-            {data.pnl !== 0 && (
-              <div
-                className={`text-[11px] font-semibold font-mono ${
-                  data.pnl >= 0
-                    ? isDark ? 'text-emerald-400' : 'text-emerald-600'
-                    : isDark ? 'text-rose-400' : 'text-rose-600'
-                }`}
-              >
-                {data.pnl >= 0 ? `+${data.pnl}%` : `${data.pnl}%`}
-              </div>
-            )}
           </div>
+
+          {/* Component Breakdown: Kas Cair vs Portofolio Investasi (or Income vs Expense) */}
+          <div className={`mt-2 pt-2 border-t space-y-1 text-[11px] ${isDark ? 'border-white/10' : 'border-slate-200/80'}`}>
+            <div className="flex items-center justify-between gap-3">
+              <span className={`inline-flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className="w-2 h-2 rounded-xs bg-emerald-500 inline-block" />
+                {chartMode === 'networth' ? 'Kas & Rekening:' : 'Pemasukan Murni:'}
+              </span>
+              <span className="font-mono font-medium tabular-nums">
+                {displayMoney(data.kasCair || 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className={`inline-flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className="w-2 h-2 rounded-xs bg-indigo-400 inline-block" />
+                {chartMode === 'networth' ? 'Portofolio Investasi:' : 'Pengeluaran Murni:'}
+              </span>
+              <span className="font-mono font-medium tabular-nums">
+                {displayMoney(data.investasi || 0)}
+              </span>
+            </div>
+          </div>
+
           {data.profit !== 0 && (
-            <div className={`text-[10px] mt-0.5 font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Selisih vs bulan sebelumnya: {data.profit >= 0 ? `+${displayMoney(data.profit)}` : displayMoney(data.profit)}
+            <div className={`text-[10px] mt-1.5 pt-1.5 border-t font-mono ${isDark ? 'border-white/10 text-slate-400' : 'border-slate-200/80 text-slate-500'}`}>
+              Selisih vs rekap sebelumnya: {data.profit >= 0 ? `+${displayMoney(data.profit)}` : displayMoney(data.profit)}
+            </div>
+          )}
+
+          {data.sourceLabel && (
+            <div className={`text-[10px] mt-1 font-mono ${isDark ? 'text-sky-400/90' : 'text-sky-700'}`}>
+              Sumber: {data.sourceLabel}
             </div>
           )}
         </div>
@@ -541,10 +725,10 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
     return null;
   };
 
-  const recapRangeLabel = useMemo(() => {
+  const detectedTabsListText = useMemo(() => {
     if (chartPoints.length === 0) return `Periode ${currentMonthSheet}`;
-    if (chartPoints.length === 1) return `Rekap ${chartPoints[0].date}`;
-    return `${chartPoints[0].date} – ${chartPoints[chartPoints.length - 1].date} (${chartPoints.length} Bulan Rekap)`;
+    const names = chartPoints.map((p) => p.date).join(', ');
+    return `${chartPoints.length} Tab Rekap Terbaca (${names})`;
   }, [chartPoints, currentMonthSheet]);
 
   return (
@@ -556,7 +740,7 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
       }`}
     >
       <CardContent className="flex flex-col items-stretch gap-4 p-5 sm:p-6">
-        {/* Header: Title, Metric, Growth Indicator, and Mode Switcher */}
+        {/* Header: Title, Metric, Growth Indicator, and Controls */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <div className={`flex items-center flex-wrap gap-2 text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -564,7 +748,7 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
                 {chartMode === 'networth' ? 'Tren Total Aset Lintas Bulan' : 'Arus Kas Bersih Lintas Bulan'}
               </span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono">{recapRangeLabel}</span>
+              <span className="font-mono text-[11px]">{detectedTabsListText}</span>
             </div>
 
             <div className="flex flex-wrap items-baseline gap-2.5">
@@ -592,8 +776,9 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
             </div>
           </div>
 
-          {/* Right Action: Mode Switcher & Portfolio Shortcut */}
+          {/* Right Action: Mode Switcher, Sort Order Toggle, & Portfolio Shortcut */}
           <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            {/* Primary Chart Mode: Total Aset vs Arus Kas */}
             <div className={`p-1 rounded-xl border flex items-center gap-1 ${
               isDark ? 'bg-slate-800/80 border-white/10' : 'bg-slate-100 border-slate-200'
             }`}>
@@ -627,6 +812,37 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
               </button>
             </div>
 
+            {/* X-Axis Order Toggle: Kalender vs Urutan Tab Sheet */}
+            <button
+              onClick={() => setSortOrderMode((prev) => (prev === 'calendar' ? 'sheet_order' : 'calendar'))}
+              className={`text-xs font-medium px-2.5 py-1.5 rounded-xl border transition cursor-pointer ${
+                isDark
+                  ? 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+                  : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+              }`}
+              title="Ubah urutan sumbu X antara urutan Kalender atau urutan posisi Tab di Google Sheet"
+            >
+              Urutan: {sortOrderMode === 'calendar' ? 'Kalender' : 'Tab Sheet'}
+            </button>
+
+            {chartMode === 'networth' && (
+              <button
+                onClick={() => setShowComponentLines((prev) => !prev)}
+                className={`text-xs font-medium px-2.5 py-1.5 rounded-xl border transition cursor-pointer ${
+                  showComponentLines
+                    ? isDark
+                      ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
+                      : 'bg-sky-50 border-sky-200 text-sky-700'
+                    : isDark
+                      ? 'bg-white/5 border-white/10 text-slate-400'
+                      : 'bg-slate-100 border-slate-200 text-slate-600'
+                }`}
+                title="Tampilkan/sembunyikan garis rincian Kas Cair vs Portofolio Investasi"
+              >
+                Rincian Kas & Investasi
+              </button>
+            )}
+
             {onNavigate && (
               <button
                 onClick={() => onNavigate('portfolio')}
@@ -643,22 +859,50 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
           </div>
         </div>
 
-        {/* Summary Metrics Bar */}
+        {/* Summary Metrics & Legend Bar */}
         <div className="flex items-center justify-between flex-wrap gap-2.5 text-xs pb-3 border-b border-slate-200/80 dark:border-white/10">
-          <div className="flex items-center gap-2">
-            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
-              {chartMode === 'networth' ? `Portofolio (${currentMonthSheet}):` : `Surplus (${currentMonthSheet}):`}
-            </span>
-            <span className="font-semibold font-mono tabular-nums">
-              {displayMoney(chartMode === 'networth' ? totalInvestment : netCashflow)}
-            </span>
-            <span className={`font-mono text-[11px] ${
-              secondaryRatioPct >= 0
-                ? isDark ? 'text-sky-400' : 'text-sky-600'
-                : isDark ? 'text-rose-400' : 'text-rose-600'
-            }`}>
-              ({chartMode === 'networth' ? `${secondaryRatioPct}% Aset` : `${secondaryRatioPct >= 0 ? '+' : ''}${secondaryRatioPct}% Income`})
-            </span>
+          <div className="flex items-center flex-wrap gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-xs bg-sky-500 inline-block" />
+              <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                {chartMode === 'networth' ? 'Total Aset' : 'Arus Kas Bersih'}
+              </span>
+            </div>
+
+            {chartMode === 'networth' && showComponentLines && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-0.5 bg-emerald-500 inline-block" />
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+                    Kas & Rekening: <strong className="font-mono">{displayMoney(cashStandbyDanaDarurat)}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-0.5 bg-indigo-400 inline-block" />
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+                    Investasi: <strong className="font-mono">{displayMoney(totalInvestment)}</strong> ({secondaryRatioPct}%)
+                  </span>
+                </div>
+              </>
+            )}
+
+            {chartMode === 'cashflow' && (
+              <div className="flex items-center gap-2">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+                  Surplus ({currentMonthSheet}):
+                </span>
+                <span className="font-semibold font-mono tabular-nums">
+                  {displayMoney(netCashflow)}
+                </span>
+                <span className={`font-mono text-[11px] ${
+                  secondaryRatioPct >= 0
+                    ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    : isDark ? 'text-rose-400' : 'text-rose-600'
+                }`}>
+                  ({secondaryRatioPct >= 0 ? '+' : ''}{secondaryRatioPct}% Income)
+                </span>
+              </div>
+            )}
           </div>
 
           <div className={`flex items-center flex-wrap gap-4 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -760,6 +1004,30 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
                 isAnimationActive={false}
               />
 
+              {/* Secondary Component Breakdown Lines: Kas Cair & Portofolio Investasi */}
+              {chartMode === 'networth' && showComponentLines && (
+                <>
+                  <Line
+                    type="monotone"
+                    dataKey="kasCair"
+                    stroke={chartConfig.kasCair.color}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="investasi"
+                    stroke={chartConfig.investasi.color}
+                    strokeWidth={1.5}
+                    strokeDasharray="2 3"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </>
+              )}
+
               <Line
                 type="monotone"
                 dataKey="value"
@@ -772,7 +1040,7 @@ export const RingkasanLineChart: React.FC<RingkasanLineChartProps> = ({
                   const isCurr = Boolean(payload?.isCurrent);
                   return (
                     <circle
-                      key={`dot-${payload.date}`}
+                      key={`dot-${payload.date}-${payload.tabName}`}
                       cx={cx}
                       cy={cy}
                       r={isCurr ? 6 : 4.5}

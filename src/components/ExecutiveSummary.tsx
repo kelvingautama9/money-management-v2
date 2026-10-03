@@ -363,6 +363,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       {/* LINE-CHARTS-9 FINANCIAL PERFORMANCE & VALUATION CONTAINER */}
       <RingkasanLineChart
         totalAset={totalAset}
+        cashStandbyDanaDarurat={cashStandbyDanaDarurat}
         totalInvestment={totalInvestment}
         totalPemasukan={totalPemasukan}
         totalPengeluaran={totalPengeluaran}
